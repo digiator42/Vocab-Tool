@@ -49,6 +49,10 @@
 
         #output {
             white-space: pre-wrap;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
         }
 
         .speaking {
@@ -79,6 +83,13 @@
                 transform: rotate(360deg);
             }
         }
+
+        .selection-highlight {
+            background-color: rgba(79, 70, 229, 0.2);
+            position: absolute;
+            pointer-events: none;
+            z-index: 99;
+        }
     </style>
 </head>
 
@@ -86,7 +97,7 @@
     <div class="w-full max-w-3xl">
         <h1 class="text-2xl font-bold mb-2 text-blue-800">German Vocabulary Tool</h1>
         <p class="text-gray-600 mb-4">Click on any German word to see its translation and hear pronunciation. Click
-            again to remove highlight. Highlight multiple words for phrase translation.</p>
+            again to remove highlight. Touch and hold or drag to select multiple words.</p>
 
         <div class="bg-white p-4 rounded-lg shadow-sm mb-6">
             <textarea id="input" placeholder="Guten Morgen! Wie geht es dir heute? Ich möchte nach Hause fahren."
@@ -138,6 +149,9 @@
 
         let currentUtterance = null;
         let speechSynth = window.speechSynthesis;
+        let isSelecting = false;
+        let selectionStart = null;
+        let selectionHighlight = null;
 
         function setStatus(message) {
             statusEl.textContent = message;
@@ -161,6 +175,7 @@
                 return "(error)";
             }
         }
+
         function speak(text, lang = "de-DE") {
             // Cancel any ongoing speech
             if (currentUtterance) {
@@ -237,25 +252,51 @@
             span.appendChild(tip);
         }
 
+        function getSelectedWords() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.toString().trim().length < 2) return null;
+
+            const range = selection.getRangeAt(0);
+            const selectedText = selection.toString().trim();
+
+            // Check if selection is within output
+            if (!output.contains(range.startContainer) && !output.contains(range.endContainer)) {
+                return null;
+            }
+
+            return {
+                text: selectedText,
+                range: range
+            };
+        }
+
         async function handleSelection() {
-            const sel = window.getSelection();
-            if (!sel.rangeCount) return;
-
-            const text = sel.toString().trim();
-            if (text.length < 2) return;
-
-            // Only allow selections inside the output area
-            if (!output.contains(sel.anchorNode)) {
+            const selection = getSelectedWords();
+            if (!selection) {
                 selectionTooltip.style.display = "none";
+                if (selectionHighlight) {
+                    selectionHighlight.remove();
+                    selectionHighlight = null;
+                }
                 return;
             }
 
-            // Highlight the selection temporarily
-            const range = sel.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
+            const rect = selection.range.getBoundingClientRect();
+
+            // Create or update selection highlight
+            if (!selectionHighlight) {
+                selectionHighlight = document.createElement('div');
+                selectionHighlight.className = 'selection-highlight';
+                document.body.appendChild(selectionHighlight);
+            }
+
+            selectionHighlight.style.width = rect.width + 'px';
+            selectionHighlight.style.height = rect.height + 'px';
+            selectionHighlight.style.left = (rect.left + window.scrollX) + 'px';
+            selectionHighlight.style.top = (rect.top + window.scrollY) + 'px';
 
             // Speak the selection
-            speak(text, "de-DE");
+            speak(selection.text, "de-DE");
 
             // Show loading in tooltip
             selectionTooltip.textContent = "Translating...";
@@ -264,7 +305,7 @@
             selectionTooltip.style.display = "block";
 
             // Translate the selection
-            const translated = await translate(text);
+            const translated = await translate(selection.text);
 
             // Update tooltip with translation
             selectionTooltip.textContent = translated;
@@ -276,7 +317,46 @@
             // Auto-hide after 5 sec
             setTimeout(() => {
                 selectionTooltip.style.display = "none";
+                if (selectionHighlight) {
+                    selectionHighlight.remove();
+                    selectionHighlight = null;
+                }
             }, 5000);
+        }
+
+        // Mobile-friendly selection handling
+        function setupMobileSelection() {
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchMoved = false;
+
+            output.addEventListener('touchstart', function (e) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchMoved = false;
+
+                // Clear any previous selection after a short delay
+                setTimeout(() => {
+                    if (!touchMoved && window.getSelection().toString().trim() === '') {
+                        selectionTooltip.style.display = 'none';
+                        if (selectionHighlight) {
+                            selectionHighlight.remove();
+                            selectionHighlight = null;
+                        }
+                    }
+                }, 50);
+            }, { passive: true });
+
+            output.addEventListener('touchmove', function (e) {
+                touchMoved = true;
+            }, { passive: true });
+
+            output.addEventListener('touchend', function (e) {
+                if (touchMoved) {
+                    // Handle selection after a short delay to allow the selection to update
+                    setTimeout(handleSelection, 100);
+                }
+            }, { passive: true });
         }
 
         processBtn.addEventListener("click", () => {
@@ -295,12 +375,15 @@
                 }
             });
 
+            // Setup mobile selection after content is loaded
+            setTimeout(setupMobileSelection, 100);
+
             setStatus("Text processed");
         });
 
         stopSpeechBtn.addEventListener("click", stopSpeech);
 
-        // Listen for text selection
+        // Listen for text selection on desktop
         document.addEventListener("mouseup", () => {
             setTimeout(handleSelection, 50);
         });
