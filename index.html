@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>German Reader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 4px;
+      background: #1f2937; /* gray-800 */
+      color: white;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      white-space: nowrap;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .highlighted {
+      background-color: #fef08a; /* yellow-200 */
+      border-radius: 0.25rem;
+      font-weight: bold;
+      position: relative;
+    }
+    #selectionTooltip {
+      position: absolute;
+      background: #1f2937;
+      color: white;
+      font-size: 0.8rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      white-space: nowrap;
+      z-index: 100;
+      display: none;
+    }
+    #output {
+      white-space: pre-wrap; /* preserve pasted formatting */
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+  <h1 class="text-2xl font-bold mb-4">Interactive German Reader</h1>
+
+  <textarea
+    id="input"
+    placeholder="Guten Morgen! Wie geht es dir heute?"
+    class="w-full max-w-3xl h-40 p-3 border rounded-lg shadow-sm focus:ring focus:outline-none"
+  ></textarea>
+
+  <button
+    id="processBtn"
+    class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
+  >
+    Process
+  </button>
+
+  <div
+    id="output"
+    class="mt-6 w-full max-w-3xl p-4 bg-white border rounded-lg shadow-sm leading-8"
+  ></div>
+
+  <!-- floating tooltip for multi-word selection -->
+  <div id="selectionTooltip"></div>
+
+  <script>
+    const input = document.getElementById("input");
+    const output = document.getElementById("output");
+    const selectionTooltip = document.getElementById("selectionTooltip");
+
+    function tokenize(text) {
+      // Split text but keep spaces and punctuation as separate tokens
+      return text.split(/(\s+|[^A-Za-zÄÖÜäöüß]+)/).filter(Boolean);
+    }
+
+    async function translate(text) {
+      try {
+        const res = await fetch(
+          "https://api.mymemory.translated.net/get?q=" +
+            encodeURIComponent(text) +
+            "&langpair=de|en"
+        );
+        const data = await res.json();
+        return data?.responseData?.translatedText || "(error)";
+      } catch {
+        return "(error)";
+      }
+    }
+
+    function speak(text, lang = "de-DE") {
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      speechSynthesis.speak(utter);
+    }
+
+    async function onWordClick(word, span) {
+      const alreadyHighlighted = span.classList.contains("highlighted");
+
+      if (alreadyHighlighted) {
+        // Speak again before removing
+        speak(word, "de-DE");
+        span.classList.remove("highlighted");
+        span.style.fontWeight = "normal";
+        const existing = span.querySelector(".tooltip");
+        if (existing) existing.remove();
+        return;
+      }
+
+      // Speak and translate
+      speak(word, "de-DE");
+      const translated = await translate(word);
+
+      // Add highlight + bold
+      span.classList.add("highlighted");
+
+      // Add tooltip above the word
+      const tip = document.createElement("div");
+      tip.className = "tooltip";
+      tip.textContent = translated;
+      span.appendChild(tip);
+    }
+
+    async function handleSelection() {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const text = sel.toString().trim();
+
+      // Only allow selections inside the output area
+      if (!output.contains(sel.anchorNode)) {
+        selectionTooltip.style.display = "none";
+        return;
+      }
+
+      if (text.length > 1) {
+        speak(text, "de-DE");
+        const translated = await translate(text);
+
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        selectionTooltip.textContent = translated;
+        selectionTooltip.style.left =
+          rect.left + rect.width / 2 + window.scrollX + "px";
+        selectionTooltip.style.top =
+          rect.top + window.scrollY - 35 + "px";
+        selectionTooltip.style.display = "block";
+
+        // auto-hide after 5 sec
+        setTimeout(() => {
+          selectionTooltip.style.display = "none";
+        }, 5000);
+      } else {
+        selectionTooltip.style.display = "none";
+      }
+    }
+
+    document.getElementById("processBtn").addEventListener("click", () => {
+      output.innerHTML = "";
+      const tokens = tokenize(input.value);
+
+      tokens.forEach((tok) => {
+        if (/^[A-Za-zÄÖÜäöüß]+$/.test(tok)) {
+          const span = document.createElement("span");
+          span.textContent = tok;
+          span.className =
+            "relative cursor-pointer hover:bg-yellow-100 rounded px-1";
+          span.addEventListener("click", () => onWordClick(tok, span));
+          output.appendChild(span);
+        } else {
+          output.appendChild(document.createTextNode(tok));
+        }
+      });
+    });
+
+    // Listen for text selection (only in output)
+    document.addEventListener("mouseup", () => {
+      setTimeout(handleSelection, 50);
+    });
+  </script>
+</body>
+</html>
