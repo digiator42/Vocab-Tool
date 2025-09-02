@@ -71,6 +71,9 @@
     const input = document.getElementById("input");
     const output = document.getElementById("output");
     const selectionTooltip = document.getElementById("selectionTooltip");
+    
+    // Store the current utterance to cancel it if needed
+    let currentUtterance = null;
 
     function tokenize(text) {
       // Split text but keep spaces and punctuation as separate tokens
@@ -92,8 +95,24 @@
     }
 
     function speak(text, lang = "de-DE") {
+      // Cancel any ongoing speech
+      if (currentUtterance) {
+        speechSynthesis.cancel();
+      }
+      
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = lang;
+      
+      // Store the current utterance
+      currentUtterance = utter;
+      
+      // Clear the reference when speech is done
+      utter.onend = function() {
+        if (currentUtterance === utter) {
+          currentUtterance = null;
+        }
+      };
+      
       speechSynthesis.speak(utter);
     }
 
