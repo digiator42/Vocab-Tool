@@ -217,29 +217,22 @@
     </section>
 
     <script>
-        // Share Link Script
+        // Share Link Script (Share ALL lists)
         document.addEventListener('DOMContentLoaded', function () {
             const btn = document.getElementById('generate-share-link-btn');
             const output = document.getElementById('share-link-output');
             btn.addEventListener('click', function () {
-                let flashcards = JSON.parse(localStorage.getItem('germanFlashcards')) || [];
-                // Try to get current list name from custom lists
                 let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-                let listName = null;
-                const cur = JSON.stringify(flashcards);
-                for (const [name, cards] of Object.entries(customLists)) {
-                    if (JSON.stringify(cards) === cur) {
-                        listName = name;
-                        break;
-                    }
-                }
-                if (!flashcards.length) {
-                    output.value = "No flashcards to share.";
+                if (!Object.keys(customLists).length) {
+                    output.value = "No flashcard lists to share.";
                     return;
                 }
                 // Only share german/english, not mastered status
-                const minimalCards = flashcards.map(c => ({ german: c.german, english: c.english }));
-                const payload = { listName: listName || "Shared List", cards: minimalCards };
+                const minimalLists = {};
+                for (const [name, cards] of Object.entries(customLists)) {
+                    minimalLists[name] = cards.map(c => ({ german: c.german, english: c.english }));
+                }
+                const payload = { lists: minimalLists };
                 const encoded = encodeURIComponent(btoa(JSON.stringify(payload)));
                 const url = `${location.origin}${location.pathname}?shared=${encoded}`;
                 output.value = url;
@@ -254,13 +247,24 @@
             if (params.has('shared')) {
                 try {
                     const decoded = JSON.parse(atob(decodeURIComponent(params.get('shared'))));
-                    if (decoded && Array.isArray(decoded.cards) && decoded.cards.length && decoded.cards[0].german && decoded.cards[0].english) {
-                        // Save as a new custom list with the shared name
+                    if (decoded && decoded.lists && typeof decoded.lists === 'object') {
                         let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-                        customLists[decoded.listName || "Shared List"] = decoded.cards.map(c => ({ ...c, mastered: false }));
-                        localStorage.setItem('customGermanLists', JSON.stringify(customLists));
-                        localStorage.setItem('germanFlashcards', JSON.stringify(decoded.cards.map(c => ({ ...c, mastered: false }))));
-                        alert(`Imported shared flashcards as "${decoded.listName || "Shared List"}"! Switch to Flashcards tab to view.`);
+                        let importedCount = 0;
+                        for (const [name, cards] of Object.entries(decoded.lists)) {
+                            if (Array.isArray(cards) && cards.length && cards[0].german && cards[0].english) {
+                                customLists[name] = cards.map(c => ({ ...c, mastered: false }));
+                                importedCount++;
+                            }
+                        }
+                        if (importedCount > 0) {
+                            localStorage.setItem('customGermanLists', JSON.stringify(customLists));
+                            // Set the first imported list as current flashcards
+                            const firstList = Object.keys(decoded.lists)[0];
+                            if (firstList) {
+                                localStorage.setItem('germanFlashcards', JSON.stringify(decoded.lists[firstList].map(c => ({ ...c, mastered: false }))));
+                            }
+                            alert(`Imported ${importedCount} shared flashcard list(s)! Switch to Flashcards tab to view.`);
+                        }
                     }
                 } catch { }
             }
@@ -634,7 +638,7 @@
                     if (!raw || !listName) { alert('Please enter both list name and flashcards!'); return; }
                     const newCards = [];
                     raw.split('\n').forEach(line => {
-                        const parts = line.split('–').map(p => p.trim());
+                        const parts = line.split(/\s*(–|--|:|-|::)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
                         if (parts.length === 2 && parts[0] && parts[1]) {
                             newCards.push({ german: parts[0], english: parts[1], mastered: false });
                         }
