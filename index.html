@@ -263,7 +263,11 @@
                             if (firstList) {
                                 localStorage.setItem('germanFlashcards', JSON.stringify(decoded.lists[firstList].map(c => ({ ...c, mastered: false }))));
                             }
-                            alert(`Imported ${importedCount} shared flashcard list(s)! Switch to Flashcards tab to view.`);
+                            const notif = document.createElement('div');
+                            notif.textContent = `Imported ${importedCount} shared flashcard list(s)! Switch to Flashcards tab to view.`;
+                            notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
+                            document.body.appendChild(notif);
+                            setTimeout(() => notif.remove(), 3500);
                         }
                     }
                 } catch { }
@@ -652,7 +656,11 @@
                         saveFlashcards();
                         renderFlashcards();
                         renderCustomListButtons();
-                        alert(`Added ${newCards.length} flashcards to "${listName}"`);
+                        const notif = document.createElement('div');
+                        notif.textContent = `Added ${newCards.length} flashcards to "${listName}"`;
+                        notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
+                        document.body.appendChild(notif);
+                        setTimeout(() => notif.remove(), 3500);
                     }
                 });
 
