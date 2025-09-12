@@ -347,15 +347,18 @@
                 return text.split(/(\s+|[^A-Za-zÄÖÜäöüß]+)/).filter(Boolean);
             }
 
-            function speak(text, lang = "de-DE") {
-                if (currentUtterance) speechSynth.cancel();
-                const utter = new SpeechSynthesisUtterance(text);
-                utter.lang = lang;
-                currentUtterance = utter;
-                setStatus("Speaking...");
-                utter.onend = () => { if (currentUtterance === utter) { currentUtterance = null; setStatus("Ready"); } };
-                utter.onerror = () => setStatus("Speech error");
-                speechSynth.speak(utter);
+            async function speak(text, lang = "de") {
+                setStatus("Loading audio...");
+                try {
+                    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`;
+                    const audio = new Audio(url);
+                    audio.onplaying = () => setStatus("Speaking...");
+                    audio.onended = () => setStatus("Ready");
+                    audio.onerror = () => setStatus("Speech error");
+                    audio.play();
+                } catch {
+                    setStatus("Speech error");
+                }
             }
 
             function stopSpeech() {
