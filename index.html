@@ -347,15 +347,16 @@
                 return text.split(/(\s+|[^A-Za-zÄÖÜäöüß]+)/).filter(Boolean);
             }
 
+            // Use a backend proxy for TTS requests (for Vercel deployment)
             async function speak(text, lang = "de") {
                 setStatus("Loading audio...");
                 try {
-                    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`;
+                    const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}`;
                     const audio = new Audio(url);
+                    audio.play();
                     audio.onplaying = () => setStatus("Speaking...");
                     audio.onended = () => setStatus("Ready");
                     audio.onerror = () => setStatus("Speech error");
-                    audio.play();
                 } catch {
                     setStatus("Speech error");
                 }
