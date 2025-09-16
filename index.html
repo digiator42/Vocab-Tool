@@ -151,14 +151,25 @@
         <header class="mb-8 text-center">
             <h1 class="text-4xl font-bold text-indigo-700 mb-2">German Flashcards</h1>
             <p class="text-gray-600">Master German vocabulary with interactive flashcards</p>
-            <!-- Share Flashcards Link -->
-            <div class="max-w-4xl mx-auto my-8 flex flex-col items-center">
-                <button id="generate-share-link-btn"
-                    class="px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 mb-2">
-                    Generate Shareable Link
-                </button>
-                <input id="share-link-output" type="text" class="w-full max-w-lg p-2 border rounded text-sm" readonly
-                    placeholder="Shareable link will appear here" />
+            <!-- Import/Export Flashcards JSON -->
+            <div class="max-w-4xl mx-auto my-8 flex flex-col items-center space-y-2">
+                <div class="flex space-x-2">
+                    <button id="import-json-btn"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700">
+                        Import JSON
+                    </button>
+                    <button id="import-json-text-btn"
+                        class="px-4 py-2 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700">
+                        Load from Text
+                    </button>
+                    <button id="export-json-btn"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700">
+                        Export JSON
+                    </button>
+                </div>
+                <input id="import-json-input" type="file" accept="application/json" class="hidden" />
+                <textarea id="import-export-json-area" class="w-full max-w-lg p-2 border rounded text-sm mt-2" rows="3"
+                    placeholder="Imported/Exported JSON will appear here"></textarea>
             </div>
             <div class="mt-6 flex justify-center">
                 <div class="w-full max-w-md bg-white rounded-lg shadow p-4">
@@ -216,64 +227,142 @@
         </div>
     </section>
 
+
     <script>
-        // Share Link Script (Share ALL lists)
+        // Import/Export JSON logic
         document.addEventListener('DOMContentLoaded', function () {
-            const btn = document.getElementById('generate-share-link-btn');
-            const output = document.getElementById('share-link-output');
-            btn.addEventListener('click', function () {
-                let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-                if (!Object.keys(customLists).length) {
-                    output.value = "No flashcard lists to share.";
-                    return;
-                }
-                // Only share german/english, not mastered status
-                const minimalLists = {};
+            const importBtn = document.getElementById('import-json-btn');
+            const importTextBtn = document.getElementById('import-json-text-btn');
+            const exportBtn = document.getElementById('export-json-btn');
+            const importInput = document.getElementById('import-json-input');
+            const jsonArea = document.getElementById('import-export-json-area');
+
+            // Export: Download all custom lists as JSON
+            exportBtn.addEventListener('click', function () {
+                const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+                const exportData = {};
                 for (const [name, cards] of Object.entries(customLists)) {
-                    minimalLists[name] = cards.map(c => ({ german: c.german, english: c.english }));
+                    exportData[name] = cards.map(c => ({
+                        german: c.german,
+                        english: c.english,
+                        mastered: !!c.mastered
+                    }));
                 }
-                const payload = { lists: minimalLists };
-                const encoded = encodeURIComponent(btoa(JSON.stringify(payload)));
-                const url = `${location.origin}${location.pathname}?shared=${encoded}`;
-                output.value = url;
-                output.select();
-                document.execCommand('copy');
-                btn.textContent = "Link Copied!";
-                setTimeout(() => btn.textContent = "Generate Shareable Link", 1500);
+                const jsonStr = JSON.stringify(exportData, null, 2);
+                jsonArea.value = jsonStr;
+                // Download as file
+                const blob = new Blob([jsonStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'german-flashcards.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             });
 
-            // On page load, check for shared param
-            const params = new URL(window.location).searchParams;
-            if (params.has('shared')) {
-                try {
-                    const decoded = JSON.parse(atob(decodeURIComponent(params.get('shared'))));
-                    if (decoded && decoded.lists && typeof decoded.lists === 'object') {
+            // Import: Open file dialog
+            importBtn.addEventListener('click', function () {
+                importInput.value = "";
+                importInput.click();
+            });
+
+            // Handle file selection
+            importInput.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    try {
+                        const data = JSON.parse(evt.target.result);
+                        if (typeof data !== 'object' || Array.isArray(data)) throw new Error();
                         let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
                         let importedCount = 0;
-                        for (const [name, cards] of Object.entries(decoded.lists)) {
+                        for (const [name, cards] of Object.entries(data)) {
                             if (Array.isArray(cards) && cards.length && cards[0].german && cards[0].english) {
-                                customLists[name] = cards.map(c => ({ ...c, mastered: false }));
-                                importedCount++;
+                                // Merge: If exists, append new cards not already present
+                                if (!customLists[name]) {
+                                    customLists[name] = [];
+                                }
+                                const existing = new Set(customLists[name].map(c => c.german + '|' + c.english));
+                                cards.forEach(card => {
+                                    const key = card.german + '|' + card.english;
+                                    if (!existing.has(key)) {
+                                        customLists[name].push({
+                                            german: card.german,
+                                            english: card.english,
+                                            mastered: !!card.mastered
+                                        });
+                                        importedCount++;
+                                    }
+                                });
                             }
                         }
-                        if (importedCount > 0) {
-                            localStorage.setItem('customGermanLists', JSON.stringify(customLists));
-                            // Set the first imported list as current flashcards
-                            const firstList = Object.keys(decoded.lists)[0];
-                            if (firstList) {
-                                localStorage.setItem('germanFlashcards', JSON.stringify(decoded.lists[firstList].map(c => ({ ...c, mastered: false }))));
+                        localStorage.setItem('customGermanLists', JSON.stringify(customLists));
+                        jsonArea.value = evt.target.result;
+                        location.reload();
+                        // Show notification
+                        const notif = document.createElement('div');
+                        notif.textContent = `Imported ${importedCount} new flashcards.`;
+                        notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
+                        document.body.appendChild(notif);
+                        setTimeout(() => notif.remove(), 3500);
+                    } catch {
+                        jsonArea.value = "Invalid JSON format.";
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            // Import from text area
+            importTextBtn.addEventListener('click', function () {
+                const text = jsonArea.value.trim();
+                if (!text) {
+                    jsonArea.value = "Paste JSON here first.";
+                    return;
+                }
+                try {
+                    const data = JSON.parse(text);
+                    if (typeof data !== 'object' || Array.isArray(data)) throw new Error();
+                    let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+                    let importedCount = 0;
+                    for (const [name, cards] of Object.entries(data)) {
+                        if (Array.isArray(cards) && cards.length && cards[0].german && cards[0].english) {
+                            // Merge: If exists, append new cards not already present
+                            if (!customLists[name]) {
+                                customLists[name] = [];
                             }
-                            const notif = document.createElement('div');
-                            notif.textContent = `Imported ${importedCount} shared flashcard list(s)! Switch to Flashcards tab to view.`;
-                            notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
-                            document.body.appendChild(notif);
-                            setTimeout(() => notif.remove(), 3500);
+                            const existing = new Set(customLists[name].map(c => c.german + '|' + c.english));
+                            cards.forEach(card => {
+                                const key = card.german + '|' + card.english;
+                                if (!existing.has(key)) {
+                                    customLists[name].push({
+                                        german: card.german,
+                                        english: card.english,
+                                        mastered: !!card.mastered
+                                    });
+                                    importedCount++;
+                                }
+                            });
                         }
                     }
-                } catch { }
-            }
+                    localStorage.setItem('customGermanLists', JSON.stringify(customLists));
+
+                    location.reload();
+                    // Show notification
+                    const notif = document.createElement('div');
+                    notif.textContent = `Imported ${importedCount} new flashcards from text.`;
+                    notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
+                    document.body.appendChild(notif);
+                    setTimeout(() => notif.remove(), 3500);
+                } catch {
+                    jsonArea.value = "Invalid JSON format.";
+                }
+            });
         });
     </script>
+
     </script>
     <!-- Toggle Script -->
     <script>
