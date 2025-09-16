@@ -372,18 +372,39 @@
 
             function joinTranslationChunks(data) {
                 if (!Array.isArray(data?.[0])) return "(error)";
-                return data[0].map(chunk => chunk[0]).join(" ");
+                return data[0].map(chunk => chunk[0].replace(/\n/g, " ")).join(" ");
             }
+
+            // Add language selector dropdown
+            const langSelector = document.createElement('select');
+            langSelector.id = "langSelector";
+            langSelector.className = "ml-2 px-2 py-1 border rounded text-sm";
+            langSelector.innerHTML = `
+                <option value="en" selected>English</option>
+                <option value="ar">Arabic</option>
+            `;
+            // Insert after the process button
+            processBtn.parentNode.insertBefore(langSelector, processBtn.nextSibling);
+
+            let selectedLang = "en";
+            langSelector.addEventListener('change', () => {
+                selectedLang = langSelector.value;
+            });
 
             async function translate(text) {
                 try {
-                    const res = await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=de&tl=en&dt=t&q=" + encodeURIComponent(text));
+                    const res = await fetch(
+                        "https://translate.googleapis.com/translate_a/single?client=gtx&sl=de&tl=" +
+                        encodeURIComponent(selectedLang) +
+                        "&dt=t&q=" + encodeURIComponent(text)
+                    );
                     const data = await res.json();
                     return joinTranslationChunks(data);
                 } catch { return "(error)"; }
             }
 
             async function onWordClick(word, span) {
+                console.log(`Clicked on word: ${word}`);
                 if (span.classList.contains("highlighted")) {
                     span.classList.remove("highlighted");
                     span.querySelector(".tooltip")?.remove();
@@ -392,11 +413,15 @@
                 span.classList.add('loading');
                 speak(word);
                 const translated = await translate(word);
+                console.log(`Translated "${word}" to "${translated}"`);
                 span.classList.remove('loading');
                 span.classList.add("highlighted");
                 const tip = document.createElement("div");
                 tip.className = "tooltip";
                 tip.textContent = translated;
+                tip.style.whiteSpace = "nowrap";
+                tip.style.textOverflow = "ellipsis";
+                tip.style.overflow = "hidden";
                 span.appendChild(tip);
             }
 
