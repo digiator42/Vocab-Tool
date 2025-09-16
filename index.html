@@ -231,6 +231,25 @@
     <script>
         // Import/Export JSON logic
         document.addEventListener('DOMContentLoaded', function () {
+            (async function () {
+                let customLists = JSON.parse(localStorage.getItem('customGermanLists') || '{}');
+                if (!customLists || Object.keys(customLists).length === 0) {
+                    try {
+                        const res = await fetch('/data.json');
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) {
+                                localStorage.setItem('customGermanLists', JSON.stringify(data));
+                                // renderCustomListButtons();
+                                // renderFlashcards();
+                                location.reload();
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore fetch errors
+                    }
+                }
+            })();
             const importBtn = document.getElementById('import-json-btn');
             const importTextBtn = document.getElementById('import-json-text-btn');
             const exportBtn = document.getElementById('export-json-btn');
