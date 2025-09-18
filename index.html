@@ -541,8 +541,43 @@
                 if (!output.contains(range.startContainer) && !output.contains(range.endContainer)) return null;
                 return { text: selection.toString().trim(), range };
             }
+            // Detect touch device
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
             async function handleSelection() {
+                if (isTouchDevice) {
+                    // On touch devices, use long-press to trigger translation
+                    output.querySelectorAll("span").forEach(span => {
+                        if (!span._touchHandlerAdded) {
+                            let touchTimer = null;
+                            span.addEventListener("touchstart", function (e) {
+                                touchTimer = setTimeout(async () => {
+                                    const word = span.textContent;
+                                    speak(word);
+                                    selectionTooltip.textContent = "Translating...";
+                                    const rect = span.getBoundingClientRect();
+                                    selectionTooltip.style.left = (rect.left + window.scrollX) + "px";
+                                    selectionTooltip.style.top = (rect.top + window.scrollY - 10) + "px";
+                                    selectionTooltip.style.display = "block";
+                                    const translated = await translate(word);
+                                    selectionTooltip.textContent = translated;
+                                    selectionTooltip.style.top = (rect.top + window.scrollY - selectionTooltip.offsetHeight - 10) + "px";
+                                    setTimeout(() => { selectionTooltip.style.display = "none"; }, 4000);
+                                }, 500); // long-press: 500ms
+                            });
+                            span.addEventListener("touchend", function () {
+                                clearTimeout(touchTimer);
+                            });
+                            span._touchHandlerAdded = true;
+                        }
+                    });
+                    // Hide selection highlight/tooltip if not using long-press
+                    selectionTooltip.style.display = "none";
+                    selectionHighlight?.remove();
+                    selectionHighlight = null;
+                    return;
+                }
+                // Desktop: original logic
                 const selection = getSelectedWords();
                 if (!selection) { selectionTooltip.style.display = "none"; selectionHighlight?.remove(); selectionHighlight = null; return; }
                 const rect = selection.range.getBoundingClientRect();
@@ -577,7 +612,7 @@
             });
 
             stopSpeechBtn.addEventListener("click", stopSpeech);
-            document.addEventListener("mouseup", () => setTimeout(handleSelection, 50));
+            document.addEventListener("click", () => setTimeout(handleSelection, 50));
             processBtn.click(); // auto-init
 
             /* ==== Add to Flashcard Button & Modal ==== */
