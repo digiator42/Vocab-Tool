@@ -27,6 +27,12 @@
             max-width: 300px;
         }
 
+        span {
+            user-select: text;
+            /* allow text selection */
+            -webkit-user-select: text;
+        }
+
         .highlighted {
             background-color: #fef08a;
             border-radius: 0.25rem;
@@ -136,7 +142,7 @@
             <textarea id="input"
                 class="w-full h-40 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">Guten Morgen! Wie geht es dir heute?</textarea>
             <div class="flex justify-between items-center mt-3">
-                <button id="processBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow">Process Text</button>
+                <button id="processBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow">GO</button>
                 <button id="stopSpeechBtn" class="px-3 py-1 bg-red-500 text-white rounded-lg text-sm">Stop
                     Speech</button>
             </div>
@@ -217,7 +223,11 @@
                 <button id="show-not-mastered-btn" class="px-4 py-2 bg-yellow-600 text-white rounded-lg">Not
                     Mastered</button>
             </div>
+
             <div id="custom-lists-container" class="flex flex-wrap justify-center gap-2"></div>
+            <button id="toggle-view-btn" class="px-4 py-2 bg-green-400 text-white rounded-lg">
+                Switch to Focus Mode
+            </button>
         </div>
         <div id="flashcards-container"
             class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mx-auto max-w-3xl"></div>
@@ -547,11 +557,14 @@
             // Detect touch device
             const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
+            console.log("Is touch device:", isTouchDevice);
+
             async function handleSelection() {
                 if (isTouchDevice) {
                     // On touch devices, use long-press to trigger translation and highlight
                     output.querySelectorAll("span").forEach(span => {
                         if (!span._touchHandlerAdded) {
+                            console.log('-----')
                             let touchTimer = null;
                             span.addEventListener("touchstart", function (e) {
                                 touchTimer = setTimeout(async () => {
@@ -686,7 +699,7 @@
                         const span = document.createElement("span");
                         span.textContent = tok;
                         span.className = "relative cursor-pointer hover:bg-yellow-100 rounded px-1 mx-0.5";
-                        span.addEventListener("click", () => onWordClick(tok, span));
+                        // span.addEventListener("click", () => onWordClick(tok, span));
                         output.appendChild(span);
                     } else { output.appendChild(document.createTextNode(tok)); }
                 });
@@ -702,7 +715,7 @@
             const addToFlashBtn = document.createElement('button');
             addToFlashBtn.id = "addToFlashBtn";
             addToFlashBtn.className = "px-4 py-2 bg-yellow-500 text-white rounded-lg shadow";
-            addToFlashBtn.textContent = "Add to Flashcards";
+            addToFlashBtn.textContent = "Add";
             // Insert before stopSpeechBtn
             stopSpeechBtn.parentNode.insertBefore(addToFlashBtn, stopSpeechBtn);
 
@@ -748,12 +761,15 @@
                     return results[0];
                 }
                 else {
+                    // this for desktop multi selection, works
                     let translated = document.getElementById('selectionTooltip').textContent || '';
                     const words = Array.from(spans).map(span => span.childNodes[0]?.textContent || span.textContent)
                     // if (translated.length )
                     console.log(words.length, translated)
-                    if (translated === '') translated = await translate(words.join(' '));
                     if (words.length > 5) alert('Max 5 words')
+
+                    // this when clicking on multi words and adding to flash cards
+                    if (translated.split(' ').length < 2) translated = await translate(words.join(' '));
                     if (words.length <= 5 && translated) {
                         return { word: words.join(' '), translation: translated };
                     }
@@ -826,7 +842,16 @@
 
             // Button click: open modal with selected word
             addToFlashBtn.addEventListener('click', async () => {
+                addToFlashBtn.disabled = true;
+                addToFlashBtn.innerHTML = `
+                        <svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                        `;
                 const selected = await getCurrentHighlightedWords();
+                addToFlashBtn.disabled = false;
+                addToFlashBtn.textContent = "Add to Flashcards";
                 console.log("Selected words for flashcard:", selected);
                 if (!selected || !selected.word || !selected.translation) {
                     setStatus("Highlight a word first!");
@@ -880,57 +905,149 @@
                     document.getElementById('progress-bar').style.width = `${percentage}%`;
                     document.getElementById('progress-percentage').textContent = `${percentage}%`;
                 }
+                let singleCardMode = false; // toggle this to switch modes
+
+                document.getElementById("toggle-view-btn").addEventListener("click", () => {
+                    singleCardMode = !singleCardMode; // flip mode
+
+                    // update button text
+                    document.getElementById("toggle-view-btn").textContent = singleCardMode
+                        ? "Switch to Grid Mode"
+                        : "Switch to Focus Mode";
+
+                    // reset to first page when switching
+                    currentPage = 1;
+                    renderFlashcards();
+                });
+
+
                 window.renderFlashcards = function () {
                     const container = document.getElementById('flashcards-container');
                     container.innerHTML = '';
-                    const startIndex = (currentPage - 1) * cardsPerPage;
-                    const endIndex = Math.min(startIndex + cardsPerPage, flashcards.length);
-                    flashcards.slice(startIndex, endIndex).forEach((card, idx) => {
-                        const actualIndex = startIndex + idx;
+
+                    if (singleCardMode) {
+                        container.className = "flex items-center justify-center mx-auto max-w-3xl";
+                        // ✅ Single big card mode
+                        const card = flashcards[currentPage - 1]; // show one card per "page"
+                        if (!card) return;
+
                         const flashcard = document.createElement('div');
-                        flashcard.className = `flashcard ${card.mastered ? 'border-2 border-green-500' : ''}`;
-                        flashcard.dataset.index = actualIndex;
+                        flashcard.className = `flashcard w-full h-96 flex items-center justify-center ${card.mastered ? 'border-4 border-green-500' : ''}`;
+                        flashcard.dataset.index = currentPage - 1;
                         flashcard.innerHTML = `
-              <div class="flashcard-inner h-full">
-                <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col items-center justify-center cursor-pointer h-full">
-                  <h3 class="text-sm font-bold text-center text-indigo-700">${card.german}</h3>
-                  <button class="speak-btn mt-1 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200"><i data-feather="volume-2" class="text-indigo-700 w-3 h-3"></i></button>
-                  <p class="text-xs text-gray-500 mt-1">Click to flip</p>
-                  ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-1 w-3 h-3"></i>' : ''}
-                </div>
-                <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col items-center justify-center cursor-pointer h-full">
-                  <h3 class="text-xs font-semibold text-center text-gray-800">${card.english}</h3>
-                  <div class="mt-1 flex space-x-1">
-                    <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
-                      ${card.mastered ? 'Mastered' : 'Mark as Mastered'}
-                    </button>
-                  </div>
-                </div>
-              </div>`;
+                        <div class="flashcard-inner h-full w-full">
+                            <div class="flashcard-front bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
+                            <h3 class="text-2xl font-bold text-center text-indigo-700">${card.german}</h3>
+                            <button class="speak-btn mt-4 p-3 bg-indigo-100 rounded-full hover:bg-indigo-200">
+                                <i data-feather="volume-2" class="text-indigo-700 w-6 h-6"></i>
+                            </button>
+                            <p class="text-sm text-gray-500 mt-3">Click to flip</p>
+                            ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-6 h-6"></i>' : ''}
+                            </div>
+                            <div class="flashcard-back bg-indigo-100 rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
+                            <h3 class="text-xl font-semibold text-center text-gray-800">${card.english}</h3>
+                            <div class="mt-4">
+                                <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm">
+                                ${card.mastered ? 'Mastered: click to undo' : 'Mark as Mastered'}
+                                </button>
+                            </div>
+                            </div>
+                        </div>`;
                         container.appendChild(flashcard);
-                        flashcard.addEventListener('click', function (event) { if (!event.target.classList.contains('master-btn')) this.classList.toggle('flipped'); });
-                    });
-                    document.querySelectorAll('.master-btn').forEach(btn => {
-                        btn.addEventListener('click', function (e) {
-                            e.stopPropagation();
-                            const idx = parseInt(this.closest('.flashcard').dataset.index);
-                            flashcards[idx].mastered = !flashcards[idx].mastered;
-                            saveFlashcards(); updateProgress(); renderFlashcards();
+
+                        flashcard.addEventListener('click', function (event) {
+                            if (!event.target.classList.contains('master-btn')) {
+                                this.classList.toggle('flipped');
+                            }
                         });
-                    });
-                    updatePaginationControls();
+
+                        // master button logic
+                        const masterBtn = flashcard.querySelector('.master-btn');
+                        if (masterBtn) {
+                            masterBtn.addEventListener('click', function (e) {
+                                e.stopPropagation();
+                                flashcards[currentPage - 1].mastered = !flashcards[currentPage - 1].mastered;
+                                saveFlashcards();
+                                updateProgress();
+                                renderFlashcards();
+                            });
+                        }
+
+                        updatePaginationControls(true); // single card pagination
+                    } else {
+                        container.className =
+                            "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mx-auto max-w-3xl";
+
+                        // ✅ Multi-card grid mode (your original logic)
+                        const startIndex = (currentPage - 1) * cardsPerPage;
+                        const endIndex = Math.min(startIndex + cardsPerPage, flashcards.length);
+                        flashcards.slice(startIndex, endIndex).forEach((card, idx) => {
+                            const actualIndex = startIndex + idx;
+                            const flashcard = document.createElement('div');
+                            flashcard.className = `flashcard ${card.mastered ? 'border-2 border-green-500' : ''}`;
+                            flashcard.dataset.index = actualIndex;
+                            flashcard.innerHTML = `
+                            <div class="flashcard-inner h-full">
+                            <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col items-center justify-center cursor-pointer h-full">
+                                <h3 class="text-sm font-bold text-center text-indigo-700">${card.german}</h3>
+                                <button class="speak-btn mt-1 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200"><i data-feather="volume-2" class="text-indigo-700 w-3 h-3"></i></button>
+                                <p class="text-xs text-gray-500 mt-1">Click to flip</p>
+                                ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-1 w-3 h-3"></i>' : ''}
+                            </div>
+                            <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col items-center justify-center cursor-pointer h-full">
+                                <h3 class="text-xs font-semibold text-center text-gray-800">${card.english}</h3>
+                                <div class="mt-1 flex space-x-1">
+                                <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
+                                    ${card.mastered ? 'Mastered' : 'Mark as Mastered'}
+                                </button>
+                                </div>
+                            </div>
+                            </div>`;
+                            container.appendChild(flashcard);
+
+                            flashcard.addEventListener('click', function (event) {
+                                if (!event.target.classList.contains('master-btn')) this.classList.toggle('flipped');
+                            });
+                        });
+
+                        document.querySelectorAll('.master-btn').forEach(btn => {
+                            btn.addEventListener('click', function (e) {
+                                e.stopPropagation();
+                                const idx = parseInt(this.closest('.flashcard').dataset.index);
+                                flashcards[idx].mastered = !flashcards[idx].mastered;
+                                saveFlashcards();
+                                updateProgress();
+                                renderFlashcards();
+                            });
+                        });
+
+                        updatePaginationControls(false); // grid pagination
+                    }
+
                     feather.replace();
                     updateProgress();
-                }
+                };
+
                 function shuffleArray(array) { const newArr = [...array]; for (let i = newArr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[newArr[i], newArr[j]] = [newArr[j], newArr[i]]; } return newArr; }
                 function updatePaginationControls() {
-                    const totalPages = Math.ceil(flashcards.length / cardsPerPage);
-                    document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+                    // total pages depends on mode
+                    const totalPages = singleCardMode
+                        ? flashcards.length                // one card = one page
+                        : Math.ceil(flashcards.length / cardsPerPage); // grid mode
+
+                    // update page text
+                    document.getElementById('page-info').textContent =
+                        `Page ${currentPage} of ${totalPages}`;
+
+                    // hide if only one page
                     const controls = document.getElementById('pagination-controls');
                     controls.classList.toggle('hidden', totalPages <= 1);
+
+                    // enable/disable buttons
                     document.getElementById('prev-page-btn').disabled = currentPage === 1;
                     document.getElementById('next-page-btn').disabled = currentPage === totalPages;
                 }
+
                 function speakWord(text) { const u = new SpeechSynthesisUtterance(text); u.lang = 'de-DE'; speechSynthesis.speak(u); }
                 function getCurrentListName() {
                     const cur = JSON.stringify(flashcards);
@@ -1046,11 +1163,21 @@
                 });
 
                 document.getElementById('next-page-btn').addEventListener('click', () => {
-                    const totalPages = Math.ceil(flashcards.length / cardsPerPage);
-                    if (currentPage < totalPages) { currentPage++; renderFlashcards(); }
+                    const totalPages = singleCardMode
+                        ? flashcards.length
+                        : Math.ceil(flashcards.length / cardsPerPage);
+
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        renderFlashcards();
+                    }
                 });
+
                 document.getElementById('prev-page-btn').addEventListener('click', () => {
-                    if (currentPage > 1) { currentPage--; renderFlashcards(); }
+                    if (currentPage > 1) {
+                        currentPage--;
+                        renderFlashcards();
+                    }
                 });
 
                 document.getElementById('add-flashcards-btn').addEventListener('click', () => {
