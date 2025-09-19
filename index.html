@@ -139,8 +139,10 @@
                 <button id="processBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow">Process Text</button>
                 <button id="stopSpeechBtn" class="px-3 py-1 bg-red-500 text-white rounded-lg text-sm">Stop
                     Speech</button>
-                <span id="status" class="text-sm text-gray-600">Ready</span>
             </div>
+        </div>
+        <div class="flex justify-center">
+            <span id="status" class="text-sm text-gray-600">Ready</span>
         </div>
         <div id="output" class="w-full p-6 bg-white border rounded-lg shadow-sm leading-8 min-h-[200px]"></div>
         <div id="selectionTooltip"></div>
@@ -515,6 +517,7 @@
             async function onWordClick(word, span) {
                 console.log(`Clicked on word: ${word}`);
                 if (span.classList.contains("highlighted")) {
+                    console.log('.....Removing highlight');
                     span.classList.remove("highlighted");
                     span.querySelector(".tooltip")?.remove();
                     return;
@@ -546,12 +549,21 @@
 
             async function handleSelection() {
                 if (isTouchDevice) {
-                    // On touch devices, use long-press to trigger translation
+                    // On touch devices, use long-press to trigger translation and highlight
                     output.querySelectorAll("span").forEach(span => {
                         if (!span._touchHandlerAdded) {
                             let touchTimer = null;
                             span.addEventListener("touchstart", function (e) {
                                 touchTimer = setTimeout(async () => {
+                                    // Remove highlight from others
+                                    output.querySelectorAll('.highlighted').forEach(s => {
+                                        s.classList.remove('highlighted');
+                                        s.querySelector('.tooltip')?.remove();
+                                    });
+                                    // Highlight this word
+                                    span.classList.add('highlighted');
+                                    // Remove old tooltip if any
+                                    span.querySelector('.tooltip')?.remove();
                                     const word = span.textContent;
                                     speak(word);
                                     selectionTooltip.textContent = "Translating...";
@@ -562,7 +574,20 @@
                                     const translated = await translate(word);
                                     selectionTooltip.textContent = translated;
                                     selectionTooltip.style.top = (rect.top + window.scrollY - selectionTooltip.offsetHeight - 10) + "px";
-                                    setTimeout(() => { selectionTooltip.style.display = "none"; }, 4000);
+                                    // Show tooltip as child of span for consistency
+                                    let tip = document.createElement("div");
+                                    tip.className = "tooltip";
+                                    tip.textContent = translated;
+                                    tip.style.whiteSpace = "nowrap";
+                                    tip.style.textOverflow = "ellipsis";
+                                    tip.style.overflow = "hidden";
+                                    span.appendChild(tip);
+                                    setTimeout(() => {
+                                        selectionTooltip.style.display = "none";
+                                        // Optionally remove highlight after a while
+                                        // span.classList.remove('highlighted');
+                                        // tip.remove();
+                                    }, 4000);
                                 }, 500); // long-press: 500ms
                             });
                             span.addEventListener("touchend", function () {
@@ -579,13 +604,40 @@
                 }
                 // Desktop: original logic
                 const selection = getSelectedWords();
-                if (!selection) { selectionTooltip.style.display = "none"; selectionHighlight?.remove(); selectionHighlight = null; return; }
+                if (!selection) {
+                    selectionTooltip.style.display = "none";
+                    selectionHighlight?.remove();
+                    selectionHighlight = null;
+                    // Remove browser selection highlight
+                    if (window.getSelection) window.getSelection().removeAllRanges();
+                    return;
+                }
                 const rect = selection.range.getBoundingClientRect();
-                if (!selectionHighlight) { selectionHighlight = document.createElement('div'); selectionHighlight.className = 'selection-highlight'; document.body.appendChild(selectionHighlight); }
+                if (!selectionHighlight) {
+                    selectionHighlight = document.createElement('div');
+                    selectionHighlight.className = 'selection-highlight';
+                    document.body.appendChild(selectionHighlight);
+                }
                 selectionHighlight.style.width = rect.width + 'px';
                 selectionHighlight.style.height = rect.height + 'px';
                 selectionHighlight.style.left = (rect.left + window.scrollX) + 'px';
                 selectionHighlight.style.top = (rect.top + window.scrollY) + 'px';
+                try {
+                    const sel = window.getSelection();
+                    if (sel && sel.rangeCount) {
+                        const spans = output.querySelectorAll("span");
+                        spans.forEach(span => {
+                            // containsNode(span, true) returns true if any part of the span is selected
+                            if (sel.containsNode(span, true)) {
+                                span.classList.add("highlighted");
+                            }
+                        });
+                    }
+                } catch (err) {
+                    console.warn("Could not apply span highlights:", err);
+                }
+                // Remove browser selection highlight
+                if (window.getSelection) window.getSelection().removeAllRanges();
                 speak(selection.text);
                 selectionTooltip.textContent = "Translating...";
                 selectionTooltip.style.left = (rect.left + window.scrollX) + "px";
@@ -594,7 +646,12 @@
                 const translated = await translate(selection.text);
                 selectionTooltip.textContent = translated;
                 selectionTooltip.style.top = (rect.top + window.scrollY - selectionTooltip.offsetHeight - 10) + "px";
-                setTimeout(() => { selectionTooltip.style.display = "none"; selectionHighlight?.remove(); selectionHighlight = null; }, 5000);
+
+                setTimeout(() => {
+                    selectionTooltip.style.display = "none";
+                    selectionHighlight?.remove();
+                    selectionHighlight = null;
+                }, 10000);
             }
 
             processBtn.addEventListener("click", () => {
@@ -612,7 +669,7 @@
             });
 
             stopSpeechBtn.addEventListener("click", stopSpeech);
-            document.addEventListener("click", () => setTimeout(handleSelection, 50));
+            output.addEventListener("click", () => setTimeout(handleSelection, 50));
             processBtn.click(); // auto-init
 
             /* ==== Add to Flashcard Button & Modal ==== */
@@ -651,16 +708,32 @@
             let lastSelectedTranslation = null;
 
             // Helper: get selected word (from highlighted span)
-            function getCurrentHighlightedWord() {
-                const span = output.querySelector('.highlighted');
-                if (span) {
-                    const word = span.childNodes[0]?.textContent || span.textContent;
-                    const tip = span.querySelector('.tooltip');
-                    const translation = tip ? tip.textContent : '';
-                    return { word, translation };
+            function getCurrentHighlightedWords() {
+                const spans = output.querySelectorAll('.highlighted');
+                console.log(spans.length)
+                if (spans.length == 1) {
+                    const results = Array.from(spans).map(span => {
+                        const word = span.childNodes[0]?.textContent || span.textContent;
+                        const tip = span.querySelector('.tooltip');
+                        const translation = tip ? tip.textContent : '';
+                        return { word, translation };
+                    });
+
+                    console.log("Current highlighted words:", results);
+                    return results[0];
                 }
-                return null;
+                else {
+                    const translated = document.getElementById('selectionTooltip').textContent || '';
+                    const words = Array.from(spans).map(span => span.childNodes[0]?.textContent || span.textContent)
+                    if (words.length <= 5 && translated) {
+                        return { word: words.join(' '), translation: translated };
+                    }
+                    alert('Max 5 words')
+
+                }
+                return [];
             }
+
 
             // Show modal and populate lists
             function showAddToFlashModal(word, translation) {
@@ -725,7 +798,8 @@
 
             // Button click: open modal with selected word
             addToFlashBtn.addEventListener('click', () => {
-                const selected = getCurrentHighlightedWord();
+                const selected = getCurrentHighlightedWords();
+                console.log("Selected words for flashcard:", selected);
                 if (!selected || !selected.word || !selected.translation) {
                     setStatus("Highlight a word first!");
                     return;
@@ -846,7 +920,7 @@
                     }
                 }
 
-                function renderCustomListButtons () {
+                function renderCustomListButtons() {
 
                     const container = document.getElementById('custom-lists-container');
                     customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
