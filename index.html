@@ -27,11 +27,6 @@
             max-width: 300px;
         }
 
-        span {
-            user-select: text;
-            /* allow text selection */
-            -webkit-user-select: text;
-        }
 
         .highlighted {
             background-color: #fef08a;
@@ -525,6 +520,9 @@
             }
 
             async function onWordClick(word, span) {
+                // skip if it's a synthetic click after touch
+                // if (shouldIgnoreClick()) return;
+
                 console.log(`Clicked on word: ${word}`);
                 if (span.classList.contains("highlighted")) {
                     console.log('.....Removing highlight');
@@ -538,6 +536,7 @@
                 console.log(`Translated "${word}" to "${translated}"`);
                 span.classList.remove('loading');
                 span.classList.add("highlighted");
+
                 const tip = document.createElement("div");
                 tip.className = "tooltip";
                 tip.textContent = translated;
@@ -554,68 +553,193 @@
                 if (!output.contains(range.startContainer) && !output.contains(range.endContainer)) return null;
                 return { text: selection.toString().trim(), range };
             }
-            // Detect touch device
-            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-            console.log("Is touch device:", isTouchDevice);
+            // // ===== Touch multi-word drag-selection for #output =====
+            // (function setupTouchMultiSelect() {
+            //     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            //     console.log("setupTouchMultiSelect: isTouchDevice =", isTouchDevice);
+            //     if (!isTouchDevice) return; // only attach on touch devices
+
+            //     // small helpers / state
+            //     let touchSelecting = false;
+            //     let touchedSpans = new Set();
+            //     let ignoreClickUntil = 0; // time window to ignore clicks generated after touch
+            //     const outputEl = output; // your #output element
+            //     // Make sure the tooltip doesn't block elementFromPoint
+            //     selectionTooltip.style.pointerEvents = 'none';
+
+            //     // Make the output area easier to capture touches (only for touch devices)
+            //     outputEl.style.touchAction = 'none';       // allow touchmove events without browser panning
+            //     outputEl.style.webkitUserSelect = 'none';  // disable native text-selection on mobile during touch selection
+            //     outputEl.style.userSelect = 'none';
+
+            //     // find nearest span inside #output at client coords
+            //     function spanFromPoint(clientX, clientY) {
+            //         // elementFromPoint is relative to viewport. Use client coords directly
+            //         let el = document.elementFromPoint(clientX, clientY);
+            //         if (!el) return null;
+            //         // if tooltip or overlay is on top, it's pointer-events:none so this should find spans
+            //         return el.closest && el.closest('#output span');
+            //     }
+
+            //     function addSpanToTouched(span) {
+            //         if (!span || !outputEl.contains(span)) return false;
+            //         if (!touchedSpans.has(span)) {
+            //             touchedSpans.add(span);
+            //             span.classList.add('highlighted');
+            //             span.classList.add('multi-highlighted');
+            //             return true;
+            //         }
+            //         return false;
+            //     }
+
+            //     // order spans left-to-right/top-to-bottom using DOM order
+            //     function orderSpansByDOM(spansArray) {
+            //         return spansArray.sort((a, b) => {
+            //             if (a === b) return 0;
+            //             const pos = a.compareDocumentPosition(b);
+            //             if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+            //             if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+            //             return 0;
+            //         });
+            //     }
+
+            //     function boundingRectsByLine(spansArray) {
+            //         const lines = {};
+            //         spansArray.forEach(s => {
+            //             const r = s.getBoundingClientRect();
+            //             const lineKey = Math.round(r.top); // group by line (top position)
+            //             if (!lines[lineKey]) {
+            //                 lines[lineKey] = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+            //             } else {
+            //                 lines[lineKey].left = Math.min(lines[lineKey].left, r.left);
+            //                 lines[lineKey].right = Math.max(lines[lineKey].right, r.right);
+            //                 lines[lineKey].top = Math.min(lines[lineKey].top, r.top);
+            //                 lines[lineKey].bottom = Math.max(lines[lineKey].bottom, r.bottom);
+            //             }
+            //         });
+            //         return Object.values(lines);
+            //     }
+
+
+            //     // clear previously selected (but keep span click logic intact)
+            //     function clearTouchSelection() {
+            //         touchedSpans.forEach(s => s.classList.remove('highlighted'));
+            //         touchedSpans.clear();
+            //         if (selectionHighlight) {
+            //             selectionHighlight.remove();
+            //             selectionHighlight = null;
+            //         }
+            //         selectionTooltip.style.display = 'none';
+            //     }
+
+            //     // touchstart: start the selection, grab the first span if any
+            //     outputEl.addEventListener('touchstart', function (ev) {
+            //         if (ev.touches.length > 1) return;
+            //         // prepare new selection
+            //         touchSelecting = true;
+            //         // remove any old overlay/tooltip but keep previous highlights removed only after confirming new selection
+            //         // (we'll clear old highlights if we start a new selection below)
+            //         // Clear touchedSpans set but preserve visual removal before we add new ones
+            //         touchedSpans.forEach(s => s.classList.remove('highlighted'));
+            //         // touchedSpans.clear();
+
+            //         const t = ev.touches[0];
+            //         const span = spanFromPoint(t.clientX, t.clientY);
+            //         if (span) addSpanToTouched(span);
+            //         // prevent page scroll while user drags inside output
+            //         // note: we use passive:false on touchmove listener, so this preventDefault here is optional
+            //     }, { passive: true });
+
+            //     // touchmove: keep adding spans as finger moves across them
+            //     outputEl.addEventListener('touchmove', function (ev) {
+            //         if (!touchSelecting) return;
+            //         const t = ev.touches[0];
+            //         const span = spanFromPoint(t.clientX, t.clientY);
+            //         if (span) addSpanToTouched(span);
+            //         // prevent scroll while selecting to keep interaction stable
+            //         ev.preventDefault();
+            //     }, { passive: false });
+
+            //     // touchcancel: cleanup
+            //     outputEl.addEventListener('touchcancel', function () {
+            //         touchSelecting = false;
+            //         // if you want to cancel everything on cancel, uncomment:
+            //         // clearTouchSelection();
+            //     });
+
+            //     let lastTouchTime = 0;
+            //     document.addEventListener("touchend", () => {
+            //         lastTouchTime = Date.now();
+            //     }, true);
+
+            //     // touchend: finalize selection and translate
+            //     outputEl.addEventListener('touchend', async function () {
+            //         if (!touchSelecting) return;
+            //         touchSelecting = false;
+
+            //         const spansArr = orderSpansByDOM(Array.from(touchedSpans));
+            //         if (spansArr.length === 0) {
+            //             return;
+            //         }
+
+            //         // build phrase from highlighted spans
+            //         const words = spansArr.map(s => (s.childNodes[0]?.textContent || s.textContent).trim()).filter(Boolean);
+            //         const phrase = words.join(" ");
+            //         if (!phrase) return;
+
+            //         console.log("📌 Selected phrase:", phrase);
+
+            //         // Speak
+            //         try { speak(phrase); } catch (e) { console.warn("speak failed:", e); }
+
+            //         // Show tooltip "Translating..."
+            //         selectionTooltip.textContent = "Translating...";
+            //         const firstRect = spansArr[0].getBoundingClientRect();
+            //         selectionTooltip.style.left = (firstRect.left + window.scrollX) + "px";
+            //         selectionTooltip.style.top = (firstRect.top + window.scrollY - 10) + "px";
+            //         selectionTooltip.style.display = "block";
+            //         selectionTooltip.style.zIndex = "60";
+
+            //         // Translate
+            //         let translation = "";
+            //         try {
+            //             translation = await translate(phrase);
+            //         } catch (err) {
+            //             console.error("translate() failed:", err);
+            //             translation = "(translation error)";
+            //         }
+
+            //         // Update tooltip with translation
+            //         selectionTooltip.textContent = translation;
+
+            //         // reposition tooltip above first line of selection
+            //         selectionTooltip.style.top = (firstRect.top + window.scrollY - selectionTooltip.offsetHeight - 10) + "px";
+
+            //         // Optional auto-hide after 5s
+            //         // setTimeout(() => {
+            //         //     selectionTooltip.style.display = "none";
+            //         // }, 5000);
+            //     });
+
+
+            //     // Prevent duplicate click events immediately after touch selection.
+            //     // Also clear selection when clicking/tapping outside the output.
+            //     document.addEventListener('click', function (ev) {
+            //         if (Date.now() < ignoreClickUntil) {
+            //             ev.stopPropagation();
+            //             ev.preventDefault();
+            //             return;
+            //         }
+            //         if (!outputEl.contains(ev.target)) {
+            //             // clicked outside -> clear selection
+            //             // clearTouchSelection();
+            //         }
+            //     }, true);
+            // })();
 
             async function handleSelection() {
-                if (isTouchDevice) {
-                    // On touch devices, use long-press to trigger translation and highlight
-                    output.querySelectorAll("span").forEach(span => {
-                        if (!span._touchHandlerAdded) {
-                            console.log('-----')
-                            let touchTimer = null;
-                            span.addEventListener("touchstart", function (e) {
-                                touchTimer = setTimeout(async () => {
-                                    // Remove highlight from others
-                                    output.querySelectorAll('.highlighted').forEach(s => {
-                                        s.classList.remove('highlighted');
-                                        s.querySelector('.tooltip')?.remove();
-                                    });
-                                    // Highlight this word
-                                    span.classList.add('highlighted');
-                                    // Remove old tooltip if any
-                                    span.querySelector('.tooltip')?.remove();
-                                    const word = span.textContent;
-                                    speak(word);
-                                    selectionTooltip.textContent = "Translating...";
-                                    const rect = span.getBoundingClientRect();
-                                    selectionTooltip.style.left = (rect.left + window.scrollX) + "px";
-                                    selectionTooltip.style.top = (rect.top + window.scrollY - 10) + "px";
-                                    selectionTooltip.style.display = "block";
-                                    selectionTooltip.style.zIndex = "50";
-                                    const translated = await translate(word);
-                                    selectionTooltip.textContent = translated;
-                                    selectionTooltip.style.top = (rect.top + window.scrollY - selectionTooltip.offsetHeight - 10) + "px";
-                                    // Show tooltip as child of span for consistency
-                                    let tip = document.createElement("div");
-                                    tip.className = "tooltip";
-                                    tip.textContent = translated;
-                                    tip.style.whiteSpace = "nowrap";
-                                    tip.style.textOverflow = "ellipsis";
-                                    tip.style.overflow = "hidden";
-                                    span.appendChild(tip);
-                                    setTimeout(() => {
-                                        selectionTooltip.style.display = "none";
-                                        // Optionally remove highlight after a while
-                                        // span.classList.remove('highlighted');
-                                        // tip.remove();
-                                    }, 4000);
-                                }, 500); // long-press: 500ms
-                            });
-                            span.addEventListener("touchend", function () {
-                                clearTimeout(touchTimer);
-                            });
-                            span._touchHandlerAdded = true;
-                        }
-                    });
-                    // Hide selection highlight/tooltip if not using long-press
-                    selectionTooltip.style.display = "none";
-                    selectionHighlight?.remove();
-                    selectionHighlight = null;
-                    return;
-                }
+
                 // Desktop: original logic
                 const selection = getSelectedWords();
                 if (!selection) {
@@ -699,7 +823,7 @@
                         const span = document.createElement("span");
                         span.textContent = tok;
                         span.className = "relative cursor-pointer hover:bg-yellow-100 rounded px-1 mx-0.5";
-                        // span.addEventListener("click", () => onWordClick(tok, span));
+                        span.addEventListener("click", () => onWordClick(tok, span));
                         output.appendChild(span);
                     } else { output.appendChild(document.createTextNode(tok)); }
                 });
@@ -748,7 +872,8 @@
             // Helper: get selected word (from highlighted span)
             async function getCurrentHighlightedWords() {
                 const spans = output.querySelectorAll('.highlighted, .multi-highlighted');
-                console.log(spans.length)
+                console.log("Found spans:", spans.length, spans);
+
                 if (spans.length == 1) {
                     const results = Array.from(spans).map(span => {
                         const word = span.childNodes[0]?.textContent || span.textContent;
@@ -763,7 +888,9 @@
                 else {
                     // this for desktop multi selection, works
                     let translated = document.getElementById('selectionTooltip').textContent || '';
-                    const words = Array.from(spans).map(span => span.childNodes[0]?.textContent || span.textContent)
+                    const words = Array.from(spans).map(span => span.childNodes[0]?.textContent || span.textContent);
+                    console.log("Extracted words:", words);
+
                     // if (translated.length )
                     console.log(words.length, translated)
                     if (words.length > 5) alert('Max 5 words')
@@ -851,7 +978,7 @@
                         `;
                 const selected = await getCurrentHighlightedWords();
                 addToFlashBtn.disabled = false;
-                addToFlashBtn.textContent = "Add to Flashcards";
+                addToFlashBtn.textContent = "Add";
                 console.log("Selected words for flashcard:", selected);
                 if (!selected || !selected.word || !selected.translation) {
                     setStatus("Highlight a word first!");
