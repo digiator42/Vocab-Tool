@@ -23,7 +23,7 @@
             font-size: 0.75rem;
             padding: 0.25rem 0.5rem;
             border-radius: 0.25rem;
-            z-index: 50;
+            z-index: 12;
             max-width: 300px;
         }
 
@@ -40,7 +40,7 @@
             font-size: 0.8rem;
             padding: 0.5rem;
             border-radius: 0.25rem;
-            z-index: 100;
+            z-index: 13;
             display: none;
             max-width: 300px;
         }
@@ -83,7 +83,7 @@
             background-color: rgba(79, 70, 229, 0.2);
             position: absolute;
             pointer-events: none;
-            z-index: 99;
+            z-index: 13;
         }
 
         .flashcard {
@@ -145,7 +145,7 @@
             <span id="status" class="text-sm text-gray-600">Ready</span>
         </div>
         <div id="output" class="w-full p-6 bg-white border rounded-lg shadow-sm leading-8 min-h-[200px]"></div>
-        <div id="selectionTooltip"></div>
+        <div id="selectionTooltip" style="z-index: 12;"></div>
     </section>
 
     <!-- Flashcards Tool -->
@@ -194,7 +194,7 @@
                 + Add New Flashcards
             </button>
             <div id="add-flashcards-modal"
-                class="fixed inset-0 w-full h-full bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+                class="fixed inset-0 w-full h-full bg-black bg-opacity-40 flex items-center justify-center z-100 hidden">
                 <div class="w-full max-w-md bg-white rounded-lg shadow p-4 relative">
                     <button id="close-add-flashcards-modal"
                         class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">&times;</button>
@@ -571,6 +571,7 @@
                                     selectionTooltip.style.left = (rect.left + window.scrollX) + "px";
                                     selectionTooltip.style.top = (rect.top + window.scrollY - 10) + "px";
                                     selectionTooltip.style.display = "block";
+                                    selectionTooltip.style.zIndex = "50";
                                     const translated = await translate(word);
                                     selectionTooltip.textContent = translated;
                                     selectionTooltip.style.top = (rect.top + window.scrollY - selectionTooltip.offsetHeight - 10) + "px";
@@ -669,6 +670,7 @@
                 const translated = await translate(selection.text);
                 selectionTooltip.textContent = translated;
                 selectionTooltip.style.top = (rect.top + window.scrollY - selectionTooltip.offsetHeight - 10) + "px";
+                selectionTooltip.style.zIndex = "50";
 
                 // setTimeout(() => {
                 //     selectionTooltip.style.display = "none";
