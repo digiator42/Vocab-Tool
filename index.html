@@ -605,9 +605,9 @@
                 // Desktop: original logic
                 const selection = getSelectedWords();
                 if (!selection) {
-                    selectionTooltip.style.display = "none";
-                    selectionHighlight?.remove();
-                    selectionHighlight = null;
+                    // selectionTooltip.style.display = "none";
+                    // selectionHighlight?.remove();
+                    // selectionHighlight = null;
                     // Remove browser selection highlight
                     if (window.getSelection) window.getSelection().removeAllRanges();
                     return;
@@ -627,9 +627,32 @@
                     if (sel && sel.rangeCount) {
                         const spans = output.querySelectorAll("span");
                         spans.forEach(span => {
-                            // containsNode(span, true) returns true if any part of the span is selected
                             if (sel.containsNode(span, true)) {
-                                span.classList.add("highlighted");
+                                span.classList.add("multi-highlighted");
+
+                                // ✅ add toggle listener only once
+                                span.onclick = () => {
+
+                                    const highlightedSpans = output.querySelectorAll("span.multi-highlighted");
+
+                                    if (highlightedSpans.length > 0) {
+                                        console.log('.....Removing highlight from all');
+
+                                        // remove highlight from all
+                                        highlightedSpans.forEach(s => s.classList.remove("multi-highlighted"));
+
+                                        // remove overlay
+                                        selectionHighlight?.remove();
+                                        selectionHighlight = null;
+
+                                        // hide tooltip
+                                        selectionTooltip.style.display = "none";
+                                        selectionTooltip.textContent = "";
+
+                                        // clear selection
+                                        if (window.getSelection) window.getSelection().removeAllRanges();
+                                    }
+                                };
                             }
                         });
                     }
@@ -647,11 +670,11 @@
                 selectionTooltip.textContent = translated;
                 selectionTooltip.style.top = (rect.top + window.scrollY - selectionTooltip.offsetHeight - 10) + "px";
 
-                setTimeout(() => {
-                    selectionTooltip.style.display = "none";
-                    selectionHighlight?.remove();
-                    selectionHighlight = null;
-                }, 10000);
+                // setTimeout(() => {
+                //     selectionTooltip.style.display = "none";
+                //     selectionHighlight?.remove();
+                //     selectionHighlight = null;
+                // }, 10000);
             }
 
             processBtn.addEventListener("click", () => {
@@ -669,7 +692,7 @@
             });
 
             stopSpeechBtn.addEventListener("click", stopSpeech);
-            output.addEventListener("click", () => setTimeout(handleSelection, 50));
+            output.addEventListener("click", () => setTimeout(handleSelection, 1000));
             processBtn.click(); // auto-init
 
             /* ==== Add to Flashcard Button & Modal ==== */
@@ -708,8 +731,8 @@
             let lastSelectedTranslation = null;
 
             // Helper: get selected word (from highlighted span)
-            function getCurrentHighlightedWords() {
-                const spans = output.querySelectorAll('.highlighted');
+            async function getCurrentHighlightedWords() {
+                const spans = output.querySelectorAll('.highlighted, .multi-highlighted');
                 console.log(spans.length)
                 if (spans.length == 1) {
                     const results = Array.from(spans).map(span => {
@@ -723,12 +746,15 @@
                     return results[0];
                 }
                 else {
-                    const translated = document.getElementById('selectionTooltip').textContent || '';
+                    let translated = document.getElementById('selectionTooltip').textContent || '';
                     const words = Array.from(spans).map(span => span.childNodes[0]?.textContent || span.textContent)
+                    // if (translated.length )
+                    console.log(words.length, translated)
+                    if (translated === '') translated = await translate(words.join(' '));
+                    if (words.length > 5) alert('Max 5 words')
                     if (words.length <= 5 && translated) {
                         return { word: words.join(' '), translation: translated };
                     }
-                    alert('Max 5 words')
 
                 }
                 return [];
@@ -797,8 +823,8 @@
             };
 
             // Button click: open modal with selected word
-            addToFlashBtn.addEventListener('click', () => {
-                const selected = getCurrentHighlightedWords();
+            addToFlashBtn.addEventListener('click', async () => {
+                const selected = await getCurrentHighlightedWords();
                 console.log("Selected words for flashcard:", selected);
                 if (!selected || !selected.word || !selected.translation) {
                     setStatus("Highlight a word first!");
