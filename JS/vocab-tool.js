@@ -301,7 +301,7 @@ export class VocabularyTool {
                 tip.style.whiteSpace = "nowrap";
                 tip.style.textOverflow = "ellipsis";
                 tip.style.overflow = "hidden";
-                tip.style.zIndex = "60";
+                tip.style.zIndex = "31";
                 singleSpan.appendChild(tip);
             } else {
                 // Multi-word tooltip
@@ -322,7 +322,7 @@ export class VocabularyTool {
                 tooltip.style.padding = "4px 8px";
                 tooltip.style.borderRadius = "6px";
                 tooltip.style.fontSize = "14px";
-                tooltip.style.zIndex = "60";
+                tooltip.style.zIndex = "32";
                 tooltip.style.whiteSpace = "nowrap";
 
                 // Position above first word
@@ -417,7 +417,7 @@ export class VocabularyTool {
         const translated = await this.translate(selection.text);
         this.selectionTooltip.textContent = translated;
         this.selectionTooltip.style.top = (rect.top + window.scrollY - this.selectionTooltip.offsetHeight - 10) + "px";
-        this.selectionTooltip.style.zIndex = "50";
+        this.selectionTooltip.style.zIndex = "30";
     }
 
     setupEventListeners() {
