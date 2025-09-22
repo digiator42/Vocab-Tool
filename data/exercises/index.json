@@ -1,0 +1,26 @@
+[
+    {
+        "name": "basic_articles.txt",
+        "title": "Basic German Articles",
+        "description": "Practice definite and indefinite articles",
+        "level": "Beginner"
+    },
+    {
+        "name": "verb_conjugation.txt",
+        "title": "Verb Conjugation Practice",
+        "description": "Conjugate regular and irregular verbs",
+        "level": "Beginner"
+    },
+    {
+        "name": "prepositions.txt",
+        "title": "Prepositions with Cases",
+        "description": "Practice prepositions with accusative/dative",
+        "level": "Intermediate"
+    },
+    {
+        "name": "adjective_endings.txt",
+        "title": "Adjective Endings",
+        "description": "Practice adjective declension",
+        "level": "Advanced"
+    }
+]

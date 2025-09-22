@@ -3,6 +3,8 @@ import { VocabularyTool } from './vocab-tool.js';
 import { FlashcardsTool } from './flashcards-tool.js';
 import { ImportExportManager } from './import-export.js';
 import { TabManager } from './tab-manager.js';
+import { ExerciseTool } from './exercise-tool.js';
+
 
 document.addEventListener('DOMContentLoaded', function () {
     // Initialize all modules
@@ -10,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const importExportManager = new ImportExportManager();
 
     // Initialize tools only when needed
-    let vocabTool, flashCardsTool;
+    let vocabTool, flashCardsTool, exerciseTool;
 
     // Initialize vocabulary tool when its tab is clicked or if it's the default tab
     document.getElementById("tab-vocab").addEventListener("click", () => {
@@ -23,6 +25,13 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById("tab-flash").addEventListener("click", () => {
         if (!flashCardsTool) {
             flashCardsTool = new FlashcardsTool();
+        }
+    });
+
+    document.getElementById("tab-exercise").addEventListener("click", () => {
+        if (!exerciseTool) {
+            exerciseTool = new ExerciseTool();
+            window.exerciseTool = exerciseTool;
         }
     });
 

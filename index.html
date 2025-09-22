@@ -20,6 +20,8 @@
             Tool</button>
         <button id="tab-flash"
             class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700">Flashcards</button>
+        <button id="tab-exercise" class="px-4 py-2 bg-green-700 text-white rounded-lg">Grammar Exercises</button>
+
     </div>
 
     <!-- Vocabulary Tool -->
@@ -125,6 +127,24 @@
             <span id="page-info" class="text-gray-600 font-medium">Page 1 of 1</span>
             <button id="next-page-btn" class="px-4 py-2 bg-gray-600 text-white rounded-lg">Next</button>
         </div>
+    </section>
+    <!-- Grammar Exercises Tool -->
+    <section id="exercise-tool" class="hidden max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow">
+        <h1 class="text-2xl font-bold mb-4">German Grammar Trainer</h1>
+
+        <textarea id="exerciseInput" class="w-full p-2 border rounded mb-4 h-40"
+            placeholder="Write your exercises with [[answers]] here..."></textarea>
+
+        <button id="renderExercisesBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            Load Exercises
+        </button>
+        <button id="loadSampleExercisesBtn"
+            class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600 ml-2">
+            Load Sample Exercises
+        </button>
+
+        <div id="exerciseArea" class="mt-6 space-y-4"></div>
+        <div id="exerciseResult" class="mt-4 font-semibold"></div>
     </section>
 </body>
 
