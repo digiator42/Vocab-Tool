@@ -6,21 +6,141 @@
         "level": "Beginner"
     },
     {
-        "name": "verb_conjugation.txt",
-        "title": "Verb Conjugation Practice",
-        "description": "Conjugate regular and irregular verbs",
-        "level": "Beginner"
+        "name": "verb_conjugation_regular.txt",
+        "title": "Regular Verb Conjugation",
+        "description": "Conjugate common regular verbs in the present tense (spielen, machen, lernen, wohnen).",
+        "level": "A1"
     },
     {
-        "name": "prepositions.txt",
-        "title": "Prepositions with Cases",
-        "description": "Practice prepositions with accusative/dative",
-        "level": "Intermediate"
+        "name": "verb_conjugation_irregular.txt",
+        "title": "Irregular Verb Conjugation",
+        "description": "Practice irregular verbs like sein, haben, gehen, sprechen, essen.",
+        "level": "A1"
     },
     {
-        "name": "adjective_endings.txt",
-        "title": "Adjective Endings",
-        "description": "Practice adjective declension",
-        "level": "Advanced"
+        "name": "verb_modal_verbs.txt",
+        "title": "Modal Verbs",
+        "description": "Practice modal verbs (können, müssen, wollen, dürfen, sollen, mögen) in sentences.",
+        "level": "A1"
+    },
+    {
+        "name": "verb_separable.txt",
+        "title": "Separable Verbs",
+        "description": "Form sentences with separable verbs (aufstehen, einkaufen, fernsehen).",
+        "level": "A1"
+    },
+    {
+        "name": "cases_nominative.txt",
+        "title": "Nominative Case",
+        "description": "Identify subjects and choose the correct article in nominative.",
+        "level": "A1"
+    },
+    {
+        "name": "cases_accusative.txt",
+        "title": "Accusative Case",
+        "description": "Practice direct objects and articles in accusative.",
+        "level": "A1"
+    },
+    {
+        "name": "cases_dative.txt",
+        "title": "Dative Case",
+        "description": "Practice indirect objects and dative articles.",
+        "level": "A2"
+    },
+    {
+        "name": "prepositions_accusative.txt",
+        "title": "Prepositions with Accusative",
+        "description": "Use prepositions like durch, für, gegen, ohne, um with correct articles.",
+        "level": "A1"
+    },
+    {
+        "name": "prepositions_dative.txt",
+        "title": "Prepositions with Dative",
+        "description": "Use prepositions like aus, bei, mit, nach, seit, von, zu with correct articles.",
+        "level": "A1"
+    },
+    {
+        "name": "prepositions_wechsel.txt",
+        "title": "Two-Way Prepositions",
+        "description": "Choose between accusative (movement) and dative (location) with an, auf, in, über, unter, vor, zwischen, hinter, neben.",
+        "level": "A2"
+    },
+    {
+        "name": "articles_definite_indefinite.txt",
+        "title": "Articles Practice",
+        "description": "Choose between der/die/das, ein/eine in nominative and accusative.",
+        "level": "A1"
+    },
+    {
+        "name": "articles_possessive.txt",
+        "title": "Possessive Articles",
+        "description": "Practice mein, dein, sein, ihr, unser, euer in sentences.",
+        "level": "A1"
+    },
+    {
+        "name": "adjective_endings_easy.txt",
+        "title": "Adjective Endings (Basics)",
+        "description": "Practice adjective endings in nominative with definite/indefinite articles.",
+        "level": "A2"
+    },
+    {
+        "name": "adjective_endings_full.txt",
+        "title": "Adjective Endings (Full Declension)",
+        "description": "Practice adjective endings across nominative, accusative, dative.",
+        "level": "A2"
+    },
+    {
+        "name": "word_order_statements.txt",
+        "title": "Word Order in Statements",
+        "description": "Practice placing verbs in the second position.",
+        "level": "A1"
+    },
+    {
+        "name": "word_order_questions.txt",
+        "title": "Word Order in Questions",
+        "description": "Form yes/no and W-questions correctly.",
+        "level": "A1"
+    },
+    {
+        "name": "negation_nicht.txt",
+        "title": "Negation with 'nicht'",
+        "description": "Practice sentence negation using 'nicht' correctly.",
+        "level": "A1"
+    },
+    {
+        "name": "negation_keine.txt",
+        "title": "Negation with 'kein'",
+        "description": "Practice negating nouns with 'kein/keine'.",
+        "level": "A1"
+    },
+    {
+        "name": "plurals.txt",
+        "title": "Plural Forms",
+        "description": "Practice plural forms of common nouns.",
+        "level": "A1"
+    },
+    {
+        "name": "time_expressions.txt",
+        "title": "Time Expressions",
+        "description": "Practice days, months, telling the time, and frequency adverbs.",
+        "level": "A1"
+    },
+    {
+        "name": "comparatives.txt",
+        "title": "Comparatives and Superlatives",
+        "description": "Form and use adjectives in comparative and superlative forms.",
+        "level": "A2"
+    },
+    {
+        "name": "reflexive_verbs.txt",
+        "title": "Reflexive Verbs",
+        "description": "Practice verbs with reflexive pronouns (sich freuen, sich waschen, sich erinnern).",
+        "level": "A2"
+    },
+    {
+        "name": "relative_pronouns.txt",
+        "title": "Relative Pronouns",
+        "description": "Form simple relative clauses with der/die/das.",
+        "level": "A2"
     }
 ]
