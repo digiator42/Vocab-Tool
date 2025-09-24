@@ -12,6 +12,7 @@ export class VocabularyTool {
         this.speechSynth = window.speechSynthesis;
         this.selectionHighlight = null;
         this.selectedLang = "en";
+        this.isStopSpeechRequested = false;
 
         this.init();
     }
@@ -36,7 +37,7 @@ export class VocabularyTool {
         console.log('Loading speech for:', text, 'in', lang);
         console.log('----------------');
         this.setStatus("Loading audio...");
-        if (lang === null || text === '') return;
+        if (lang === null || text === '' || this.isStopSpeechRequested) return;
         try {
             const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}`;
             const audio = new Audio(url);
@@ -50,10 +51,16 @@ export class VocabularyTool {
     }
 
     stopSpeech() {
-        if (this.speechSynth.speaking) {
-            this.speechSynth.cancel();
-            this.setStatus("Speech stopped");
-            document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
+        this.isStopSpeechRequested = !this.isStopSpeechRequested;
+        console.log(this.isStopSpeechRequested ? 'Stopping speech' : 'Speech activated');
+        const stopSpeecBtn = document.getElementById("stopSpeechBtn");
+        if (this.isStopSpeechRequested) {
+            stopSpeecBtn.innerHTML = 'Activate Speech';
+            this.setStatus("Speech Stopped");
+        }
+        else {
+            stopSpeecBtn.innerHTML = 'Stop Speech';
+            this.setStatus("Speech Activated");
         }
     }
 

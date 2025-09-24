@@ -168,6 +168,7 @@ export class ExerciseTool {
     }
 
     renderExercises() {
+        const exerciseInput = document.getElementById("exerciseInput");
         const text = document.getElementById("exerciseInput").value;
         const container = document.getElementById("exerciseArea");
         this.solutions = [];
@@ -208,6 +209,8 @@ export class ExerciseTool {
                 </button>
             </div>
         `;
+
+        exerciseInput.value = '';
 
         document.getElementById("exerciseResult").innerHTML = "";
     }
