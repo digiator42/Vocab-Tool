@@ -896,6 +896,65 @@ export class VocabularyTool {
         // this.setupActiveRecallListeners();
     }
 
+    setupActiveRecallListeners() {
+        // Use event delegation for better mobile support
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('#ar-start-btn')) {
+                this.startActiveRecall();
+            } else if (e.target.matches('#ar-next-btn')) {
+                this.nextSentence();
+            } else if (e.target.matches('#ar-back-btn')) {
+                this.previousSentence();
+            } else if (e.target.matches('#ar-repeat-btn')) {
+                this.repeatAudio();
+            } else if (e.target.matches('#ar-finish-btn')) {
+                this.finishActiveRecall();
+            } else if (e.target.matches('#mobile-enter-btn')) {
+                this.checkAnswer();
+            }
+        });
+
+        // Input handling (unchanged)
+        const userInput = document.getElementById('ar-user-input');
+        const fuzzyMatch = document.getElementById('ar-fuzzy-match');
+
+        if (userInput) {
+            userInput.addEventListener('input', (e) => {
+                this.handleUserInput();
+            });
+
+            userInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.checkAnswer();
+                }
+            });
+
+            if (this.isTouchDevice()) {
+                userInput.addEventListener('touchend', (e) => {
+                    setTimeout(() => this.handleUserInput(), 100);
+                });
+            }
+        }
+
+        if (fuzzyMatch) {
+            fuzzyMatch.addEventListener('change', (e) => {
+                this.useFuzzyMatching = e.target.checked;
+            });
+
+            // Mobile touch support for checkbox
+            if (this.isTouchDevice()) {
+                fuzzyMatch.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    fuzzyMatch.checked = !fuzzyMatch.checked;
+                    fuzzyMatch.dispatchEvent(new Event('change'));
+                });
+            }
+        }
+
+        this.addActiveRecallButton();
+    }
+
     createActiveRecallUI() {
         const activeRecallHTML = `
         <div id="active-recall-tool" class="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
@@ -975,95 +1034,192 @@ export class VocabularyTool {
         this.output.insertAdjacentHTML('afterend', activeRecallHTML);
     }
 
-    setupActiveRecallListeners() {
-        // Use event delegation for better mobile support
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('#ar-start-btn')) {
-                this.startActiveRecall();
-            } else if (e.target.matches('#ar-next-btn')) {
-                this.nextSentence();
-            } else if (e.target.matches('#ar-back-btn')) {
-                this.previousSentence();
-            } else if (e.target.matches('#ar-repeat-btn')) {
-                this.repeatAudio();
-            } else if (e.target.matches('#ar-finish-btn')) {
-                this.finishActiveRecall();
-            } else if (e.target.matches('#ar-mode-select')) {
-                // Handle mode change immediately
-                this.handleModeChange();
+    createActiveRecallUI() {
+        const activeRecallHTML = `
+        <div id="active-recall-tool" class="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
+            <h3 class="text-lg font-semibold mb-4">🎯 Active Recall Practice</h3>
+            
+            <!-- Custom Dropdown for Mode Selection -->
+            <div class="mb-4 flex flex-wrap gap-4 items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium">Mode:</span>
+                    <div class="relative">
+                        <button id="ar-mode-dropdown-btn" class="w-48 p-2 border rounded text-sm bg-white text-left flex justify-between items-center">
+                            <span id="ar-mode-display">Normal</span>
+                            <span>▼</span>
+                        </button>
+                        <div id="ar-mode-dropdown-menu" class="absolute z-50 hidden w-48 mt-1 bg-white border rounded shadow-lg">
+                            <button type="button" data-value="normal" class="w-full p-2 text-left hover:bg-gray-100 border-b">Normal</button>
+                            <button type="button" data-value="beginner" class="w-full p-2 text-left hover:bg-gray-100">Beginner (with hints)</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="ar-fuzzy-match" checked class="rounded">
+                    <label for="ar-fuzzy-match" class="text-sm font-medium">Fuzzy Word Matching</label>
+                </div>
+            </div>
+            
+            <!-- Rest of the UI remains the same -->
+            ${this.getActiveRecallUIBody()}
+        </div>
+    `;
+
+        this.output.parentNode.insertAdjacentHTML('afterend', activeRecallHTML);
+        this.setupCustomDropdown();
+    }
+
+    getActiveRecallUIBody() {
+        return `
+        <div id="ar-progress" class="mb-4">
+            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                <span>Progress: <span id="ar-current">0</span>/<span id="ar-total">0</span></span>
+                <span id="ar-status">Ready to start</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="ar-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Beginner Mode Display -->
+        <div id="ar-hint-display" class="mb-4 p-4 bg-blue-50 rounded border border-blue-200 hidden">
+            <div class="text-sm text-blue-800 font-medium mb-2">Sentence Hint:</div>
+            <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
+        </div>
+
+        <div id="ar-current-sentence" class="mb-4 p-4 bg-white rounded border-2 border-blue-200 min-h-20 flex items-center justify-center">
+            <span class="text-gray-500">Sentence will appear here...</span>
+        </div>
+
+        <div id="ar-input-area" class="mb-4 hidden">
+            <textarea id="ar-user-input" 
+                placeholder="Type what you hear..." 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"></textarea>
+            <div class="flex justify-between mt-2 text-sm text-gray-600">
+                <span>Press Enter to submit</span>
+                <span id="ar-timer">Time: 0s</span>
+            </div>
+            <button id="mobile-enter-btn" class="w-full mt-2 bg-blue-600 text-white py-3 rounded-lg font-semibold hidden">↵ Enter</button>
+        </div>
+
+        <div id="ar-controls" class="flex flex-wrap gap-2">
+            <button id="ar-start-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                🎧 Start Practice
+            </button>
+            <button id="ar-next-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors hidden">
+                ➡️ Next Sentence
+            </button>
+            <button id="ar-back-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors hidden">
+                ⬅️ Previous
+            </button>
+            <button id="ar-repeat-btn" class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors hidden">
+                🔄 Repeat Audio
+            </button>
+            <button id="ar-finish-btn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors hidden">
+                ✅ Finish Practice
+            </button>
+        </div>
+
+        <div id="ar-results" class="mt-6 hidden">
+            <h4 class="text-lg font-semibold mb-3">📊 Practice Results</h4>
+            <div id="ar-summary" class="mb-4 p-4 bg-white rounded-lg border"></div>
+            <div id="ar-detailed-results" class="space-y-4"></div>
+        </div>
+    `;
+    }
+
+    setupCustomDropdown() {
+        const dropdownBtn = document.getElementById('ar-mode-dropdown-btn');
+        const dropdownMenu = document.getElementById('ar-mode-dropdown-menu');
+        const modeDisplay = document.getElementById('ar-mode-display');
+
+        if (!dropdownBtn || !dropdownMenu) return;
+
+        // Toggle dropdown menu
+        dropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = dropdownMenu.classList.contains('hidden');
+
+            // Close all other dropdowns
+            this.closeAllDropdowns();
+
+            if (isHidden) {
+                dropdownMenu.classList.remove('hidden');
+                dropdownBtn.classList.add('border-blue-500', 'ring-2', 'ring-blue-200');
+            } else {
+                this.closeDropdown();
             }
         });
 
-        // Mobile-friendly input handling
-        const userInput = document.getElementById('ar-user-input');
-        const modeSelect = document.getElementById('ar-mode-select');
-        const fuzzyMatch = document.getElementById('ar-fuzzy-match');
+        // Handle option selection
+        dropdownMenu.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON' && e.target.dataset.value) {
+                const value = e.target.dataset.value;
+                const text = e.target.textContent;
 
-        if (userInput) {
-            // Use multiple event types for better compatibility
-            userInput.addEventListener('input', (e) => {
-                this.handleUserInput();
-            });
+                this.activeRecallMode = value;
+                modeDisplay.textContent = text;
 
-            // Enhanced Enter key handling for all devices
-            userInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault(); // Prevent default Enter behavior
-
-                    // Handle Enter key based on context
-                    if (e.ctrlKey || e.metaKey) {
-                        // Ctrl+Enter or Cmd+Enter - add new line
-                        const cursorPos = userInput.selectionStart;
-                        const text = userInput.value;
-                        userInput.value = text.substring(0, cursorPos) + '\n' + text.substring(cursorPos);
-                        userInput.selectionStart = userInput.selectionEnd = cursorPos + 1;
-                    } else {
-                        // Regular Enter - submit answer
-                        this.checkAnswer();
-                    }
-                }
-            });
-
-            // Additional mobile-specific events
-            if (this.isTouchDevice()) {
-                userInput.addEventListener('touchend', (e) => {
-                    setTimeout(() => this.handleUserInput(), 100);
-                });
-
-                // Add virtual Enter button for mobile
-                this.addMobileEnterButton();
-            }
-
-            // Fallback for keyup (some mobile keyboards)
-            userInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') {
-                    setTimeout(() => {
-                        this.checkAnswer();
-                    }, 50);
-                }
-            });
-        }
-
-        if (modeSelect) {
-            modeSelect.addEventListener('change', (e) => {
+                // Update UI based on mode
                 this.handleModeChange();
-            });
 
-            // Also listen for touch events on mobile
-            if (this.isTouchDevice()) {
-                modeSelect.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                });
+                // Close dropdown
+                this.closeDropdown();
             }
-        }
+        });
 
-        if (fuzzyMatch) {
-            fuzzyMatch.addEventListener('change', (e) => {
-                this.useFuzzyMatching = e.target.checked;
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            this.closeDropdown();
+        });
+
+        // Prevent dropdown from closing when clicking inside it
+        dropdownMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Mobile-specific touch events
+        if (this.isTouchDevice()) {
+            dropdownBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropdownBtn.click();
+            });
+
+            // Add touch support for dropdown items
+            const dropdownItems = dropdownMenu.querySelectorAll('button');
+            dropdownItems.forEach(item => {
+                item.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    item.click();
+                });
             });
         }
+    }
 
-        this.addActiveRecallButton();
+    closeDropdown() {
+        const dropdownBtn = document.getElementById('ar-mode-dropdown-btn');
+        const dropdownMenu = document.getElementById('ar-mode-dropdown-menu');
+
+        if (dropdownMenu) {
+            dropdownMenu.classList.add('hidden');
+        }
+        if (dropdownBtn) {
+            dropdownBtn.classList.remove('border-blue-500', 'ring-2', 'ring-blue-200');
+        }
+    }
+
+    closeAllDropdowns() {
+        // Close any other open dropdowns if you have multiple
+        const allDropdowns = document.querySelectorAll('[id*="dropdown-menu"]');
+        allDropdowns.forEach(menu => {
+            menu.classList.add('hidden');
+        });
+
+        const allDropdownBtns = document.querySelectorAll('[id*="dropdown-btn"]');
+        allDropdownBtns.forEach(btn => {
+            btn.classList.remove('border-blue-500', 'ring-2', 'ring-blue-200');
+        });
     }
 
     addMobileEnterButton() {

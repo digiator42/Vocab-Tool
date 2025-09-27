@@ -132,56 +132,81 @@
      transform: scale(1.2);
  }
 
- /* Mobile-specific styles */
- @media (max-width: 768px) {
-     #ar-hint-display {
-         font-size: 16px;
-         /* Larger text for mobile */
-         padding: 12px;
-         margin-bottom: 16px;
-     }
+/* Custom Dropdown Styles */
+.relative {
+    position: relative;
+}
 
-     #ar-user-input {
-         font-size: 16px;
-         /* Prevent zoom on focus */
-         min-height: 120px;
-         /* Larger touch area */
-     }
+#ar-mode-dropdown-btn {
+    transition: all 0.2s ease;
+    min-height: 40px;
+    touch-action: manipulation;
+}
 
-     #ar-controls button {
-         min-height: 44px;
-         /* Apple's minimum touch target */
-         padding: 12px 16px;
-         font-size: 16px;
-     }
+#ar-mode-dropdown-btn:active {
+    transform: scale(0.98);
+}
 
-     .tooltip {
-         max-width: 90vw !important;
-         /* Don't overflow mobile screen */
-         font-size: 14px;
-         padding: 10px 14px;
-     }
- }
+#ar-mode-dropdown-menu {
+    max-height: 200px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
 
- /* Ensure hint display works on mobile */
- #ar-hint-display {
-     -webkit-overflow-scrolling: touch;
-     /* Smooth scrolling on iOS */
-     overflow-x: auto;
-     white-space: nowrap;
-     /* Keep dashes in one line */
- }
+#ar-mode-dropdown-menu button {
+    border-bottom: 1px solid #f3f4f6;
+    min-height: 44px; /* Mobile touch target */
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
 
- #ar-hint-text {
-     font-family: monospace;
-     letter-spacing: 1px;
-     /* Better visibility for dashes */
- }
+#ar-mode-dropdown-menu button:last-child {
+    border-bottom: none;
+}
 
- /* Mobile touch improvements */
- #ar-user-input {
-     -webkit-appearance: none;
-     /* Remove iOS styling */
-     border-radius: 8px;
-     /* Better touch feel */
- }
+#ar-mode-dropdown-menu button:active {
+    background-color: #e5e7eb;
+}
+
+/* Mobile-specific dropdown styles */
+@media (max-width: 768px) {
+    #ar-mode-dropdown-btn {
+        min-height: 44px; /* Larger touch target */
+        font-size: 16px; /* Prevent zoom */
+    }
+    
+    #ar-mode-dropdown-menu {
+        width: 100%;
+        left: 0;
+        right: 0;
+    }
+    
+    #ar-mode-dropdown-menu button {
+        min-height: 48px;
+        font-size: 16px;
+        padding: 12px 16px;
+    }
+}
+
+/* Prevent body scroll when dropdown is open */
+body.dropdown-open {
+    overflow: hidden;
+}
+
+/* Dropdown animations */
+#ar-mode-dropdown-menu {
+    transform-origin: top center;
+    animation: dropdownFade 0.2s ease-out;
+}
+
+@keyframes dropdownFade {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
