@@ -15,6 +15,7 @@ export class VocabularyTool {
         this.isStopSpeechRequested = false;
         this.activeRecallMode = 'normal'; // 'normal' or 'beginner'
         this.useFuzzyMatching = true;
+        this.originalText = '';
 
         this.init();
     }
@@ -843,14 +844,26 @@ export class VocabularyTool {
         const activeRecallTool = document.getElementById('active-recall-tool');
         const isVisible = !activeRecallTool.classList.contains('hidden');
 
+        // Store the original value in a class property
+        if (!this.originalText) {
+            this.originalText = this.input.value;
+        }
+
         if (!isVisible) {
             this.prepareActiveRecall();
             activeRecallTool.classList.remove('hidden');
+            this.input.disabled = true;
+            this.input.value = ''; 
+            this.output.scrollIntoView({ behavior: 'smooth' });
+            this.output.innerHTML = '';
         } else {
             activeRecallTool.classList.add('hidden');
             this.resetActiveRecall();
+            this.input.disabled = false;
+            this.input.value = this.originalText; 
         }
     }
+
 
     prepareActiveRecall() {
         // Extract sentences from the processed text
