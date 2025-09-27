@@ -119,3 +119,15 @@
  .relative group:hover>span {
      z-index: 100;
  }
+
+ #batch-add-to-flash-modal {
+     z-index: 1000;
+ }
+
+ #batch-selections-list {
+     max-height: 300px;
+ }
+
+ .batch-selection-checkbox {
+     transform: scale(1.2);
+ }

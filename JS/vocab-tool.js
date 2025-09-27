@@ -498,55 +498,323 @@ export class VocabularyTool {
         };
     }
 
-    async getCurrentHighlightedWords() {
-        const spans = this.output.querySelectorAll('.highlighted, .multi-highlighted');
-        console.log("Found spans:", spans.length, spans);
+    groupSpansBySelection(spans) {
+        const groups = [];
+        let currentGroup = [];
 
-        if (spans.length == 1) {
-            const results = Array.from(spans).map(span => {
+        // Convert NodeList to Array and sort by DOM position
+        const spansArray = Array.from(spans).sort((a, b) => {
+            return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+        });
+
+        for (let i = 0; i < spansArray.length; i++) {
+            const span = spansArray[i];
+
+            if (span.classList.contains('multi-highlighted')) {
+                // Add to current group if it's multi-highlighted
+                currentGroup.push(span);
+            } else {
+                // If we have a current group, save it and start new
+                if (currentGroup.length > 0) {
+                    groups.push([...currentGroup]);
+                    currentGroup = [];
+                }
+                // Single highlighted word gets its own group
+                groups.push([span]);
+            }
+        }
+
+        // Don't forget the last group
+        if (currentGroup.length > 0) {
+            groups.push(currentGroup);
+        }
+
+        return groups;
+    }
+
+    async getCurrentHighlightedWords() {
+        // Get all highlighted spans (both individual and multi-highlighted)
+        const spans = this.output.querySelectorAll('.highlighted, .multi-highlighted');
+        console.log("Found highlighted spans:", spans.length);
+
+        if (spans.length === 0) {
+            return null;
+        }
+
+        // Group spans by selection groups (multi-highlighted spans that are adjacent)
+        const selectionGroups = this.groupSpansBySelection(spans);
+
+        const results = [];
+
+        for (const group of selectionGroups) {
+            if (group.length === 1) {
+                // Single word selection
+                const span = group[0];
                 const word = span.childNodes[0]?.textContent || span.textContent;
                 const tip = span.querySelector('.tooltip');
                 const translation = tip ? tip.textContent : '';
-                return { word, translation };
-            });
-            console.log("Current highlighted words:", results);
-            return results[0];
-        } else {
-            let translated = document.getElementById('selectionTooltip').textContent || '';
-            const words = Array.from(spans).map(span => span.childNodes[0]?.textContent || span.textContent);
-            console.log("Extracted words:", words);
 
-            if (words.length > 5) alert('Max 5 words');
+                if (word && translation) {
+                    results.push({
+                        words: [word],
+                        translation: translation,
+                        type: 'single',
+                        isGroup: false
+                    });
+                }
+            } else {
+                // Multi-word selection
+                const words = group.map(span => span.childNodes[0]?.textContent || span.textContent).filter(Boolean);
+                const phrase = words.join(' ');
 
-            if (translated.split(' ').length < 2) translated = await this.translate(words.join(' '));
-            if (words.length <= 5 && translated) {
-                return { word: words.join(' '), translation: translated };
+                if (phrase) {
+                    let translation = '';
+
+                    // Try to get translation from selection tooltip first
+                    const selectionTooltip = document.getElementById('selectionTooltip');
+                    if (selectionTooltip && selectionTooltip.style.display !== 'none') {
+                        translation = selectionTooltip.textContent;
+                    }
+
+                    // If no group translation available, translate the phrase
+                    if (!translation || translation === "Translating..." || translation === "(translation error)") {
+                        translation = await this.translate(phrase);
+                    }
+
+                    if (translation && translation !== "(error)") {
+                        results.push({
+                            words: words,
+                            translation: translation,
+                            type: 'group',
+                            isGroup: true
+                        });
+                    }
+                }
             }
         }
-        return null;
+
+        console.log("Processed selections:", results);
+        return results.length > 0 ? results : null;
     }
 
     async handleAddToFlashcard() {
         const addToFlashBtn = document.getElementById('addToFlashBtn');
         addToFlashBtn.disabled = true;
         addToFlashBtn.innerHTML = `
-            <svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-            </svg>
-        `;
+        <svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+    `;
 
-        const selected = await this.getCurrentHighlightedWords();
+        const selections = await this.getCurrentHighlightedWords();
         addToFlashBtn.disabled = false;
         addToFlashBtn.textContent = "Add";
 
-        console.log("Selected words for flashcard:", selected);
-        if (!selected || !selected.word || !selected.translation) {
-            this.setStatus("Highlight a word first!");
+        console.log("Selections for flashcard:", selections);
+
+        if (!selections || selections.length === 0) {
+            this.setStatus("Highlight words first!");
             return;
         }
 
-        this.showAddToFlashModal(selected.word, selected.translation);
+        if (selections.length === 1) {
+            // Single selection (word or group)
+            const selection = selections[0];
+            this.showAddToFlashModal(selection.words.join(' '), selection.translation);
+        } else {
+            // Multiple selections - show batch modal
+            this.showBatchAddToFlashModal(selections);
+        }
+    }
+
+    createBatchAddModal() {
+        const modal = document.createElement('div');
+        modal.id = "batch-add-to-flash-modal";
+        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden";
+        modal.innerHTML = `
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <button id="close-batch-add-modal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+            <h3 class="text-lg font-bold text-indigo-700 mb-4">Add Multiple Words to Flashcards</h3>
+            
+            <div class="mb-4 flex-1 overflow-y-auto">
+                <div id="batch-selections-list" class="space-y-3"></div>
+            </div>
+            
+            <div class="mt-4">
+                <label class="block text-sm font-medium mb-2">Add to list:</label>
+                <div class="flex gap-2">
+                    <select id="batch-list-select" class="flex-1 p-2 border rounded">
+                        <option value="">Select a list...</option>
+                    </select>
+                    <input id="batch-new-list-name" type="text" class="flex-1 p-2 border rounded" placeholder="Or create new list">
+                </div>
+            </div>
+            
+            <div class="mt-4 flex gap-2">
+                <button id="batch-add-all-btn" class="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    Add All Selected
+                </button>
+                <button id="batch-cancel-btn" class="flex-1 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    Cancel
+                </button>
+            </div>
+            
+            <div id="batch-add-status" class="mt-3 text-sm text-center"></div>
+        </div>
+    `;
+        document.body.appendChild(modal);
+
+        // Event listeners for batch modal
+        document.getElementById('close-batch-add-modal').addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        document.getElementById('batch-cancel-btn').addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        document.getElementById('batch-add-all-btn').addEventListener('click', () => {
+            this.handleBatchAdd();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+    }
+
+    showBatchAddToFlashModal(selections) {
+        const modal = document.getElementById('batch-add-to-flash-modal');
+        if (!modal) {
+            this.createBatchAddModal();
+        }
+
+        const selectionsList = document.getElementById('batch-selections-list');
+        selectionsList.innerHTML = '';
+
+        // Populate selections list
+        selections.forEach((selection, index) => {
+            const selectionDiv = document.createElement('div');
+            selectionDiv.className = 'p-3 border rounded-lg bg-gray-50';
+            selectionDiv.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <div class="font-semibold text-gray-800">${selection.words.join(' ')}</div>
+                    <div class="text-sm text-gray-600">${selection.translation}</div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        ${selection.isGroup ? '📚 Word Group' : '🔤 Single Word'} • ${selection.words.length} word(s)
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <input type="checkbox" class="batch-selection-checkbox" data-index="${index}" checked>
+                </div>
+            </div>
+        `;
+            selectionsList.appendChild(selectionDiv);
+        });
+
+        // Populate lists dropdown
+        this.populateBatchListsDropdown();
+
+        document.getElementById('batch-add-status').textContent = '';
+        document.getElementById('batch-new-list-name').value = '';
+
+        modal.classList.remove('hidden');
+    }
+
+    setupAddToFlashcardModal() {
+        this.createAddToFlashcardButton();
+        this.createModal();
+        this.createBatchAddModal(); // Add this line
+    }
+
+    populateBatchListsDropdown() {
+        const select = document.getElementById('batch-list-select');
+        const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        select.innerHTML = '<option value="">Select a list...</option>';
+        Object.keys(customLists).forEach(listName => {
+            const option = document.createElement('option');
+            option.value = listName;
+            option.textContent = listName;
+            select.appendChild(option);
+        });
+    }
+
+    async handleBatchAdd() {
+        const listSelect = document.getElementById('batch-list-select');
+        const newListInput = document.getElementById('batch-new-list-name');
+        const statusDiv = document.getElementById('batch-add-status');
+
+        const selectedListName = listSelect.value || newListInput.value.trim();
+
+        if (!selectedListName) {
+            statusDiv.textContent = "Please select or create a list name.";
+            statusDiv.className = "text-red-600";
+            return;
+        }
+
+        // Get selected checkboxes
+        const checkboxes = document.querySelectorAll('.batch-selection-checkbox:checked');
+        if (checkboxes.length === 0) {
+            statusDiv.textContent = "Please select at least one word to add.";
+            statusDiv.className = "text-yellow-600";
+            return;
+        }
+
+        const selections = [];
+        checkboxes.forEach(checkbox => {
+            const index = parseInt(checkbox.dataset.index);
+            // We need to store the selections data or reconstruct it
+            const selectionDiv = checkbox.closest('.p-3');
+            const germanText = selectionDiv.querySelector('.font-semibold').textContent;
+            const englishText = selectionDiv.querySelector('.text-sm').textContent;
+            selections.push({ german: germanText, english: englishText });
+        });
+
+        let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        // Create new list if it doesn't exist
+        if (!customLists[selectedListName]) {
+            customLists[selectedListName] = [];
+        }
+
+        let addedCount = 0;
+        let skippedCount = 0;
+
+        selections.forEach(selection => {
+            const exists = customLists[selectedListName].some(card =>
+                card.german === selection.german && card.english === selection.english
+            );
+
+            if (!exists) {
+                customLists[selectedListName].push({
+                    german: selection.german,
+                    english: selection.english,
+                    mastered: false
+                });
+                addedCount++;
+            } else {
+                skippedCount++;
+            }
+        });
+
+        localStorage.setItem('customGermanLists', JSON.stringify(customLists));
+
+        if (addedCount > 0) {
+            statusDiv.textContent = `Successfully added ${addedCount} words to "${selectedListName}"${skippedCount > 0 ? ` (${skippedCount} duplicates skipped)` : ''}!`;
+            statusDiv.className = "text-green-600";
+
+            setTimeout(() => {
+                document.getElementById('batch-add-to-flash-modal').classList.add('hidden');
+            }, 2000);
+        } else {
+            statusDiv.textContent = "All selected words already exist in the list.";
+            statusDiv.className = "text-yellow-600";
+        }
     }
 
     showAddToFlashModal(word, translation) {
@@ -853,14 +1121,14 @@ export class VocabularyTool {
             this.prepareActiveRecall();
             activeRecallTool.classList.remove('hidden');
             this.input.disabled = true;
-            this.input.value = ''; 
+            this.input.value = '';
             this.output.scrollIntoView({ behavior: 'smooth' });
             this.output.innerHTML = '';
         } else {
             activeRecallTool.classList.add('hidden');
             this.resetActiveRecall();
             this.input.disabled = false;
-            this.input.value = this.originalText; 
+            this.input.value = this.originalText;
         }
     }
 

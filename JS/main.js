@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!flashCardsTool) {
             flashCardsTool = new FlashcardsTool();
         }
+        // second click on flashcards tab refreshes the custom lists
+        flashCardsTool.renderCustomListButtons();
     });
 
     document.getElementById("tab-exercise").addEventListener("click", () => {
