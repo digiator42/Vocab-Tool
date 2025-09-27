@@ -678,7 +678,7 @@ export class VocabularyTool {
     `;
 
         // Insert after the output area
-        this.output.parentNode.insertAdjacentHTML('afterend', activeRecallHTML);
+        this.output.insertAdjacentHTML('afterend', activeRecallHTML);
     }
 
     setupActiveRecallListeners() {
@@ -704,13 +704,13 @@ export class VocabularyTool {
     addActiveRecallButton() {
         const activeRecallBtn = document.createElement('button');
         activeRecallBtn.id = 'active-recall-btn';
-        activeRecallBtn.className = 'px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700';
+        activeRecallBtn.className = 'mt-5 px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700';
         activeRecallBtn.innerHTML = '🎯 Active Recall';
         activeRecallBtn.addEventListener('click', () => this.toggleActiveRecall());
 
         // Insert after the Add to Flashcards button
         const addToFlashBtn = document.getElementById('addToFlashBtn');
-        addToFlashBtn.parentNode.insertBefore(activeRecallBtn, addToFlashBtn.nextSibling);
+        this.output.insertAdjacentElement('afterend', activeRecallBtn);
     }
 
     toggleActiveRecall() {
