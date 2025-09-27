@@ -13,6 +13,8 @@ export class VocabularyTool {
         this.selectionHighlight = null;
         this.selectedLang = "en";
         this.isStopSpeechRequested = false;
+        this.activeRecallMode = 'normal'; // 'normal' or 'beginner'
+        this.useFuzzyMatching = true;
 
         this.init();
     }
@@ -619,13 +621,31 @@ export class VocabularyTool {
 
     setupActiveRecall() {
         this.createActiveRecallUI();
-        this.setupActiveRecallListeners();
+        setTimeout(() => {
+            this.setupActiveRecallListeners();
+        }, 100);
+        // this.setupActiveRecallListeners();
     }
 
     createActiveRecallUI() {
         const activeRecallHTML = `
         <div id="active-recall-tool" class="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
             <h3 class="text-lg font-semibold mb-4">🎯 Active Recall Practice</h3>
+            
+            <!-- Mode Toggle -->
+            <div class="mb-4 flex flex-wrap gap-4 items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium">Mode:</span>
+                    <select id="ar-mode-select" class="p-2 border rounded text-sm">
+                        <option value="normal">Normal</option>
+                        <option value="beginner">Beginner (with hints)</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="ar-fuzzy-match" checked class="rounded">
+                    <label for="ar-fuzzy-match" class="text-sm font-medium">Fuzzy Word Matching</label>
+                </div>
+            </div>
             
             <div id="ar-progress" class="mb-4">
                 <div class="flex justify-between text-sm text-gray-600 mb-1">
@@ -635,6 +655,12 @@ export class VocabularyTool {
                 <div class="w-full bg-gray-200 rounded-full h-2">
                     <div id="ar-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
                 </div>
+            </div>
+
+            <!-- Beginner Mode Display -->
+            <div id="ar-hint-display" class="mb-4 p-4 bg-blue-50 rounded border border-blue-200 hidden">
+                <div class="text-sm text-blue-800 font-medium mb-2">Sentence Hint:</div>
+                <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
             </div>
 
             <div id="ar-current-sentence" class="mb-4 p-4 bg-white rounded border-2 border-blue-200 min-h-20 flex items-center justify-center">
@@ -676,7 +702,6 @@ export class VocabularyTool {
             </div>
         </div>
     `;
-
         // Insert after the output area
         this.output.insertAdjacentHTML('afterend', activeRecallHTML);
     }
@@ -695,10 +720,111 @@ export class VocabularyTool {
                 e.preventDefault();
                 this.checkAnswer();
             }
+            if (this.activeRecallMode === 'beginner') {
+                this.updateHintDisplay();
+            }
+        });
+
+        // Add new listeners for mode toggles
+        document.getElementById('ar-mode-select').addEventListener('change', (e) => {
+            this.activeRecallMode = e.target.value;
+            if (this.sentences && this.currentSentenceIndex >= 0) {
+                this.updateHintDisplay();
+            }
+        });
+
+        document.getElementById('ar-fuzzy-match').addEventListener('change', (e) => {
+            this.useFuzzyMatching = e.target.checked;
         });
 
         // Add Active Recall button to main controls
         this.addActiveRecallButton();
+    }
+
+    // Beginner mode hints
+    updateHintDisplay() {
+        const hintDisplay = document.getElementById('ar-hint-display');
+        const hintText = document.getElementById('ar-hint-text');
+
+        if (this.activeRecallMode === 'beginner' && this.currentSentenceIndex >= 0) {
+            const sentence = this.sentences[this.currentSentenceIndex].trim();
+            const words = sentence.split(/\s+/);
+
+            // Create dashed version, but reveal words that user has already typed correctly
+            let hintHTML = '';
+            const userInput = document.getElementById('ar-user-input').value.toLowerCase();
+            const userWords = userInput.split(/\s+/).filter(w => w.trim());
+
+            words.forEach(word => {
+                const cleanWord = word.toLowerCase().replace(/[.,!?;]/g, '');
+                const isRevealed = userWords.some(userWord =>
+                    this.wordsMatch(userWord, cleanWord)
+                );
+
+                if (isRevealed) {
+                    hintHTML += `<span class="text-green-600 font-bold">${word}</span> `;
+                } else {
+                    hintHTML += `<span class="text-blue-400">${'─'.repeat(word.length)}</span> `;
+                }
+            });
+
+            hintText.innerHTML = hintHTML;
+            hintDisplay.classList.remove('hidden');
+        } else {
+            hintDisplay.classList.add('hidden');
+        }
+    }
+
+    // Enhanced word matching with fuzzy logic
+    wordsMatch(userWord, correctWord, threshold = 0.7) {
+        if (!this.useFuzzyMatching) {
+            return userWord === correctWord;
+        }
+
+        // Exact match
+        if (userWord === correctWord) return true;
+
+        // Case insensitive match
+        if (userWord.toLowerCase() === correctWord.toLowerCase()) return true;
+
+        // Levenshtein distance for similar words
+        const distance = this.levenshteinDistance(userWord.toLowerCase(), correctWord.toLowerCase());
+        const maxLength = Math.max(userWord.length, correctWord.length);
+        const similarity = 1 - (distance / maxLength);
+
+        return similarity >= threshold;
+    }
+
+    // Levenshtein distance algorithm for fuzzy matching
+    levenshteinDistance(a, b) {
+        const matrix = [];
+
+        // Increment along the first column of each row
+        for (let i = 0; i <= b.length; i++) {
+            matrix[i] = [i];
+        }
+
+        // Increment each column in the first row
+        for (let j = 0; j <= a.length; j++) {
+            matrix[0][j] = j;
+        }
+
+        // Fill in the rest of the matrix
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1, // substitution
+                        matrix[i][j - 1] + 1,     // insertion
+                        matrix[i - 1][j] + 1      // deletion
+                    );
+                }
+            }
+        }
+
+        return matrix[b.length][a.length];
     }
 
     addActiveRecallButton() {
@@ -853,32 +979,86 @@ export class VocabularyTool {
     }
 
     compareSentences(userSentence, correctSentence) {
-        const userWords = userSentence.toLowerCase().split(/\s+/);
-        const correctWords = correctSentence.toLowerCase().split(/\s+/);
+        const userWords = userSentence.toLowerCase().split(/\s+/).filter(w => w.trim());
+        const correctWords = correctSentence.toLowerCase().split(/\s+/).filter(w => w.trim());
 
         const result = {
             userSentence,
             correctSentence,
             words: [],
             correctCount: 0,
-            totalWords: correctWords.length
+            totalWords: correctWords.length,
+            matchedWords: new Set(),
+            extraWords: []
         };
 
-        for (let i = 0; i < Math.max(userWords.length, correctWords.length); i++) {
-            const userWord = userWords[i] || '';
-            const correctWord = correctWords[i] || '';
-            const isCorrect = userWord === correctWord;
+        // Match user words to correct words (not sequential)
+        const userWordMatches = new Array(userWords.length).fill(null);
+        const correctWordMatches = new Array(correctWords.length).fill(false);
 
-            if (isCorrect) {
+        // First pass: exact matches
+        userWords.forEach((userWord, userIndex) => {
+            const correctIndex = correctWords.findIndex((correctWord, idx) =>
+                !correctWordMatches[idx] && this.wordsMatch(userWord, correctWord)
+            );
+
+            if (correctIndex !== -1) {
+                userWordMatches[userIndex] = correctIndex;
+                correctWordMatches[correctIndex] = true;
                 result.correctCount++;
             }
+        });
+
+        // Second pass: fuzzy matches for unmatched words
+        userWords.forEach((userWord, userIndex) => {
+            if (userWordMatches[userIndex] === null) {
+                const correctIndex = correctWords.findIndex((correctWord, idx) =>
+                    !correctWordMatches[idx] && this.wordsMatch(userWord, correctWord, 0.6) // Lower threshold for fuzzy
+                );
+
+                if (correctIndex !== -1) {
+                    userWordMatches[userIndex] = correctIndex;
+                    correctWordMatches[correctIndex] = true;
+                    result.correctCount++;
+                }
+            }
+        });
+
+        // Build the result with proper matching
+        userWords.forEach((userWord, userIndex) => {
+            const correctIndex = userWordMatches[userIndex];
+            const correctWord = correctIndex !== null ? correctWords[correctIndex] : '';
 
             result.words.push({
                 user: userWord,
                 correct: correctWord,
-                isCorrect: isCorrect
+                isCorrect: correctIndex !== null,
+                isFuzzyMatch: correctIndex !== null && userWord !== correctWord
             });
-        }
+
+            if (correctIndex !== null) {
+                result.matchedWords.add(correctIndex);
+            }
+        });
+
+        // Find missing words (words in correct sentence but not in user sentence)
+        correctWords.forEach((correctWord, correctIndex) => {
+            if (!correctWordMatches[correctIndex]) {
+                result.words.push({
+                    user: '',
+                    correct: correctWord,
+                    isCorrect: false,
+                    isMissing: true
+                });
+            }
+        });
+
+        // Find extra words (words in user sentence but not in correct sentence)
+        userWords.forEach((userWord, userIndex) => {
+            if (userWordMatches[userIndex] === null) {
+                result.extraWords.push(userWord);
+            }
+        });
 
         result.accuracy = Math.round((result.correctCount / result.totalWords) * 100);
         return result;
@@ -892,16 +1072,34 @@ export class VocabularyTool {
         feedbackHTML += `<div class="font-semibold mb-2">Your input vs Correct sentence:</div>`;
         feedbackHTML += `<div class="mb-3 p-3 bg-gray-100 rounded">`;
 
-        result.words.forEach((word, index) => {
-            if (word.isCorrect) {
-                feedbackHTML += `<span class="text-green-600 font-semibold">${word.user}</span> `;
-            } else {
-                feedbackHTML += `<span class="text-red-600 font-semibold" title="Correct: ${word.correct}">${word.user}</span> `;
-            }
-        });
+        // Group words by type for better display
+        const correctWords = result.words.filter(w => w.isCorrect && !w.isFuzzyMatch);
+        const fuzzyWords = result.words.filter(w => w.isFuzzyMatch);
+        const missingWords = result.words.filter(w => w.isMissing);
+        const wrongWords = result.words.filter(w => !w.isCorrect && !w.isMissing && w.user);
+
+        if (correctWords.length > 0) {
+            feedbackHTML += `<div class="mb-2"><span class="text-green-600 font-semibold">✓ Correct:</span> `;
+            feedbackHTML += correctWords.map(w => w.user).join(' ') + `</div>`;
+        }
+
+        if (fuzzyWords.length > 0) {
+            feedbackHTML += `<div class="mb-2"><span class="text-yellow-600 font-semibold">≈ Close:</span> `;
+            feedbackHTML += fuzzyWords.map(w => `${w.user} (→ ${w.correct})`).join(' ') + `</div>`;
+        }
+
+        if (missingWords.length > 0) {
+            feedbackHTML += `<div class="mb-2"><span class="text-red-600 font-semibold">✗ Missing:</span> `;
+            feedbackHTML += missingWords.map(w => w.correct).join(' ') + `</div>`;
+        }
+
+        if (wrongWords.length > 0) {
+            feedbackHTML += `<div class="mb-2"><span class="text-red-600 font-semibold">✗ Extra:</span> `;
+            feedbackHTML += wrongWords.map(w => w.user).join(' ') + `</div>`;
+        }
 
         feedbackHTML += `</div>`;
-        feedbackHTML += `<div class="text-sm text-gray-600">Accuracy: ${result.accuracy}% (${result.correctCount}/${result.totalWords} words correct)</div>`;
+        feedbackHTML += `<div class="text-sm text-gray-600">Accuracy: ${result.accuracy}% (${result.correctCount}/${result.totalWords} words matched)</div>`;
         feedbackHTML += `</div>`;
 
         displayArea.innerHTML = feedbackHTML;
@@ -940,6 +1138,8 @@ export class VocabularyTool {
     }
 
     showFinalResults() {
+        clearInterval(this.timerInterval);
+
         const totalAccuracy = Math.round(
             this.results.reduce((sum, result) => sum + result.accuracy, 0) / this.results.length
         );
@@ -947,7 +1147,7 @@ export class VocabularyTool {
         const totalCorrect = this.results.reduce((sum, result) => sum + result.correctCount, 0);
         const totalWords = this.results.reduce((sum, result) => sum + result.totalWords, 0);
 
-        // Summary
+        // Summary (unchanged)
         document.getElementById('ar-summary').innerHTML = `
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div class="p-3 bg-blue-50 rounded-lg">
@@ -969,35 +1169,112 @@ export class VocabularyTool {
         </div>
     `;
 
-        // Detailed results
+        // Enhanced detailed results with proper sequence
         const detailedResults = document.getElementById('ar-detailed-results');
-        detailedResults.innerHTML = this.results.map((result, index) => `
+        detailedResults.innerHTML = this.results.map((result, index) => {
+
+            // Reconstruct the sentence in correct sequence with missing words
+            const correctWords = result.correctSentence.split(/\s+/);
+            const sequenceDisplay = this.getSequenceDisplay(result, correctWords);
+
+            return `
         <div class="p-4 bg-white rounded-lg border border-gray-200">
-            <div class="flex justify-between items-center mb-2">
+            <div class="flex justify-between items-center mb-3">
                 <span class="font-semibold">Sentence ${index + 1}</span>
-                <span class="px-2 py-1 rounded ${result.accuracy >= 80 ? 'bg-green-100 text-green-800' : result.accuracy >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}">
+                <span class="px-3 py-1 rounded-full text-sm font-medium ${result.accuracy >= 90 ? 'bg-green-100 text-green-800' :
+                    result.accuracy >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                }">
                     ${result.accuracy}% accuracy
                 </span>
             </div>
+            
             <div class="mb-2">
                 <strong>Correct:</strong> <span class="text-gray-700">${result.correctSentence}</span>
             </div>
+            
             <div class="mb-2">
-                <strong>Your input:</strong> 
-                <span class="sentence-comparison">${result.words.map(word =>
-            `<span class="${word.isCorrect ? 'text-green-600' : 'text-red-600 relative group'}" ${!word.isCorrect ? `title="Correct: ${word.correct}"` : ''}>
-                        ${word.user || '___'}
-                        ${!word.isCorrect ? '<span class="absolute bottom-full left-0 bg-red-100 text-red-800 text-xs p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">' + word.correct + '</span>' : ''}
-                    </span>`
-        ).join(' ')}</span>
+                <strong>Your input:</strong> <span class="text-gray-700">${result.userSentence || "(no input)"}</span>
             </div>
-            <div class="text-sm text-gray-600">
-                Words: ${result.correctCount}/${result.totalWords} correct
+            
+            <div class="mb-3">
+                <strong>Sequence comparison:</strong> 
+                <div class="sentence-comparison mt-2 p-3 bg-gray-50 rounded-lg font-mono text-lg">
+                    ${sequenceDisplay}
+                </div>
+            </div>
+            
+            <div class="text-sm text-gray-600 grid grid-cols-2 gap-2 mt-3">
+                <div>Words matched: ${result.correctCount}/${result.totalWords}</div>
+                <div>Fuzzy matches: ${result.words.filter(w => w.isFuzzyMatch).length}</div>
+                <div>Missing words: ${result.words.filter(w => w.isMissing).length}</div>
+                <div>Extra words: ${result.extraWords.length}</div>
             </div>
         </div>
-    `).join('');
+        `;
+        }).join('');
 
         document.getElementById('ar-results').classList.remove('hidden');
+    }
+
+    // New method to reconstruct the sequence with missing words
+    getSequenceDisplay(result, correctWords) {
+        let displayHTML = '';
+
+        // Create a map of correct word positions to user words
+        const wordMap = new Map();
+
+        // Map user words to their correct positions
+        result.words.forEach(wordObj => {
+            if (wordObj.isCorrect && wordObj.correct) {
+                const correctIndex = correctWords.findIndex(w =>
+                    w.toLowerCase() === wordObj.correct.toLowerCase()
+                );
+                if (correctIndex !== -1) {
+                    wordMap.set(correctIndex, wordObj);
+                }
+            }
+        });
+
+        // Also include missing words in their correct positions
+        result.words.forEach(wordObj => {
+            if (wordObj.isMissing && wordObj.correct) {
+                const correctIndex = correctWords.findIndex(w =>
+                    w.toLowerCase() === wordObj.correct.toLowerCase()
+                );
+                if (correctIndex !== -1) {
+                    wordMap.set(correctIndex, wordObj);
+                }
+            }
+        });
+
+        // Build the display in correct sequence
+        correctWords.forEach((correctWord, index) => {
+            const wordObj = wordMap.get(index);
+
+            if (wordObj) {
+                if (wordObj.isMissing) {
+                    // Missing word - show in brackets
+                    displayHTML += `<span class="text-red-600 bg-red-100 px-1 rounded" title="Missing word">[${wordObj.correct}]</span> `;
+                } else if (wordObj.isFuzzyMatch) {
+                    // Fuzzy match - show with correction hint
+                    displayHTML += `<span class="text-yellow-600 px-1 rounded relative group" title="Close match: ${wordObj.user} → ${wordObj.correct}">
+                    ${wordObj.user}
+                    <span class="absolute bottom-full left-0 bg-yellow-100 text-yellow-800 text-xs p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    ${wordObj.correct}
+                    </span>
+                </span> `;
+                } else if (wordObj.isCorrect) {
+                    // Correct match
+                    displayHTML += `<span class="text-green-600 font-semibold">${wordObj.user}</span> `;
+                }
+            } else {
+                // Word not matched at all (shouldn't happen, but safety)
+                displayHTML += `<span class="text-gray-400">${correctWord}</span> `;
+            }
+        });
+
+        return displayHTML;
     }
 
     resetActiveRecall() {
