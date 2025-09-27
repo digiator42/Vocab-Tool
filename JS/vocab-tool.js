@@ -890,9 +890,9 @@ export class VocabularyTool {
 
     setupActiveRecall() {
         this.createActiveRecallUI();
-        setTimeout(() => {
-            this.setupActiveRecallListeners();
-        }, 100);
+        // setTimeout(() => {
+        this.setupActiveRecallListeners();
+        // }, 100);
         // this.setupActiveRecallListeners();
     }
 
@@ -976,44 +976,198 @@ export class VocabularyTool {
     }
 
     setupActiveRecallListeners() {
-        // Active Recall event listeners
-        document.getElementById('ar-start-btn').addEventListener('click', () => this.startActiveRecall());
-        document.getElementById('ar-next-btn').addEventListener('click', () => this.nextSentence());
-        document.getElementById('ar-back-btn').addEventListener('click', () => this.previousSentence());
-        document.getElementById('ar-repeat-btn').addEventListener('click', () => this.repeatAudio());
-        document.getElementById('ar-finish-btn').addEventListener('click', () => this.finishActiveRecall());
-
-        // Enter key to submit
-        document.getElementById('ar-user-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.checkAnswer();
-            }
-            if (this.activeRecallMode === 'beginner') {
-                this.updateHintDisplay();
-            }
-        });
-
-        // Add new listeners for mode toggles
-        document.getElementById('ar-mode-select').addEventListener('change', (e) => {
-            this.activeRecallMode = e.target.value;
-            if (this.sentences && this.currentSentenceIndex >= 0) {
-                this.updateHintDisplay();
+        // Use event delegation for better mobile support
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('#ar-start-btn')) {
+                this.startActiveRecall();
+            } else if (e.target.matches('#ar-next-btn')) {
+                this.nextSentence();
+            } else if (e.target.matches('#ar-back-btn')) {
+                this.previousSentence();
+            } else if (e.target.matches('#ar-repeat-btn')) {
+                this.repeatAudio();
+            } else if (e.target.matches('#ar-finish-btn')) {
+                this.finishActiveRecall();
+            } else if (e.target.matches('#ar-mode-select')) {
+                // Handle mode change immediately
+                this.handleModeChange();
             }
         });
 
-        document.getElementById('ar-fuzzy-match').addEventListener('change', (e) => {
-            this.useFuzzyMatching = e.target.checked;
-        });
+        // Mobile-friendly input handling
+        const userInput = document.getElementById('ar-user-input');
+        const modeSelect = document.getElementById('ar-mode-select');
+        const fuzzyMatch = document.getElementById('ar-fuzzy-match');
 
-        // Add Active Recall button to main controls
+        if (userInput) {
+            // Use multiple event types for better compatibility
+            userInput.addEventListener('input', (e) => {
+                this.handleUserInput();
+            });
+
+            // Enhanced Enter key handling for all devices
+            userInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent default Enter behavior
+
+                    // Handle Enter key based on context
+                    if (e.ctrlKey || e.metaKey) {
+                        // Ctrl+Enter or Cmd+Enter - add new line
+                        const cursorPos = userInput.selectionStart;
+                        const text = userInput.value;
+                        userInput.value = text.substring(0, cursorPos) + '\n' + text.substring(cursorPos);
+                        userInput.selectionStart = userInput.selectionEnd = cursorPos + 1;
+                    } else {
+                        // Regular Enter - submit answer
+                        this.checkAnswer();
+                    }
+                }
+            });
+
+            // Additional mobile-specific events
+            if (this.isTouchDevice()) {
+                userInput.addEventListener('touchend', (e) => {
+                    setTimeout(() => this.handleUserInput(), 100);
+                });
+
+                // Add virtual Enter button for mobile
+                this.addMobileEnterButton();
+            }
+
+            // Fallback for keyup (some mobile keyboards)
+            userInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    setTimeout(() => {
+                        this.checkAnswer();
+                    }, 50);
+                }
+            });
+        }
+
+        if (modeSelect) {
+            modeSelect.addEventListener('change', (e) => {
+                this.handleModeChange();
+            });
+
+            // Also listen for touch events on mobile
+            if (this.isTouchDevice()) {
+                modeSelect.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                });
+            }
+        }
+
+        if (fuzzyMatch) {
+            fuzzyMatch.addEventListener('change', (e) => {
+                this.useFuzzyMatching = e.target.checked;
+            });
+        }
+
         this.addActiveRecallButton();
     }
 
+    addMobileEnterButton() {
+        const inputArea = document.getElementById('ar-input-area');
+        if (!inputArea) return;
+
+        // Check if mobile Enter button already exists
+        if (document.getElementById('mobile-enter-btn')) return;
+
+        const enterButton = document.createElement('button');
+        enterButton.id = 'mobile-enter-btn';
+        enterButton.innerHTML = '↵ Enter';
+        enterButton.className = 'w-full mt-2 bg-blue-600 text-white py-3 rounded-lg font-semibold hidden';
+        enterButton.addEventListener('click', () => {
+            this.checkAnswer();
+        });
+
+        inputArea.appendChild(enterButton);
+
+        // Show/hide based on input content
+        this.setupMobileEnterButtonVisibility();
+    }
+
+    setupMobileEnterButtonVisibility() {
+        const userInput = document.getElementById('ar-user-input');
+        const mobileEnterBtn = document.getElementById('mobile-enter-btn');
+
+        if (!userInput || !mobileEnterBtn) return;
+
+        userInput.addEventListener('input', () => {
+            if (userInput.value.trim().length > 0) {
+                mobileEnterBtn.classList.remove('hidden');
+            } else {
+                mobileEnterBtn.classList.add('hidden');
+            }
+        });
+
+        // Also show/hide based on focus
+        userInput.addEventListener('focus', () => {
+            if (userInput.value.trim().length > 0) {
+                mobileEnterBtn.classList.remove('hidden');
+            }
+        });
+
+        userInput.addEventListener('blur', () => {
+            mobileEnterBtn.classList.add('hidden');
+        });
+    }
+
+    // Add helper method for touch device detection
+    isTouchDevice() {
+        return 'ontouchstart' in window ||
+            navigator.maxTouchPoints > 0 ||
+            navigator.msMaxTouchPoints > 0;
+    }
+
+    // Unified input handler
+    handleUserInput() {
+        if (this.activeRecallMode === 'beginner') {
+            this.updateHintDisplay();
+        }
+    }
+
+    // Unified mode change handler
+    handleModeChange() {
+        const modeSelect = document.getElementById('ar-mode-select');
+        if (modeSelect) {
+            this.activeRecallMode = modeSelect.value;
+
+            // Force UI update for mobile
+            if (this.sentences && this.currentSentenceIndex >= 0) {
+                this.updateHintDisplay();
+
+                // Additional mobile fix: trigger a resize event to force rendering
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                }, 100);
+            }
+
+            // Show/hide hint display based on mode
+            const hintDisplay = document.getElementById('ar-hint-display');
+            if (hintDisplay) {
+                if (this.activeRecallMode === 'beginner') {
+                    hintDisplay.classList.remove('hidden');
+                    hintDisplay.style.display = 'block';
+                } else {
+                    hintDisplay.classList.add('hidden');
+                    hintDisplay.style.display = 'none';
+                }
+            }
+        }
+    }
+
     // Beginner mode hints
+    // Update the updateHintDisplay method to be more robust
     updateHintDisplay() {
         const hintDisplay = document.getElementById('ar-hint-display');
         const hintText = document.getElementById('ar-hint-text');
+
+        // Always check if elements exist
+        if (!hintDisplay || !hintText) {
+            console.warn('Hint elements not found');
+            return;
+        }
 
         if (this.activeRecallMode === 'beginner' && this.currentSentenceIndex >= 0) {
             const sentence = this.sentences[this.currentSentenceIndex].trim();
@@ -1033,15 +1187,43 @@ export class VocabularyTool {
                 if (isRevealed) {
                     hintHTML += `<span class="text-green-600 font-bold">${word}</span> `;
                 } else {
-                    hintHTML += `<span class="text-blue-400">${'─'.repeat(word.length)}</span> `;
+                    // Use visible dashes that work on mobile
+                    hintHTML += `<span class="text-blue-400 font-mono">${'–'.repeat(Math.max(3, word.length))}</span> `;
                 }
             });
 
             hintText.innerHTML = hintHTML;
+
+            // Force display and trigger reflow for mobile browsers
             hintDisplay.classList.remove('hidden');
+            hintDisplay.style.display = 'block';
+
+            // Mobile-specific fixes
+            this.fixMobileHintDisplay();
+
         } else {
-            hintDisplay.classList.add('hidden');
+            if (hintDisplay) {
+                hintDisplay.classList.add('hidden');
+                hintDisplay.style.display = 'none';
+            }
         }
+    }
+
+    // Add mobile-specific fixes
+    fixMobileHintDisplay() {
+        const hintDisplay = document.getElementById('ar-hint-display');
+        if (!hintDisplay) return;
+
+        // Force mobile browser to render the hint
+        hintDisplay.style.opacity = '0.99'; // Force GPU rendering
+        setTimeout(() => {
+            hintDisplay.style.opacity = '1';
+        }, 50);
+
+        // Ensure proper touch handling
+        hintDisplay.style.touchAction = 'manipulation';
+        hintDisplay.style.webkitUserSelect = 'none';
+        hintDisplay.style.userSelect = 'none';
     }
 
     // Enhanced word matching with fuzzy logic
@@ -1133,6 +1315,7 @@ export class VocabularyTool {
     }
 
 
+    // Update the prepareActiveRecall method
     prepareActiveRecall() {
         // Extract sentences from the processed text
         const text = this.input.value;
@@ -1154,6 +1337,21 @@ export class VocabularyTool {
         this.startTimes = [];
         this.results = [];
 
+        // Initialize mode selector for mobile
+        const modeSelect = document.getElementById('ar-mode-select');
+        if (modeSelect) {
+            this.activeRecallMode = modeSelect.value;
+
+            // Force hint display update if in beginner mode
+            if (this.activeRecallMode === 'beginner') {
+                const hintDisplay = document.getElementById('ar-hint-display');
+                if (hintDisplay) {
+                    hintDisplay.classList.remove('hidden');
+                    hintDisplay.style.display = 'block';
+                }
+            }
+        }
+
         document.getElementById('ar-total').textContent = this.sentences.length;
         this.updateProgress();
     }
@@ -1168,19 +1366,37 @@ export class VocabularyTool {
         const displayArea = document.getElementById('ar-current-sentence');
         const inputArea = document.getElementById('ar-input-area');
         const userInput = document.getElementById('ar-user-input');
+        const hintDisplay = document.getElementById('ar-hint-display');
 
-        // Show loading state
+        // Mobile: Ensure hint display is properly initialized
+        if (this.activeRecallMode === 'beginner' && hintDisplay) {
+            hintDisplay.classList.remove('hidden');
+            hintDisplay.style.display = 'block';
+        }
+
+        // Show loading state with mobile-optimized text
         displayArea.innerHTML = '<span class="text-gray-500">Loading audio...</span>';
 
         // Hide input area initially
         inputArea.classList.add('hidden');
 
-        // Update controls
+        // Update controls with mobile-friendly classes
         document.getElementById('ar-start-btn').classList.add('hidden');
         document.getElementById('ar-next-btn').classList.remove('hidden');
         document.getElementById('ar-back-btn').classList.remove('hidden');
         document.getElementById('ar-repeat-btn').classList.remove('hidden');
         document.getElementById('ar-finish-btn').classList.remove('hidden');
+
+        // Mobile: Make buttons more touch-friendly
+        if (this.isTouchDevice()) {
+            ['ar-next-btn', 'ar-back-btn', 'ar-repeat-btn', 'ar-finish-btn'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.classList.add('py-3'); // Larger touch targets
+                    btn.style.minHeight = '44px'; // Apple's recommended minimum touch target
+                }
+            });
+        }
 
         // Disable back button on first sentence
         document.getElementById('ar-back-btn').disabled = this.currentSentenceIndex === 0;
@@ -1190,21 +1406,52 @@ export class VocabularyTool {
         this.updateTimer();
         this.timerInterval = setInterval(() => this.updateTimer(), 1000);
 
-        // Play audio
+        // Play audio with mobile compatibility
         this.speak(sentence).then(() => {
             displayArea.textContent = '🎧 Listen carefully...';
+
+            // Mobile: Force a layout update
+            if (this.isTouchDevice()) {
+                setTimeout(() => {
+                    document.body.style.overflow = 'hidden';
+                    setTimeout(() => {
+                        document.body.style.overflow = 'auto';
+                    }, 50);
+                }, 10);
+            }
 
             // Show input area after audio finishes
             setTimeout(() => {
                 inputArea.classList.remove('hidden');
                 userInput.value = '';
-                userInput.focus();
+
+                // Mobile: Focus input with delay for better UX
+                if (this.isTouchDevice()) {
+                    setTimeout(() => {
+                        userInput.focus();
+                        // Mobile browsers need this to show keyboard properly
+                        // Ensure mobile Enter button is properly set up
+                        this.addMobileEnterButton();
+                        const mobileEnterBtn = document.getElementById('mobile-enter-btn');
+                        if (mobileEnterBtn) {
+                            mobileEnterBtn.classList.add('hidden'); // Start hidden
+                        }
+                    }, 300);
+                } else {
+                    userInput.focus();
+                }
+
                 displayArea.innerHTML = `
                 <div class="text-center">
                     <div class="text-lg mb-2">✍️ Write what you heard:</div>
                     <div class="text-sm text-gray-500">Sentence ${this.currentSentenceIndex + 1} of ${this.sentences.length}</div>
                 </div>
             `;
+
+                // Update hints for beginner mode
+                if (this.activeRecallMode === 'beginner') {
+                    this.updateHintDisplay();
+                }
             }, 1000);
         });
     }

@@ -131,3 +131,57 @@
  .batch-selection-checkbox {
      transform: scale(1.2);
  }
+
+ /* Mobile-specific styles */
+ @media (max-width: 768px) {
+     #ar-hint-display {
+         font-size: 16px;
+         /* Larger text for mobile */
+         padding: 12px;
+         margin-bottom: 16px;
+     }
+
+     #ar-user-input {
+         font-size: 16px;
+         /* Prevent zoom on focus */
+         min-height: 120px;
+         /* Larger touch area */
+     }
+
+     #ar-controls button {
+         min-height: 44px;
+         /* Apple's minimum touch target */
+         padding: 12px 16px;
+         font-size: 16px;
+     }
+
+     .tooltip {
+         max-width: 90vw !important;
+         /* Don't overflow mobile screen */
+         font-size: 14px;
+         padding: 10px 14px;
+     }
+ }
+
+ /* Ensure hint display works on mobile */
+ #ar-hint-display {
+     -webkit-overflow-scrolling: touch;
+     /* Smooth scrolling on iOS */
+     overflow-x: auto;
+     white-space: nowrap;
+     /* Keep dashes in one line */
+ }
+
+ #ar-hint-text {
+     font-family: monospace;
+     letter-spacing: 1px;
+     /* Better visibility for dashes */
+ }
+
+ /* Mobile touch improvements */
+ #ar-user-input {
+     -webkit-appearance: none;
+     /* Remove iOS styling */
+     border-radius: 8px;
+     /* Better touch feel */
+ }

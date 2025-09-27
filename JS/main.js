@@ -7,6 +7,11 @@ import { ExerciseTool } from './exercise-tool.js';
 
 
 document.addEventListener('DOMContentLoaded', function () {
+
+    if (typeof browser === "undefined") {
+        var browser = chrome;
+    }
+
     // Initialize all modules
     const tabManager = new TabManager();
     const importExportManager = new ImportExportManager();
