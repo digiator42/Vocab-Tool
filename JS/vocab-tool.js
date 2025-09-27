@@ -21,8 +21,9 @@ export class VocabularyTool {
         this.setupEventListeners();
         this.setupLanguageSelector();
         this.setupAddToFlashcardModal();
-        this.setupTouchMultiSelect(); // Add this line
-        this.processBtn.click(); // auto-init
+        this.setupTouchMultiSelect();
+        this.setupActiveRecall();
+        this.processBtn.click();
     }
 
     setStatus(message) {
@@ -614,5 +615,401 @@ export class VocabularyTool {
         setTimeout(() => {
             document.getElementById('add-to-flash-modal').classList.add('hidden');
         }, 1200);
+    }
+
+    setupActiveRecall() {
+        this.createActiveRecallUI();
+        this.setupActiveRecallListeners();
+    }
+
+    createActiveRecallUI() {
+        const activeRecallHTML = `
+        <div id="active-recall-tool" class="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
+            <h3 class="text-lg font-semibold mb-4">🎯 Active Recall Practice</h3>
+            
+            <div id="ar-progress" class="mb-4">
+                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Progress: <span id="ar-current">0</span>/<span id="ar-total">0</span></span>
+                    <span id="ar-status">Ready to start</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="ar-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div id="ar-current-sentence" class="mb-4 p-4 bg-white rounded border-2 border-blue-200 min-h-20 flex items-center justify-center">
+                <span class="text-gray-500">Sentence will appear here...</span>
+            </div>
+
+            <div id="ar-input-area" class="mb-4 hidden">
+                <textarea id="ar-user-input" 
+                    placeholder="Type what you hear..." 
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"></textarea>
+                <div class="flex justify-between mt-2 text-sm text-gray-600">
+                    <span>Press Enter to submit</span>
+                    <span id="ar-timer">Time: 0s</span>
+                </div>
+            </div>
+
+            <div id="ar-controls" class="flex flex-wrap gap-2">
+                <button id="ar-start-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                    🎧 Start Practice
+                </button>
+                <button id="ar-next-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors hidden">
+                    ➡️ Next Sentence
+                </button>
+                <button id="ar-back-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors hidden">
+                    ⬅️ Previous
+                </button>
+                <button id="ar-repeat-btn" class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors hidden">
+                    🔄 Repeat Audio
+                </button>
+                <button id="ar-finish-btn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors hidden">
+                    ✅ Finish Practice
+                </button>
+            </div>
+
+            <div id="ar-results" class="mt-6 hidden">
+                <h4 class="text-lg font-semibold mb-3">📊 Practice Results</h4>
+                <div id="ar-summary" class="mb-4 p-4 bg-white rounded-lg border"></div>
+                <div id="ar-detailed-results" class="space-y-4"></div>
+            </div>
+        </div>
+    `;
+
+        // Insert after the output area
+        this.output.parentNode.insertAdjacentHTML('afterend', activeRecallHTML);
+    }
+
+    setupActiveRecallListeners() {
+        // Active Recall event listeners
+        document.getElementById('ar-start-btn').addEventListener('click', () => this.startActiveRecall());
+        document.getElementById('ar-next-btn').addEventListener('click', () => this.nextSentence());
+        document.getElementById('ar-back-btn').addEventListener('click', () => this.previousSentence());
+        document.getElementById('ar-repeat-btn').addEventListener('click', () => this.repeatAudio());
+        document.getElementById('ar-finish-btn').addEventListener('click', () => this.finishActiveRecall());
+
+        // Enter key to submit
+        document.getElementById('ar-user-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.checkAnswer();
+            }
+        });
+
+        // Add Active Recall button to main controls
+        this.addActiveRecallButton();
+    }
+
+    addActiveRecallButton() {
+        const activeRecallBtn = document.createElement('button');
+        activeRecallBtn.id = 'active-recall-btn';
+        activeRecallBtn.className = 'px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700';
+        activeRecallBtn.innerHTML = '🎯 Active Recall';
+        activeRecallBtn.addEventListener('click', () => this.toggleActiveRecall());
+
+        // Insert after the Add to Flashcards button
+        const addToFlashBtn = document.getElementById('addToFlashBtn');
+        addToFlashBtn.parentNode.insertBefore(activeRecallBtn, addToFlashBtn.nextSibling);
+    }
+
+    toggleActiveRecall() {
+        const activeRecallTool = document.getElementById('active-recall-tool');
+        const isVisible = !activeRecallTool.classList.contains('hidden');
+
+        if (!isVisible) {
+            this.prepareActiveRecall();
+            activeRecallTool.classList.remove('hidden');
+        } else {
+            activeRecallTool.classList.add('hidden');
+            this.resetActiveRecall();
+        }
+    }
+
+    prepareActiveRecall() {
+        // Extract sentences from the processed text
+        const text = this.input.value;
+        if (!text.trim()) {
+            alert('Please process some text first!');
+            return;
+        }
+
+        // Simple sentence segmentation
+        this.sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+
+        if (this.sentences.length === 0) {
+            alert('No sentences found in the text!');
+            return;
+        }
+
+        this.currentSentenceIndex = -1;
+        this.userAnswers = [];
+        this.startTimes = [];
+        this.results = [];
+
+        document.getElementById('ar-total').textContent = this.sentences.length;
+        this.updateProgress();
+    }
+
+    startActiveRecall() {
+        this.currentSentenceIndex = 0;
+        this.showCurrentSentence();
+    }
+
+    showCurrentSentence() {
+        const sentence = this.sentences[this.currentSentenceIndex].trim();
+        const displayArea = document.getElementById('ar-current-sentence');
+        const inputArea = document.getElementById('ar-input-area');
+        const userInput = document.getElementById('ar-user-input');
+
+        // Show loading state
+        displayArea.innerHTML = '<span class="text-gray-500">Loading audio...</span>';
+
+        // Hide input area initially
+        inputArea.classList.add('hidden');
+
+        // Update controls
+        document.getElementById('ar-start-btn').classList.add('hidden');
+        document.getElementById('ar-next-btn').classList.remove('hidden');
+        document.getElementById('ar-back-btn').classList.remove('hidden');
+        document.getElementById('ar-repeat-btn').classList.remove('hidden');
+        document.getElementById('ar-finish-btn').classList.remove('hidden');
+
+        // Disable back button on first sentence
+        document.getElementById('ar-back-btn').disabled = this.currentSentenceIndex === 0;
+
+        // Start timer
+        this.startTimes[this.currentSentenceIndex] = Date.now();
+        this.updateTimer();
+        this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+
+        // Play audio
+        this.speak(sentence).then(() => {
+            displayArea.textContent = '🎧 Listen carefully...';
+
+            // Show input area after audio finishes
+            setTimeout(() => {
+                inputArea.classList.remove('hidden');
+                userInput.value = '';
+                userInput.focus();
+                displayArea.innerHTML = `
+                <div class="text-center">
+                    <div class="text-lg mb-2">✍️ Write what you heard:</div>
+                    <div class="text-sm text-gray-500">Sentence ${this.currentSentenceIndex + 1} of ${this.sentences.length}</div>
+                </div>
+            `;
+            }, 1000);
+        });
+    }
+
+    updateTimer() {
+        if (this.startTimes[this.currentSentenceIndex]) {
+            const elapsed = Math.floor((Date.now() - this.startTimes[this.currentSentenceIndex]) / 1000);
+            document.getElementById('ar-timer').textContent = `Time: ${elapsed}s`;
+        }
+    }
+
+    updateProgress() {
+        const progress = this.currentSentenceIndex >= 0 ? this.currentSentenceIndex : 0;
+        const percentage = (progress / this.sentences.length) * 100;
+
+        document.getElementById('ar-current').textContent = progress;
+        document.getElementById('ar-progress-bar').style.width = `${percentage}%`;
+
+        const status = document.getElementById('ar-status');
+        if (this.currentSentenceIndex < 0) {
+            status.textContent = 'Ready to start';
+        } else if (this.currentSentenceIndex < this.sentences.length) {
+            status.textContent = `Sentence ${this.currentSentenceIndex + 1} of ${this.sentences.length}`;
+        } else {
+            status.textContent = 'Practice completed!';
+        }
+    }
+
+    checkAnswer() {
+        const userInput = document.getElementById('ar-user-input').value.trim();
+        const correctSentence = this.sentences[this.currentSentenceIndex].trim();
+
+        if (!userInput) {
+            alert('Please type what you heard!');
+            return;
+        }
+
+        // Store the result
+        this.userAnswers[this.currentSentenceIndex] = userInput;
+        this.results[this.currentSentenceIndex] = this.compareSentences(userInput, correctSentence);
+
+        // Show immediate feedback
+        this.showSentenceFeedback(this.currentSentenceIndex);
+
+        // Auto-advance after 3 seconds or wait for next click
+        setTimeout(() => {
+            if (this.currentSentenceIndex < this.sentences.length - 1) {
+                this.nextSentence();
+            } else {
+                this.finishActiveRecall();
+            }
+        }, 3000);
+    }
+
+    compareSentences(userSentence, correctSentence) {
+        const userWords = userSentence.toLowerCase().split(/\s+/);
+        const correctWords = correctSentence.toLowerCase().split(/\s+/);
+
+        const result = {
+            userSentence,
+            correctSentence,
+            words: [],
+            correctCount: 0,
+            totalWords: correctWords.length
+        };
+
+        for (let i = 0; i < Math.max(userWords.length, correctWords.length); i++) {
+            const userWord = userWords[i] || '';
+            const correctWord = correctWords[i] || '';
+            const isCorrect = userWord === correctWord;
+
+            if (isCorrect) {
+                result.correctCount++;
+            }
+
+            result.words.push({
+                user: userWord,
+                correct: correctWord,
+                isCorrect: isCorrect
+            });
+        }
+
+        result.accuracy = Math.round((result.correctCount / result.totalWords) * 100);
+        return result;
+    }
+
+    showSentenceFeedback(sentenceIndex) {
+        const result = this.results[sentenceIndex];
+        const displayArea = document.getElementById('ar-current-sentence');
+
+        let feedbackHTML = `<div class="text-left w-full">`;
+        feedbackHTML += `<div class="font-semibold mb-2">Your input vs Correct sentence:</div>`;
+        feedbackHTML += `<div class="mb-3 p-3 bg-gray-100 rounded">`;
+
+        result.words.forEach((word, index) => {
+            if (word.isCorrect) {
+                feedbackHTML += `<span class="text-green-600 font-semibold">${word.user}</span> `;
+            } else {
+                feedbackHTML += `<span class="text-red-600 font-semibold" title="Correct: ${word.correct}">${word.user}</span> `;
+            }
+        });
+
+        feedbackHTML += `</div>`;
+        feedbackHTML += `<div class="text-sm text-gray-600">Accuracy: ${result.accuracy}% (${result.correctCount}/${result.totalWords} words correct)</div>`;
+        feedbackHTML += `</div>`;
+
+        displayArea.innerHTML = feedbackHTML;
+        document.getElementById('ar-input-area').classList.add('hidden');
+    }
+
+    nextSentence() {
+        if (this.currentSentenceIndex < this.sentences.length - 1) {
+            this.currentSentenceIndex++;
+            this.showCurrentSentence();
+            this.updateProgress();
+        }
+    }
+
+    previousSentence() {
+        if (this.currentSentenceIndex > 0) {
+            this.currentSentenceIndex--;
+            this.showCurrentSentence();
+            this.updateProgress();
+
+            // Show previous answer if available
+            if (this.results[this.currentSentenceIndex]) {
+                this.showSentenceFeedback(this.currentSentenceIndex);
+            }
+        }
+    }
+
+    repeatAudio() {
+        const sentence = this.sentences[this.currentSentenceIndex].trim();
+        this.speak(sentence);
+    }
+
+    finishActiveRecall() {
+        clearInterval(this.timerInterval);
+        this.showFinalResults();
+    }
+
+    showFinalResults() {
+        const totalAccuracy = Math.round(
+            this.results.reduce((sum, result) => sum + result.accuracy, 0) / this.results.length
+        );
+
+        const totalCorrect = this.results.reduce((sum, result) => sum + result.correctCount, 0);
+        const totalWords = this.results.reduce((sum, result) => sum + result.totalWords, 0);
+
+        // Summary
+        document.getElementById('ar-summary').innerHTML = `
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div class="p-3 bg-blue-50 rounded-lg">
+                <div class="text-2xl font-bold text-blue-600">${this.sentences.length}</div>
+                <div class="text-sm text-blue-800">Sentences</div>
+            </div>
+            <div class="p-3 bg-green-50 rounded-lg">
+                <div class="text-2xl font-bold text-green-600">${totalAccuracy}%</div>
+                <div class="text-sm text-green-800">Overall Accuracy</div>
+            </div>
+            <div class="p-3 bg-purple-50 rounded-lg">
+                <div class="text-2xl font-bold text-purple-600">${totalCorrect}/${totalWords}</div>
+                <div class="text-sm text-purple-800">Words Correct</div>
+            </div>
+            <div class="p-3 bg-yellow-50 rounded-lg">
+                <div class="text-2xl font-bold text-yellow-600">${Math.round(totalWords / this.sentences.length)}</div>
+                <div class="text-sm text-yellow-800">Avg. Words/Sentence</div>
+            </div>
+        </div>
+    `;
+
+        // Detailed results
+        const detailedResults = document.getElementById('ar-detailed-results');
+        detailedResults.innerHTML = this.results.map((result, index) => `
+        <div class="p-4 bg-white rounded-lg border border-gray-200">
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-semibold">Sentence ${index + 1}</span>
+                <span class="px-2 py-1 rounded ${result.accuracy >= 80 ? 'bg-green-100 text-green-800' : result.accuracy >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}">
+                    ${result.accuracy}% accuracy
+                </span>
+            </div>
+            <div class="mb-2">
+                <strong>Correct:</strong> <span class="text-gray-700">${result.correctSentence}</span>
+            </div>
+            <div class="mb-2">
+                <strong>Your input:</strong> 
+                <span class="sentence-comparison">${result.words.map(word =>
+            `<span class="${word.isCorrect ? 'text-green-600' : 'text-red-600 relative group'}" ${!word.isCorrect ? `title="Correct: ${word.correct}"` : ''}>
+                        ${word.user || '___'}
+                        ${!word.isCorrect ? '<span class="absolute bottom-full left-0 bg-red-100 text-red-800 text-xs p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">' + word.correct + '</span>' : ''}
+                    </span>`
+        ).join(' ')}</span>
+            </div>
+            <div class="text-sm text-gray-600">
+                Words: ${result.correctCount}/${result.totalWords} correct
+            </div>
+        </div>
+    `).join('');
+
+        document.getElementById('ar-results').classList.remove('hidden');
+    }
+
+    resetActiveRecall() {
+        clearInterval(this.timerInterval);
+        document.getElementById('ar-results').classList.add('hidden');
+        document.getElementById('ar-input-area').classList.add('hidden');
+
+        // Reset controls
+        document.getElementById('ar-start-btn').classList.remove('hidden');
+        document.getElementById('ar-next-btn').classList.add('hidden');
+        document.getElementById('ar-back-btn').classList.add('hidden');
+        document.getElementById('ar-repeat-btn').classList.add('hidden');
+        document.getElementById('ar-finish-btn').classList.add('hidden');
     }
 }

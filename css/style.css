@@ -101,3 +101,21 @@
  .progress-bar {
      transition: width 0.3s ease;
  }
+
+ .sentence-comparison {
+     line-height: 1.6;
+ }
+
+ .group:hover .group-hover\:opacity-100 {
+     opacity: 1;
+ }
+
+ #ar-user-input:focus {
+     outline: none;
+     ring: 2px;
+ }
+
+ /* Tooltip styles for wrong words */
+ .relative group:hover>span {
+     z-index: 100;
+ }
