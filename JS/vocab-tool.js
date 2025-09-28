@@ -952,7 +952,7 @@ export class VocabularyTool {
 
         this.addActiveRecallButton();
     }
-    
+
     createActiveRecallUI() {
         const activeRecallHTML = `
         <div id="active-recall-tool" class="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
@@ -967,7 +967,7 @@ export class VocabularyTool {
                             <span id="ar-mode-display">Normal</span>
                             <span>▼</span>
                         </button>
-                        <div id="ar-mode-dropdown-menu" class="absolute z-50 hidden w-48 mt-1 bg-white border rounded shadow-lg">
+                        <div id="ar-mode-dropdown-menu" class="absolute z-40 hidden w-48 mt-1 bg-white border rounded shadow-lg">
                             <button type="button" data-value="normal" class="w-full p-2 text-left hover:bg-gray-100 border-b">Normal</button>
                             <button type="button" data-value="beginner" class="w-full p-2 text-left hover:bg-gray-100">Beginner (with hints)</button>
                         </div>
