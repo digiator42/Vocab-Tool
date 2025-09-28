@@ -57,6 +57,9 @@ export class TabManager {
         this.vocabTab.classList.add("bg-blue-700");
         this.flashTab.classList.remove("bg-indigo-700");
         this.exerciseTab.classList.remove("bg-green-700");
+        document.querySelectorAll('.group-tooltip').forEach(el => {
+            el.style.display = 'block';
+        });
     }
 
     switchToFlashcards() {
@@ -67,6 +70,9 @@ export class TabManager {
         this.flashTab.classList.add("bg-indigo-700");
         this.vocabTab.classList.remove("bg-blue-700");
         this.exerciseTab.classList.remove("bg-green-700");
+        document.querySelectorAll('.group-tooltip').forEach(el => {
+            el.style.display = 'none';
+        });
     }
 
     switchToExercises() {

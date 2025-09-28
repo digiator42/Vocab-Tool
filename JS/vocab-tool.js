@@ -193,6 +193,7 @@ export class VocabularyTool {
                 touchedSpans.add(span);
                 span.classList.add('highlighted');
                 span.classList.add('multi-highlighted');
+                span.style.zIndex = '30';
                 return true;
             }
             return false;
