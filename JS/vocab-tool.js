@@ -13,7 +13,7 @@ export class VocabularyTool {
         this.selectionHighlight = null;
         this.selectedLang = "en";
         this.isStopSpeechRequested = false;
-        this.activeRecallMode = 'normal'; // 'normal' or 'beginner'
+        this.activeRecallMode = 'normal';
         this.useFuzzyMatching = true;
         this.originalText = '';
 
@@ -890,10 +890,7 @@ export class VocabularyTool {
 
     setupActiveRecall() {
         this.createActiveRecallUI();
-        // setTimeout(() => {
         this.setupActiveRecallListeners();
-        // }, 100);
-        // this.setupActiveRecallListeners();
     }
 
     setupActiveRecallListeners() {
@@ -927,6 +924,7 @@ export class VocabularyTool {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     this.checkAnswer();
+                    // this.updateProgress();
                 }
             });
 
@@ -954,86 +952,7 @@ export class VocabularyTool {
 
         this.addActiveRecallButton();
     }
-
-    createActiveRecallUI() {
-        const activeRecallHTML = `
-        <div id="active-recall-tool" class="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
-            <h3 class="text-lg font-semibold mb-4">🎯 Active Recall Practice</h3>
-            
-            <!-- Mode Toggle -->
-            <div class="mb-4 flex flex-wrap gap-4 items-center">
-                <div class="flex items-center space-x-2">
-                    <span class="text-sm font-medium">Mode:</span>
-                    <select id="ar-mode-select" class="p-2 border rounded text-sm">
-                        <option value="normal">Normal</option>
-                        <option value="beginner">Beginner (with hints)</option>
-                    </select>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <input type="checkbox" id="ar-fuzzy-match" checked class="rounded">
-                    <label for="ar-fuzzy-match" class="text-sm font-medium">Fuzzy Word Matching</label>
-                </div>
-            </div>
-            
-            <div id="ar-progress" class="mb-4">
-                <div class="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Progress: <span id="ar-current">0</span>/<span id="ar-total">0</span></span>
-                    <span id="ar-status">Ready to start</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div id="ar-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-            </div>
-
-            <!-- Beginner Mode Display -->
-            <div id="ar-hint-display" class="mb-4 p-4 bg-blue-50 rounded border border-blue-200 hidden">
-                <div class="text-sm text-blue-800 font-medium mb-2">Sentence Hint:</div>
-                <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
-            </div>
-
-            <div id="ar-current-sentence" class="mb-4 p-4 bg-white rounded border-2 border-blue-200 min-h-20 flex items-center justify-center">
-                <span class="text-gray-500">Sentence will appear here...</span>
-            </div>
-
-            <div id="ar-input-area" class="mb-4 hidden">
-                <textarea id="ar-user-input" 
-                    placeholder="Type what you hear..." 
-                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"></textarea>
-                <div class="flex justify-between mt-2 text-sm text-gray-600">
-                    <span>Press Enter to submit</span>
-                    <span id="ar-timer">Time: 0s</span>
-                </div>
-            </div>
-
-            <div id="ar-controls" class="flex flex-wrap gap-2">
-                <button id="ar-start-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                    🎧 Start Practice
-                </button>
-                <button id="ar-next-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors hidden">
-                    ➡️ Next Sentence
-                </button>
-                <button id="ar-back-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors hidden">
-                    ⬅️ Previous
-                </button>
-                <button id="ar-repeat-btn" class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors hidden">
-                    🔄 Repeat Audio
-                </button>
-                <button id="ar-finish-btn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors hidden">
-                    ✅ Finish Practice
-                </button>
-            </div>
-
-            <div id="ar-results" class="mt-6 hidden">
-                <h4 class="text-lg font-semibold mb-3">📊 Practice Results</h4>
-                <div id="ar-summary" class="mb-4 p-4 bg-white rounded-lg border"></div>
-                <div id="ar-detailed-results" class="space-y-4"></div>
-            </div>
-        </div>
-    `;
-        // Insert after the output area
-        this.output.insertAdjacentHTML('afterend', activeRecallHTML);
-    }
-
+    
     createActiveRecallUI() {
         const activeRecallHTML = `
         <div id="active-recall-tool" class="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
@@ -1060,12 +979,11 @@ export class VocabularyTool {
                 </div>
             </div>
             
-            <!-- Rest of the UI remains the same -->
             ${this.getActiveRecallUIBody()}
         </div>
     `;
 
-        this.output.parentNode.insertAdjacentHTML('afterend', activeRecallHTML);
+        this.output.insertAdjacentHTML('afterend', activeRecallHTML);
         this.setupCustomDropdown();
     }
 
@@ -1107,16 +1025,16 @@ export class VocabularyTool {
                 🎧 Start Practice
             </button>
             <button id="ar-next-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors hidden">
-                ➡️ Next Sentence
+                ➡️ Next
             </button>
             <button id="ar-back-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors hidden">
                 ⬅️ Previous
             </button>
             <button id="ar-repeat-btn" class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors hidden">
-                🔄 Repeat Audio
+                🔄 Repeat
             </button>
             <button id="ar-finish-btn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors hidden">
-                ✅ Finish Practice
+                ✅ Finish
             </button>
         </div>
 
@@ -1285,8 +1203,10 @@ export class VocabularyTool {
 
     // Unified mode change handler
     handleModeChange() {
+        console.log("Active Recall mode changed to:", this.activeRecallMode);
         const modeSelect = document.getElementById('ar-mode-select');
         if (modeSelect) {
+            console.log("Updating mode select dropdown to:", modeSelect);
             this.activeRecallMode = modeSelect.value;
 
             // Force UI update for mobile
@@ -1298,17 +1218,19 @@ export class VocabularyTool {
                     window.dispatchEvent(new Event('resize'));
                 }, 100);
             }
-
-            // Show/hide hint display based on mode
-            const hintDisplay = document.getElementById('ar-hint-display');
-            if (hintDisplay) {
-                if (this.activeRecallMode === 'beginner') {
-                    hintDisplay.classList.remove('hidden');
-                    hintDisplay.style.display = 'block';
-                } else {
-                    hintDisplay.classList.add('hidden');
-                    hintDisplay.style.display = 'none';
-                }
+        }
+        // Show/hide hint display based on mode
+        const hintDisplay = document.getElementById('ar-hint-display');
+        if (hintDisplay) {
+            console.log('hint is here')
+            if (this.activeRecallMode === 'beginner') {
+                hintDisplay.classList.remove('hidden');
+                hintDisplay.style.display = 'block';
+                console.log('Hint display shown for beginner mode');
+            } else {
+                hintDisplay.classList.add('hidden');
+                hintDisplay.style.display = 'none';
+                console.log('Hint display hidden for normal mode');
             }
         }
     }
@@ -1524,11 +1446,16 @@ export class VocabularyTool {
         const userInput = document.getElementById('ar-user-input');
         const hintDisplay = document.getElementById('ar-hint-display');
 
+        // console.log(`Showing sentence ${this.currentSentenceIndex + 1}: ${sentence}`);
         // Mobile: Ensure hint display is properly initialized
-        if (this.activeRecallMode === 'beginner' && hintDisplay) {
-            hintDisplay.classList.remove('hidden');
-            hintDisplay.style.display = 'block';
-        }
+        // if (this.activeRecallMode === 'beginner') {
+        //     hintDisplay.classList.remove('hidden');
+        //     hintDisplay.style.display = 'block';
+        // }
+        // else {
+        //     hintDisplay.classList.add('hidden');
+        //     hintDisplay.style.display = 'none';
+        // }
 
         // Show loading state with mobile-optimized text
         displayArea.innerHTML = '<span class="text-gray-500">Loading audio...</span>';
@@ -1592,7 +1519,7 @@ export class VocabularyTool {
                         if (mobileEnterBtn) {
                             mobileEnterBtn.classList.add('hidden'); // Start hidden
                         }
-                    }, 300);
+                    }, 100);
                 } else {
                     userInput.focus();
                 }
@@ -1608,6 +1535,10 @@ export class VocabularyTool {
                 if (this.activeRecallMode === 'beginner') {
                     this.updateHintDisplay();
                 }
+                else {
+                    hintDisplay.classList.add('hidden');
+                    hintDisplay.style.display = 'none';
+                }
             }, 1000);
         });
     }
@@ -1620,8 +1551,10 @@ export class VocabularyTool {
     }
 
     updateProgress() {
+        console.log('---> ', this.currentSentenceIndex);
         const progress = this.currentSentenceIndex >= 0 ? this.currentSentenceIndex : 0;
         const percentage = (progress / this.sentences.length) * 100;
+        console.log(`Progress: ${progress} | ${percentage}`);
 
         document.getElementById('ar-current').textContent = progress;
         document.getElementById('ar-progress-bar').style.width = `${percentage}%`;
@@ -1657,6 +1590,8 @@ export class VocabularyTool {
             if (this.currentSentenceIndex < this.sentences.length - 1) {
                 this.nextSentence();
             } else {
+                // this for updating last sentence progress
+                this.currentSentenceIndex++;
                 this.finishActiveRecall();
             }
         }, 3000);
@@ -1792,6 +1727,7 @@ export class VocabularyTool {
 
     nextSentence() {
         if (this.currentSentenceIndex < this.sentences.length - 1) {
+            console.log(`Moving to next sentence: ${this.currentSentenceIndex}`);
             this.currentSentenceIndex++;
             this.showCurrentSentence();
             this.updateProgress();
@@ -1819,6 +1755,7 @@ export class VocabularyTool {
     finishActiveRecall() {
         clearInterval(this.timerInterval);
         this.showFinalResults();
+        this.updateProgress();
     }
 
     showFinalResults() {
