@@ -16,6 +16,7 @@ export class VocabularyTool {
         this.activeRecallMode = 'normal';
         this.useFuzzyMatching = true;
         this.originalText = '';
+        this.useSlowVoice = false;
 
         this.init();
     }
@@ -37,13 +38,13 @@ export class VocabularyTool {
         return text.split(/(\s+|[^A-Za-zÄÖÜäöüß]+)/).filter(Boolean);
     }
 
-    async speak(text, lang = "de") {
+    async speak(text, lang = "de", slow = this.useSlowVoice) {
         console.log('Loading speech for:', text, 'in', lang);
         console.log('----------------');
         this.setStatus("Loading audio...");
         if (lang === null || text === '' || this.isStopSpeechRequested) return;
         try {
-            const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}`;
+            const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
             const audio = new Audio(url);
             audio.play();
             audio.onplaying = () => this.setStatus("Speaking...");
@@ -939,6 +940,7 @@ export class VocabularyTool {
         if (fuzzyMatch) {
             fuzzyMatch.addEventListener('change', (e) => {
                 this.useFuzzyMatching = e.target.checked;
+                console.log("Fuzzy matching set to:", this.useFuzzyMatching);
             });
 
             // Mobile touch support for checkbox
@@ -951,6 +953,22 @@ export class VocabularyTool {
             }
         }
 
+        const slowVoice = document.getElementById('ar-slow-voice');
+        console.log("Slow voice checkbox:", slowVoice);
+        // check if slowVoice is checked
+        if (slowVoice) {
+            slowVoice.addEventListener('change', (e) => {
+                this.useSlowVoice = e.target.checked;
+                console.log("Slow voice set to:", this.useSlowVoice)
+            });
+        }
+        if (slowVoice && this.isTouchDevice()) {
+            slowVoice.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                slowVoice.checked = !slowVoice.checked;
+                slowVoice.dispatchEvent(new Event('change'));
+            });
+        }
         this.addActiveRecallButton();
     }
 
@@ -975,8 +993,12 @@ export class VocabularyTool {
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <input type="checkbox" id="ar-fuzzy-match" checked class="rounded">
+                    <input type="checkbox" id="ar-fuzzy-match" class="rounded">
                     <label for="ar-fuzzy-match" class="text-sm font-medium">Fuzzy Word Matching</label>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="ar-slow-voice" class="rounded">
+                    <label for="ar-slow-voice" class="text-sm font-medium">Slow Voice</label>
                 </div>
             </div>
             
