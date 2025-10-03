@@ -3,6 +3,7 @@ export class ExerciseTool {
     constructor() {
         this.solutions = [];
         this.availableExercises = [];
+        this.grammerHTML = '';
         this.init();
     }
 
@@ -12,6 +13,16 @@ export class ExerciseTool {
         this.setupEventListeners();
         this.createFileBrowser();
         window.exerciseTool = this;
+
+        this.grammerHTML = fetch('../grammer.html')
+            .then(res => res.text())
+            .then(html => {
+                this.grammerHTML = html;
+            }).catch(err => {
+                console.error('Error loading grammer.html:', err);
+                this.grammerHTML = '<p class="p-4 text-red-500">Error loading grammar reference.</p>';
+            }
+            );
     }
 
     async loadAvailableExercises() {
@@ -89,6 +100,23 @@ export class ExerciseTool {
                 this.showSolutions();
             } else if (e.target.matches('#loadSampleExercisesBtn')) {
                 this.loadSampleExercises();
+            } else if (e.target.matches('#showGrammer')) {
+                if (e.target.textContent === 'Close Grammer') {
+                    e.target.textContent = 'Show Grammer';
+                    document.getElementById('grammerContainer').innerHTML = '';
+                    return;
+                }
+                console.log('Show Grammer clicked');
+                const grammerContainer = document.getElementById('grammerContainer');
+                grammerContainer.innerHTML = this.grammerHTML;
+                grammerContainer.scrollIntoView({ behavior: 'smooth' });
+                this.showGrammerJS();
+                e.target.textContent = 'Close Grammer';
+                // Alternative: open in new window
+                // const grammerWindow = window.open("", "Grammer", "width=600,height=400,scrollbars=yes");
+                // grammerWindow.document.write(this.grammerHTML);
+                // grammerWindow.document.title = "German Grammer Reference";
+                // grammerWindow.focus();
             }
         });
 
@@ -104,6 +132,96 @@ export class ExerciseTool {
         if (renderBtn) {
             renderBtn.addEventListener('click', () => this.renderExercises());
         }
+    }
+
+    showGrammerJS(params) {
+        // H2 background color
+        const h2Elements = document.querySelectorAll('h2');
+        h2Elements.forEach(h2 => {
+            h2.classList.add('bg-blue-100', 'p-4', 'rounded-lg');
+        });
+
+        const paragraphs = document.querySelectorAll("p");
+
+        paragraphs.forEach(p => {
+            const text = p.textContent;
+
+            // Check for multiple commas and multiple parentheses
+            const commaCount = (text.match(/,/g) || []).length;
+            const parenCount = (text.match(/[()]/g) || []).length;
+
+            if (commaCount >= 2 && parenCount >= 2) {
+                console.log("Transforming paragraph:", text);
+                const items = text.split(",").map(item => item.trim()).filter(Boolean);
+                const ul = document.createElement("ul");
+                ul.className = "text-gray-700 list-disc pl-5 ml-6 mb-3";
+
+                items.forEach(entry => {
+                    const match = entry.match(/^([\wäöüßÄÖÜ\-]+)\s*\(([^)]+)\)$/);
+                    const li = document.createElement("li");
+
+                    if (match) {
+                        const [_, german, english] = match;
+                        li.innerHTML = `<strong>${german}</strong> – ${english}`;
+                    } else {
+                        li.textContent = entry;
+                    }
+
+                    ul.appendChild(li);
+                });
+
+                p.replaceWith(ul);
+            }
+        });
+
+        const tables = document.querySelectorAll("table.case-table");
+
+        // Soft Tailwind-like color palette
+        const colors = [
+            "#fef9c3", // yellow-100
+            "#e0f2fe", // sky-100
+            "#fce7f3", // pink-100
+            "#d1fae5", // green-100
+            "#ede9fe", // purple-100
+            "#ffe4e6", // rose-100
+            "#f3f4f6", // gray-100
+            "#e7e5e4", // stone-100
+        ];
+
+        tables.forEach(table => {
+            const rowMap = new Map();
+            const tbody = table.querySelector("tbody");
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+
+            // Step 1: Group rows by their value signature (excluding first cell)
+            rows.forEach(row => {
+                const cells = Array.from(row.querySelectorAll("td"));
+                if (cells.length < 2) return;
+
+                const key = cells.slice(1).map(cell => cell.textContent.trim().toLowerCase()).join("|");
+
+                if (!rowMap.has(key)) rowMap.set(key, []);
+                rowMap.get(key).push(row);
+            });
+
+            // Step 2: Clear tbody and reinsert only grouped rows with shared color
+            tbody.innerHTML = "";
+            let colorIndex = 0;
+
+            rowMap.forEach(group => {
+                if (group.length > 1) {
+                    const color = colors[colorIndex % colors.length];
+                    group.forEach(row => {
+                        row.style.backgroundColor = color;
+                        tbody.appendChild(row);
+                    });
+                    colorIndex++;
+                } else {
+                    // Reinsert single rows without color
+                    tbody.appendChild(group[0]);
+                }
+            });
+        });
     }
 
     async loadSelectedExercise() {
@@ -151,8 +269,8 @@ export class ExerciseTool {
         const messageDiv = document.createElement('div');
         messageDiv.id = 'exerciseMessage';
         messageDiv.className = `p-3 rounded mb-4 ${type === 'success' ? 'bg-green-100 text-green-800' :
-                type === 'error' ? 'bg-red-100 text-red-800' :
-                    'bg-blue-100 text-blue-800'
+            type === 'error' ? 'bg-red-100 text-red-800' :
+                'bg-blue-100 text-blue-800'
             }`;
         messageDiv.textContent = message;
 

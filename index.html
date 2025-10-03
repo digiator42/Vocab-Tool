@@ -26,7 +26,11 @@
 
     <!-- Vocabulary Tool -->
     <section id="vocab-tool" class="max-w-3xl mx-auto">
-        <h1 class="text-2xl font-bold mb-2 text-blue-800">German Vocabulary Tool</h1>
+        <div class="flex flex-wrap justify-between">
+            <h1 class="text-2xl font-bold mb-0 text-blue-800">German Vocabulary Tool</h1>
+            <select id="storySelect" class="mb-0 p-2 border rounded"></select>
+        </div>
+        </div>
         <p class="text-gray-600 mb-4">Click on any German word to see its translation and hear pronunciation.</p>
         <div class="bg-white p-4 rounded-lg shadow-sm mb-6">
             <textarea id="input"
@@ -136,10 +140,12 @@
 
         <textarea id="exerciseInput" class="w-full p-2 border rounded mb-4 h-40"
             placeholder="Write your exercises with [[answers]] here..."></textarea>
-
-        <button id="renderExercisesBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            Load Exercises
-        </button>
+        <div class="flex flex-wrap justify-between">
+            <button id="renderExercisesBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                Load Exercises
+            </button>
+            <button id="showGrammer" class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600 ml-2">Show Grammer</button>
+        </div>
         <!-- <button id="loadSampleExercisesBtn"
             class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600 ml-2">
             Load Sample Exercises
@@ -147,6 +153,7 @@
 
         <div id="exerciseArea" class="mt-6 space-y-4"></div>
         <div id="exerciseResult" class="mt-4 font-semibold"></div>
+        <div id="grammerContainer" class="container mx-auto px-4 py-8 max-w-4xl"></div>
     </section>
 </body>
 

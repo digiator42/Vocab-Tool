@@ -4,7 +4,7 @@ import { FlashcardsTool } from './flashcards-tool.js';
 import { ImportExportManager } from './import-export.js';
 import { TabManager } from './tab-manager.js';
 import { ExerciseTool } from './exercise-tool.js';
-
+import { germanStories } from './stories.js'
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -49,4 +49,21 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
         vocabTool = new VocabularyTool();
     }
+
+    // Populate story selection dropdown
+    const storySelect = document.getElementById('storySelect');
+    const storyContainer = document.getElementById('input');
+
+    for (const [key, value] of Object.entries(germanStories)) {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = value.title;
+      storySelect.appendChild(option);
+    }
+
+    function displayStory() {
+      storyContainer.value = germanStories[storySelect.value].text;
+    }
+
+    storySelect.addEventListener('change', displayStory);
 });
