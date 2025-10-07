@@ -22,6 +22,8 @@ export class VocabularyTool {
         this.currentGroupId = null;
         this.selectionGroups = new Map()
         this.groupTooltips = new Map(); // Map of groupId -> tooltip element
+        this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
 
         this.init();
     }
@@ -30,11 +32,23 @@ export class VocabularyTool {
         this.setupEventListeners();
         this.setupLanguageSelector();
         this.setupAddToFlashcardModal();
-        this.setupTouchMultiSelect();
+        // this.setupTouchMultiSelect();
+        this.setupSelectionSystem();
         this.setupActiveRecall();
-        this.setupManualSelection();
+        // this.setupManualSelection();
         // this.setupTooltipHover();
         this.processBtn.click();
+    }
+
+    setupSelectionSystem() {
+        if (this.isTouchDevice) {
+            this.setupMobileSelection();
+        } else {
+            this.setupDesktopSelection();
+        }
+
+        // Common click handlers for both
+        this.setupCommonClickHandlers();
     }
 
     setStatus(message) {
@@ -135,300 +149,71 @@ export class VocabularyTool {
         span.appendChild(tip);
     }
 
-    getSelectedWords() {
-        // const selection = window.getSelection();
-        // if (!selection.rangeCount || selection.toString().trim().length < 2) return null;
-        // const range = selection.getRangeAt(0);
-        // if (!this.output.contains(range.startContainer) && !this.output.contains(range.endContainer)) return null;
-        // return { text: selection.toString().trim(), range };
-        this.setupManualSelection();
+    setupDesktopSelection() {
+        console.log("Setting up desktop selection system");
+
+        // Mouse events for desktop
+        this.output.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'SPAN') {
+                this.handleDesktopSelectionStart(e.target, e);
+            }
+        });
+
+        this.output.addEventListener('mousemove', (e) => {
+            this.handleDesktopSelectionMove(e.target, e);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            this.handleDesktopSelectionEnd(e);
+        });
+
+        // Desktop-specific variables
+        this.desktop = {
+            isDragging: false,
+            dragStartTime: 0,
+            potentialStartSpan: null,
+            isSelecting: false,
+            selectionStartSpan: null,
+            currentGroupId: null
+        };
     }
 
-    setupTouchMultiSelect() {
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        console.log("setupTouchMultiSelect: isTouchDevice =", isTouchDevice);
-        if (!isTouchDevice) return;
+    setupMobileSelection() {
+        console.log("Setting up mobile selection system");
 
-        let touchSelecting = false;
-        let touchedSpans = new Set();
-        let ignoreClickUntil = 0;
-        const outputEl = this.output;
-
-        // Group tracking
-        let groupIdCounter = 0;
-        let groups = new Map(); // groupId -> Set of spans
+        // Mobile-specific variables
+        this.mobile = {
+            touchSelecting: false,
+            touchedSpans: new Set(),
+            ignoreClickUntil: 0,
+            groupIdCounter: 0,
+            groups: new Map(),
+            lastTouchTime: 0,
+            touchStartTime: 0,
+            touchStartSpan: null // ADD THIS
+        };
 
         // Make sure the tooltip doesn't block elementFromPoint
         this.selectionTooltip.style.pointerEvents = 'none';
 
         // Make the output area easier to capture touches
-        outputEl.style.touchAction = 'none';
-        outputEl.style.webkitUserSelect = 'none';
-        outputEl.style.userSelect = 'none';
+        this.output.style.touchAction = 'none';
+        this.output.style.webkitUserSelect = 'none';
+        this.output.style.userSelect = 'none';
 
-        const spanFromPoint = (clientX, clientY) => {
-            let el = document.elementFromPoint(clientX, clientY);
-            if (!el) return null;
-            return el.closest && el.closest('#output span');
-        };
-
-        const addSpanToTouched = (span) => {
-            if (!span || !outputEl.contains(span)) return false;
-            if (!touchedSpans.has(span)) {
-                touchedSpans.add(span);
-                span.classList.add('highlighted');
-                span.classList.add('multi-highlighted');
-                span.style.zIndex = '30';
-                return true;
-            }
-            return false;
-        };
-
-        const orderSpansByDOM = (spansArray) => {
-            return spansArray.sort((a, b) => {
-                if (a === b) return 0;
-                const pos = a.compareDocumentPosition(b);
-                if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-                if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-                return 0;
-            });
-        };
-
-        const clearTouchSelection = () => {
-            touchedSpans.forEach(s => {
-                s.classList.remove('multi-highlighted');
-            });
-            touchedSpans.clear();
-            this.selectionTooltip.style.display = 'none';
-        };
-
-        const isWordSpan = (element) => {
-            return element && element.classList.contains('cursor-pointer') &&
-                element.textContent && element.textContent.trim().length > 0;
-        };
-
-        outputEl.addEventListener('touchstart', (ev) => {
-            if (ev.touches.length > 1) return;
-
-            const t = ev.touches[0];
-            const span = spanFromPoint(t.clientX, t.clientY);
-
-            if (span && isWordSpan(span)) {
-                touchSelecting = true;
-
-                // Toggle off single highlighted words
-                if (span.classList.contains("highlighted") && !span.dataset.groupId) {
-                    span.classList.remove("highlighted");
-                    span.querySelector(".tooltip")?.remove();
-                    touchSelecting = false;
-                    return;
-                }
-
-                // Toggle off group if tapped again
-                const group = groups.get(span.dataset.groupId);
-                if (group) {
-                    group.spans.forEach(s => {
-                        s.classList.remove("multi-highlighted");
-                        s.classList.remove("highlighted");
-                        delete s.dataset.groupId;
-                    });
-                    group.tooltip.remove();
-                    groups.delete(span.dataset.groupId);
-                    touchSelecting = false;
-                    return;
-                }
-
-                // Start new selection
-                touchedSpans.forEach(s => s.classList.remove('multi-highlighted'));
-                touchedSpans.clear();
-                addSpanToTouched(span);
-            } else {
-                touchSelecting = false;
-            }
-        }, { passive: true });
-
-        outputEl.addEventListener('touchmove', (ev) => {
-            if (!touchSelecting) return;
-            const t = ev.touches[0];
-            const span = spanFromPoint(t.clientX, t.clientY);
-            if (span && isWordSpan(span)) {
-                addSpanToTouched(span);
-            }
-            ev.preventDefault();
-        }, { passive: false });
-
-        outputEl.addEventListener('touchcancel', () => {
-            touchSelecting = false;
-        });
-
-        let lastTouchTime = 0;
-        document.addEventListener("touchend", () => {
-            lastTouchTime = Date.now();
-        }, true);
-
-        outputEl.addEventListener('touchend', async () => {
-            if (!touchSelecting) return;
-            touchSelecting = false;
-
-            const spansArr = orderSpansByDOM(Array.from(touchedSpans));
-            if (spansArr.length === 0) return;
-
-            // Remove any existing individual tooltips
-            spansArr.forEach(span => span.querySelector('.tooltip')?.remove());
-
-            const words = spansArr.map(s => (s.childNodes[0]?.textContent || s.textContent).trim()).filter(Boolean);
-            const phrase = words.join(" ");
-            if (!phrase) return;
-
-            console.log("📌 Selected phrase:", phrase);
-
-            try {
-                this.speak(phrase);
-            } catch (e) {
-                console.warn("speak failed:", e);
-            }
-
-            if (spansArr.length === 1) {
-                // Single word tooltip
-                const singleSpan = spansArr[0];
-                const translated = await this.translate(phrase);
-                const tip = document.createElement("div");
-                tip.className = "tooltip";
-                tip.textContent = translated;
-                tip.style.whiteSpace = "nowrap";
-                tip.style.textOverflow = "ellipsis";
-                tip.style.overflow = "hidden";
-                tip.style.zIndex = "31";
-                singleSpan.appendChild(tip);
-            } else {
-                // Multi-word tooltip
-                groupIdCounter++;
-                const groupId = "g" + groupIdCounter;
-
-                spansArr.forEach(s => {
-                    s.dataset.groupId = groupId;
-                });
-
-                // Create tooltip for this group
-                const tooltip = document.createElement("div");
-                tooltip.className = "group-tooltip";
-                // tooltip.textContent = "Translating...";
-                tooltip.style.position = "absolute";
-                tooltip.style.background = "#333";
-                tooltip.style.color = "#fff";
-                tooltip.style.padding = "4px 8px";
-                tooltip.style.borderRadius = "6px";
-                tooltip.style.fontSize = "14px";
-                tooltip.style.zIndex = "32";
-                tooltip.style.whiteSpace = "nowrap";
-
-                // Position above first word
-                const firstRect = spansArr[0].getBoundingClientRect();
-                tooltip.style.left = (firstRect.left + window.scrollX) + "px";
-                tooltip.style.top = (firstRect.top + window.scrollY - 10) + "px";
-
-                document.body.appendChild(tooltip);
-
-                // Store group with tooltip
-                groups.set(groupId, { spans: new Set(spansArr), tooltip });
-
-                // Translate
-                let translation = "";
-                try {
-                    translation = await this.translate(phrase);
-                } catch (err) {
-                    console.error("translate() failed:", err);
-                    translation = "(translation error)";
-                }
-
-                // Update tooltip text and adjust position
-                tooltip.textContent = translation;
-                tooltip.style.top = (firstRect.top + window.scrollY - tooltip.offsetHeight - 10) + "px";
-            }
-
-            ignoreClickUntil = Date.now() + 500;
-        });
+        // Mobile touch event handlers
+        this.output.addEventListener('touchstart', (ev) => this.handleTouchStart(ev));
+        this.output.addEventListener('touchmove', (ev) => this.handleTouchMove(ev));
+        this.output.addEventListener('touchend', (ev) => this.handleTouchEnd(ev));
+        this.output.addEventListener('touchcancel', () => this.handleTouchCancel());
 
         // Prevent ghost clicks
-        document.addEventListener('click', (ev) => {
-            if (Date.now() < ignoreClickUntil) {
-                ev.stopPropagation();
-                ev.preventDefault();
-                return;
-            }
-        }, true);
+        document.addEventListener('click', (ev) => this.preventGhostClick(ev), true);
     }
-    setupManualSelection() {
-        this.isDragging = false;
-        this.dragStartTime = 0;
-        this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        this.lastTouchY = 0;
 
-        // Mouse events for desktop
-        this.output.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'SPAN') {
-                this.handleSelectionStart(e.target, e);
-            }
-        });
-
-        this.output.addEventListener('mousemove', (e) => {
-            this.handleSelectionMove(e.target, e);
-        });
-
-        document.addEventListener('mouseup', (e) => {
-            this.handleSelectionEnd(e);
-        });
-
-        // Enhanced touch events for mobile
-        this.output.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) { // Only handle single touch
-                const touch = e.touches[0];
-                this.lastTouchY = touch.clientY;
-                const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                if (element && element.tagName === 'SPAN') {
-                    this.handleSelectionStart(element, e);
-                }
-            }
-        }, { passive: false });
-
-        this.output.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 1) {
-                const touch = e.touches[0];
-
-                // Prevent page scroll only if we're selecting
-                if (this.isSelecting || this.potentialStartSpan) {
-                    e.preventDefault();
-                }
-
-                const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                this.handleSelectionMove(element, e);
-            }
-        }, { passive: false });
-
-        this.output.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) { // All touches ended
-                this.handleSelectionEnd(e);
-            }
-        });
-
-        this.output.addEventListener('touchcancel', (e) => {
-            this.handleSelectionEnd(e);
-        });
-
-        // Click to clear individual groups
-        this.output.addEventListener('click', (e) => {
-            if (e.target.tagName === 'SPAN' && !this.isSelecting && !this.isDragging) {
-                const groupId = this.findSpanGroupId(e.target);
-                if (groupId) {
-                    this.clearSelectionGroup(groupId);
-                    e.stopPropagation();
-                }
-            }
-        });
-
-        // Improved click outside detection
+    setupCommonClickHandlers() {
+        // Click outside detection
         document.addEventListener('click', (e) => {
-            if (this.isSelecting) return;
             if (this.isUIControl(e.target)) return;
             if (!this.output.contains(e.target)) {
                 this.clearAllSelections();
@@ -436,101 +221,82 @@ export class VocabularyTool {
         });
     }
 
+    // ========== DESKTOP EVENT HANDLERS ==========
+    handleDesktopSelectionStart(target, event) {
+        this.desktop.dragStartTime = Date.now();
+        this.desktop.isDragging = false;
+        this.desktop.potentialStartSpan = target;
 
-    // Unified selection start handler
-    handleSelectionStart(target, event) {
-        this.dragStartTime = Date.now();
-        this.isDragging = false;
-        this.potentialStartSpan = target;
-
-        // For touch devices, prevent default to avoid zoom/scroll
-        if (this.isTouchDevice) {
-            event.preventDefault();
+        // Check if clicking on existing group - remove it
+        const existingGroupId = target.dataset.selectionGroup || target.dataset.groupId;
+        if (existingGroupId && !this.desktop.isDragging) {
+            console.log("Desktop: Clicked on existing group, removing it");
+            this.clearSelectionGroup(existingGroupId);
+            this.desktop.potentialStartSpan = null;
+            return;
         }
     }
 
-    // Unified selection move handler  
-    handleSelectionMove(target, event) {
-        if (this.potentialStartSpan && Date.now() - this.dragStartTime > 100) {
-            this.isDragging = true;
-            if (!this.isSelecting) {
-                this.startManualSelection(this.potentialStartSpan);
+    handleDesktopSelectionMove(target, event) {
+        if (this.desktop.potentialStartSpan && Date.now() - this.desktop.dragStartTime > 100) {
+            this.desktop.isDragging = true;
+            if (!this.desktop.isSelecting) {
+                this.startDesktopSelection(this.desktop.potentialStartSpan);
             }
         }
 
-        if (this.isSelecting && target && target.tagName === 'SPAN') {
-            this.updateManualSelection(target);
+        if (this.desktop.isSelecting && target && target.tagName === 'SPAN') {
+            this.updateDesktopSelection(target);
         }
     }
 
-    // Unified selection end handler
-    handleSelectionEnd(event) {
-        if (this.potentialStartSpan) {
-            const clickDuration = Date.now() - this.dragStartTime;
-            const isQuickTap = clickDuration < 200 && !this.isDragging;
+    handleDesktopSelectionEnd(event) {
+        if (this.desktop.potentialStartSpan) {
+            const clickDuration = Date.now() - this.desktop.dragStartTime;
+            const isQuickTap = clickDuration < 200 && !this.desktop.isDragging;
 
             if (isQuickTap) {
-                // Quick tap - handle as individual word click
-                this.handleIndividualWordClick(this.potentialStartSpan);
-            } else if (this.isSelecting) {
+                // Check if this was a click on an existing group (already handled in touchstart)
+                const existingGroupId = this.desktop.potentialStartSpan.dataset.selectionGroup || this.desktop.potentialStartSpan.dataset.groupId;
+                if (!existingGroupId) {
+                    // Only handle individual word click if not part of a group
+                    this.handleIndividualWordClick(this.desktop.potentialStartSpan);
+                }
+            } else if (this.desktop.isSelecting) {
                 // Drag selection - finish it
-                this.finishManualSelection();
+                this.finishDesktopSelection();
             }
 
-            this.potentialStartSpan = null;
-            this.isDragging = false;
-            this.isSelecting = false;
+            this.desktop.potentialStartSpan = null;
+            this.desktop.isDragging = false;
+            this.desktop.isSelecting = false;
         }
     }
 
-    // Check if the clicked element is a UI control that shouldn't clear selections
-    isUIControl(element) {
-        // Check if element is the Add button or its children
-        if (element.closest('#addToFlashBtn')) return true;
-
-        // Check if element is in the batch modal
-        if (element.closest('#batch-add-to-flash-modal')) return true;
-
-        // Check if element is in the add flashcard modal
-        if (element.closest('#add-to-flash-modal')) return true;
-
-        // Check if element is in the active recall tool
-        if (element.closest('#active-recall-tool')) return true;
-
-        // Check if element is any button
-        if (element.tagName === 'BUTTON') return true;
-
-        // Check if element is any input field
-        if (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA') return true;
-
-        return false;
-    }
-
-    startManualSelection(startSpan) {
-        // Don't start selection if this is an individually highlighted word
-        if (startSpan.classList.contains('highlighted')) {
+    startDesktopSelection(startSpan) {
+        // Don't start selection if this is an individually highlighted word or part of existing group
+        if (startSpan.classList.contains('highlighted') || startSpan.dataset.selectionGroup || startSpan.dataset.groupId) {
             return;
         }
 
-        this.isSelecting = true;
-        this.selectionStartSpan = startSpan;
-        this.currentGroupId = 'group_' + Date.now();
+        this.desktop.isSelecting = true;
+        this.desktop.selectionStartSpan = startSpan;
+        this.desktop.currentGroupId = 'desktop_group_' + Date.now();
 
         // Highlight the start span with group ID
         startSpan.classList.add('multi-highlighted');
-        startSpan.dataset.selectionGroup = this.currentGroupId;
+        startSpan.dataset.selectionGroup = this.desktop.currentGroupId;
     }
 
-
-    updateManualSelection(currentSpan) {
-        if (!this.isSelecting || !this.selectionStartSpan) return;
+    updateDesktopSelection(currentSpan) {
+        if (!this.desktop.isSelecting || !this.desktop.selectionStartSpan) return;
 
         // Clear only the current group being selected (not others)
-        this.clearCurrentGroupSelection();
+        this.clearCurrentDesktopGroupSelection();
 
         // Get all spans
         const allSpans = Array.from(this.output.querySelectorAll('span'));
-        const startIndex = allSpans.indexOf(this.selectionStartSpan);
+        const startIndex = allSpans.indexOf(this.desktop.selectionStartSpan);
         const currentIndex = allSpans.indexOf(currentSpan);
 
         if (startIndex === -1 || currentIndex === -1) return;
@@ -540,18 +306,21 @@ export class VocabularyTool {
         const end = Math.max(startIndex, currentIndex);
 
         for (let i = start; i <= end; i++) {
-            allSpans[i].classList.add('multi-highlighted');
-            allSpans[i].dataset.selectionGroup = this.currentGroupId;
+            // Only highlight if not already part of another group
+            if (!allSpans[i].dataset.selectionGroup && !allSpans[i].dataset.groupId) {
+                allSpans[i].classList.add('multi-highlighted');
+                allSpans[i].dataset.selectionGroup = this.desktop.currentGroupId;
+            }
         }
     }
 
-    async finishManualSelection() {
-        this.isSelecting = false;
+    async finishDesktopSelection() {
+        this.desktop.isSelecting = false;
 
-        const selectedSpans = this.getCurrentGroupSpans();
+        const selectedSpans = this.getCurrentDesktopGroupSpans();
         if (selectedSpans.length === 0) {
-            this.selectionStartSpan = null;
-            this.currentGroupId = null;
+            this.desktop.selectionStartSpan = null;
+            this.desktop.currentGroupId = null;
             return;
         }
 
@@ -559,92 +328,356 @@ export class VocabularyTool {
         const selectedText = selectedSpans.map(span => span.textContent).join(' ').trim();
 
         if (!selectedText) {
-            this.clearCurrentGroupSelection();
+            this.clearCurrentDesktopGroupSelection();
             return;
         }
 
         // Store this selection group
-        this.storeSelectionGroup(selectedSpans, selectedText);
+        this.storeSelectionGroup(selectedSpans, selectedText, this.desktop.currentGroupId);
 
         // Show tooltip for this group
         const firstSpan = selectedSpans[0];
         const rect = firstSpan.getBoundingClientRect();
 
-        this.showSelectionTooltip(selectedText, rect, this.currentGroupId);
+        this.showSelectionTooltip(selectedText, rect, this.desktop.currentGroupId);
 
-        this.selectionStartSpan = null;
-        this.currentGroupId = null;
+        this.desktop.selectionStartSpan = null;
+        this.desktop.currentGroupId = null;
     }
 
-    // Store a selection group
-    storeSelectionGroup(spans, text) {
-        const group = {
-            spans: [...spans], // Copy the array
-            text: text,
-            translation: '',
-            timestamp: Date.now()
-        };
+    // ========== MOBILE EVENT HANDLERS ==========
+    handleTouchStart(ev) {
+        if (ev.touches.length > 1) return;
 
-        this.selectionGroups.set(this.currentGroupId, group);
-        console.log(`Stored selection group ${this.currentGroupId} with ${spans.length} spans`);
+        const t = ev.touches[0];
+        const span = this.spanFromPoint(t.clientX, t.clientY);
+
+        if (span && this.isWordSpan(span)) {
+            this.mobile.touchSelecting = true;
+            this.mobile.touchStartTime = Date.now();
+            this.mobile.touchStartSpan = span;
+
+            // Check if clicking on existing group - remove it
+            const existingGroupId = span.dataset.groupId || span.dataset.selectionGroup;
+            if (existingGroupId) {
+                console.log("Clicked on existing group, removing it");
+                this.clearSelectionGroup(existingGroupId);
+                this.mobile.touchSelecting = false;
+                return;
+            }
+
+            // Don't start new selection if it's an individual highlighted word - let touchend handle the toggle
+            if (span.classList.contains("highlighted") && !existingGroupId) {
+                // We'll handle the toggle in touchend based on timing
+                this.mobile.touchedSpans.clear();
+                this.addSpanToTouched(span); // Still add to touched for visual feedback
+                return;
+            }
+
+            // Start new selection for non-highlighted words
+            this.mobile.touchedSpans.forEach(s => s.classList.remove('multi-highlighted'));
+            this.mobile.touchedSpans.clear();
+            this.addSpanToTouched(span);
+        } else {
+            this.mobile.touchSelecting = false;
+        }
     }
 
-    // Get spans for current selection group
-    getCurrentGroupSpans() {
-        if (!this.currentGroupId) return [];
-        return Array.from(this.output.querySelectorAll(`span[data-selection-group="${this.currentGroupId}"]`));
+    handleTouchMove(ev) {
+        if (!this.mobile.touchSelecting) return;
+        const t = ev.touches[0];
+        const span = this.spanFromPoint(t.clientX, t.clientY);
+        if (span && this.isWordSpan(span)) {
+            this.addSpanToTouched(span);
+        }
+        ev.preventDefault();
     }
 
-    // Find which group a span belongs to
-    findSpanGroupId(span) {
-        return span.dataset.selectionGroup || null;
+    handleTouchCancel() {
+        this.mobile.touchSelecting = false;
     }
 
-    // Clear only the current group being selected
-    // Updated clearCurrentGroupSelection method
-    clearCurrentGroupSelection() {
-        if (!this.currentGroupId) return;
+    async handleTouchEnd(ev) {
+        if (!this.mobile.touchSelecting) return;
 
-        const currentGroupSpans = this.getCurrentGroupSpans();
+        const touchDuration = Date.now() - this.mobile.touchStartTime;
+        const isQuickTap = touchDuration < 300; // Less than 300ms is a quick tap
+        const spansArr = this.orderSpansByDOM(Array.from(this.mobile.touchedSpans));
+
+        this.mobile.touchSelecting = false;
+
+        // NEW: Check if this was a quick tap on an existing INDIVIDUAL word (not part of group)
+        if (isQuickTap && spansArr.length === 1 && this.mobile.touchStartSpan) {
+            const tappedSpan = this.mobile.touchStartSpan;
+            const existingGroupId = tappedSpan.dataset.groupId || tappedSpan.dataset.selectionGroup;
+
+            // If it's an individual highlighted word (no group) and already highlighted
+            if (!existingGroupId && tappedSpan.classList.contains("highlighted")) {
+                console.log("Quick tap on individual word - removing highlight");
+                tappedSpan.classList.remove("highlighted");
+                tappedSpan.querySelector(".tooltip")?.remove();
+
+                // Also remove from selectionGroups if it exists
+                const individualGroups = Array.from(this.selectionGroups.entries())
+                    .filter(([id, group]) => group.spans.length === 1 && group.spans[0] === tappedSpan);
+
+                individualGroups.forEach(([id, group]) => {
+                    this.selectionGroups.delete(id);
+                });
+
+                this.mobile.touchedSpans.clear();
+                return;
+            }
+        }
+
+        // If we get here, it's a new selection (not a quick tap to remove)
+        if (spansArr.length === 0) return;
+
+        // Remove any existing individual tooltips
+        spansArr.forEach(span => span.querySelector('.tooltip')?.remove());
+
+        const words = spansArr.map(s => (s.childNodes[0]?.textContent || s.textContent).trim()).filter(Boolean);
+        const phrase = words.join(" ");
+        if (!phrase) return;
+
+        console.log("📌 Mobile selected phrase:", phrase, "Duration:", touchDuration);
+
+        try {
+            this.speak(phrase);
+        } catch (e) {
+            console.warn("speak failed:", e);
+        }
+
+        if (spansArr.length === 1) {
+            // Single word tooltip
+            const singleSpan = spansArr[0];
+            const translated = await this.translate(phrase);
+            const tip = document.createElement("div");
+            tip.className = "tooltip";
+            tip.textContent = translated;
+            tip.style.whiteSpace = "nowrap";
+            tip.style.textOverflow = "ellipsis";
+            tip.style.overflow = "hidden";
+            tip.style.zIndex = "31";
+            singleSpan.appendChild(tip);
+
+            // Store individual word AND ensure proper highlighting
+            const groupId = "individual_" + Date.now();
+            this.storeSelectionGroup([singleSpan], phrase, translated, groupId);
+
+            // Make sure it has the right classes for individual words
+            singleSpan.classList.add('highlighted');
+            singleSpan.classList.remove('multi-highlighted'); // Remove multi-highlight for single words
+
+        } else {
+            // Multi-word tooltip
+            this.mobile.groupIdCounter++;
+            const groupId = "mobile_g" + this.mobile.groupIdCounter;
+
+            spansArr.forEach(s => {
+                s.dataset.groupId = groupId;
+            });
+
+            // Create tooltip for this group
+            const tooltip = document.createElement("div");
+            tooltip.className = "group-tooltip";
+            tooltip.style.position = "absolute";
+            tooltip.style.background = "#333";
+            tooltip.style.color = "#fff";
+            tooltip.style.padding = "4px 8px";
+            tooltip.style.borderRadius = "6px";
+            tooltip.style.fontSize = "14px";
+            tooltip.style.zIndex = "32";
+            tooltip.style.whiteSpace = "nowrap";
+
+            // Position above first word
+            const firstRect = spansArr[0].getBoundingClientRect();
+            tooltip.style.left = (firstRect.left + window.scrollX) + "px";
+            tooltip.style.top = (firstRect.top + window.scrollY - 10) + "px";
+
+            document.body.appendChild(tooltip);
+
+            // Translate
+            let translation = "";
+            try {
+                translation = await this.translate(phrase);
+            } catch (err) {
+                console.error("translate() failed:", err);
+                translation = "(translation error)";
+            }
+
+            // Update tooltip text and adjust position
+            tooltip.textContent = translation;
+            tooltip.style.top = (firstRect.top + window.scrollY - tooltip.offsetHeight - 10) + "px";
+
+            // Store in main selectionGroups
+            this.storeSelectionGroup(spansArr, phrase, translation, groupId);
+
+            // Also store tooltip reference
+            this.groupTooltips.set(groupId, tooltip);
+        }
+
+        this.mobile.ignoreClickUntil = Date.now() + 500;
+    }
+
+    preventGhostClick(ev) {
+        if (Date.now() < this.mobile.ignoreClickUntil) {
+            ev.stopPropagation();
+            ev.preventDefault();
+            return;
+        }
+    }
+
+    // ========== COMMON METHODS ==========
+    spanFromPoint(clientX, clientY) {
+        let el = document.elementFromPoint(clientX, clientY);
+        if (!el) return null;
+        return el.closest && el.closest('#output span');
+    }
+
+    addSpanToTouched(span) {
+        if (!span || !this.output.contains(span)) return false;
+        if (!this.mobile.touchedSpans.has(span)) {
+            this.mobile.touchedSpans.add(span);
+            span.classList.add('highlighted');
+            span.classList.add('multi-highlighted');
+            span.style.zIndex = '30';
+            return true;
+        }
+        return false;
+    }
+
+    orderSpansByDOM(spansArray) {
+        return spansArray.sort((a, b) => {
+            if (a === b) return 0;
+            const pos = a.compareDocumentPosition(b);
+            if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+            if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+            return 0;
+        });
+    }
+
+    isWordSpan(element) {
+        return element && element.classList.contains('cursor-pointer') &&
+            element.textContent && element.textContent.trim().length > 0;
+    }
+
+    handleIndividualWordClick(span) {
+        console.log('Individual word clicked:', span.textContent);
+
+        // Don't handle if it's part of a group
+        if (span.dataset.selectionGroup || span.dataset.groupId) {
+            return;
+        }
+
+        // Toggle behavior: click to add, click again to remove
+        if (span.classList.contains('highlighted')) {
+            // Remove highlight and tooltip
+            span.classList.remove('highlighted');
+            span.querySelector('.tooltip')?.remove();
+        } else {
+            // Add highlight and translation
+            this.highlightAndTranslateIndividualWord(span);
+        }
+    }
+
+    async highlightAndTranslateIndividualWord(span) {
+        const word = span.textContent.trim();
+        if (!word) return;
+
+        console.log('Translating individual word:', word);
+
+        span.classList.add('highlighted');
+        span.classList.add('loading');
+
+        // Speak the word
+        this.speak(word);
+
+        // Translate the word
+        try {
+            const translated = await this.translate(word);
+            span.classList.remove('loading');
+
+            // Remove existing tooltip if any
+            span.querySelector('.tooltip')?.remove();
+
+            // Add new tooltip
+            const tip = document.createElement("div");
+            tip.className = "tooltip";
+            tip.textContent = translated;
+            tip.style.whiteSpace = "nowrap";
+            tip.style.textOverflow = "ellipsis";
+            tip.style.overflow = "hidden";
+            span.appendChild(tip);
+
+            console.log('Individual word translation:', translated);
+        } catch (error) {
+            span.classList.remove('loading');
+            console.error('Translation error:', error);
+        }
+    }
+
+    // ========== SELECTION MANAGEMENT ==========
+    getCurrentDesktopGroupSpans() {
+        if (!this.desktop.currentGroupId) return [];
+        return Array.from(this.output.querySelectorAll(`span[data-selection-group="${this.desktop.currentGroupId}"]`));
+    }
+
+    clearCurrentDesktopGroupSelection() {
+        if (!this.desktop.currentGroupId) return;
+
+        const currentGroupSpans = this.getCurrentDesktopGroupSpans();
         currentGroupSpans.forEach(span => {
             span.classList.remove('multi-highlighted');
             delete span.dataset.selectionGroup;
         });
 
         // Remove from groups map if it exists
-        if (this.selectionGroups.has(this.currentGroupId)) {
-            this.selectionGroups.delete(this.currentGroupId);
+        if (this.selectionGroups.has(this.desktop.currentGroupId)) {
+            this.selectionGroups.delete(this.desktop.currentGroupId);
         }
 
         // Remove the tooltip for this group
-        this.removeGroupTooltip(this.currentGroupId);
+        this.removeGroupTooltip(this.desktop.currentGroupId);
     }
 
-    // Updated clearSelectionGroup method
-    clearSelectionGroup(groupId) {
-        // const spans = this.output.querySelectorAll(`span[data-selection-group="${groupId}"]`);
-        // spans.forEach(span => {
-        //     span.classList.remove('multi-highlighted');
-        //     delete span.dataset.selectionGroup;
-        // });
+    findSpanGroupId(span) {
+        return span.dataset.selectionGroup || span.dataset.groupId || null;
+    }
 
+    clearSelectionGroup(groupId) {
+        // Remove highlights from all spans in this group
+        const groupSpans = this.output.querySelectorAll(`[data-selection-group="${groupId}"], [data-group-id="${groupId}"], [data-groupId="${groupId}"]`);
+        groupSpans.forEach(span => {
+            span.classList.remove('multi-highlighted');
+            span.classList.remove('highlighted');
+            delete span.dataset.selectionGroup;
+            delete span.dataset.groupId;
+            span.querySelector('.tooltip')?.remove();
+        });
+
+        // Remove from selection groups
         this.selectionGroups.delete(groupId);
 
-        // Remove the tooltip for this group
+        // Remove tooltip
         this.removeGroupTooltip(groupId);
 
         console.log(`Cleared selection group ${groupId}`);
     }
 
-    // Updated clearAllSelections method
     clearAllSelections() {
-        const highlightedSpans = this.output.querySelectorAll("span.multi-highlighted");
+        const highlightedSpans = this.output.querySelectorAll("span.multi-highlighted, span.highlighted");
         highlightedSpans.forEach(span => {
             span.classList.remove("multi-highlighted");
+            span.classList.remove("highlighted");
             delete span.dataset.selectionGroup;
+            delete span.dataset.groupId;
+            span.querySelector('.tooltip')?.remove();
         });
 
         this.selectionGroups.clear();
+        this.mobile.groups.clear();
+        this.mobile.touchedSpans.clear();
 
         // Remove all group tooltips
         this.groupTooltips.forEach((tooltip, groupId) => {
@@ -663,30 +696,28 @@ export class VocabularyTool {
         this.selectionTooltip.style.display = "none";
         this.selectionTooltip.textContent = "";
 
+        // Reset desktop state
+        this.desktop.potentialStartSpan = null;
+        this.desktop.isDragging = false;
+        this.desktop.isSelecting = false;
+        this.desktop.currentGroupId = null;
+
         console.log("Cleared all selections");
     }
 
-    // Updated clearMultiSelection - now clears only current selection
-    clearMultiSelection() {
-        // Clear the current selection in progress
-        if (this.currentGroupId) {
-            this.clearCurrentGroupSelection();
-        } else {
-            // If no current group, clear everything
-            this.clearAllSelections();
-        }
+    storeSelectionGroup(spans, text, groupId, translation = '') {
+        const group = {
+            spans: [...spans],
+            text: text,
+            translation: translation,
+            timestamp: Date.now()
+        };
 
-        // Always hide visual elements
-        if (this.selectionHighlight) {
-            this.selectionHighlight.remove();
-            this.selectionHighlight = null;
-        }
-
-        this.selectionTooltip.style.display = "none";
-        this.selectionTooltip.textContent = "";
+        this.selectionGroups.set(groupId, group);
+        console.log(`Stored selection group ${groupId} with ${spans.length} spans`);
     }
 
-    showSelectionTooltip(text, rect, groupId) {
+    showSelectionTooltip(text, rect, groupId, translation = '') {
         // Remove any existing tooltip for this specific group
         this.removeGroupTooltip(groupId);
 
@@ -695,54 +726,46 @@ export class VocabularyTool {
         tooltip.className = 'group-tooltip';
         tooltip.dataset.groupId = groupId;
         tooltip.style.cssText = `
-        position: absolute;
-        background: #333;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 14px;
-        z-index: 30;
-        white-space: nowrap;
-        left: ${rect.left + window.scrollX}px;
-        top: ${rect.top + window.scrollY - 10}px;
-        display: block;
-    `;
-        tooltip.textContent = "Translating...";
+            position: absolute;
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 30;
+            white-space: nowrap;
+            left: ${rect.left + window.scrollX}px;
+            top: ${rect.top + window.scrollY - 10}px;
+            display: block;
+        `;
+
+        if (translation) {
+            tooltip.textContent = translation;
+        } else {
+            tooltip.textContent = "Translating...";
+        }
 
         document.body.appendChild(tooltip);
         this.groupTooltips.set(groupId, tooltip);
 
-        // Create or update selection highlight
-        if (!this.selectionHighlight) {
-            this.selectionHighlight = document.createElement('div');
-            this.selectionHighlight.className = 'selection-highlight';
-            document.body.appendChild(this.selectionHighlight);
+        // Translate if not provided
+        if (!translation) {
+            this.translate(text).then(translated => {
+                // Store translation in the group
+                if (this.selectionGroups.has(groupId)) {
+                    this.selectionGroups.get(groupId).translation = translated;
+                }
+
+                // Update the tooltip
+                if (this.groupTooltips.has(groupId)) {
+                    const tooltip = this.groupTooltips.get(groupId);
+                    tooltip.textContent = translated;
+                    tooltip.style.top = (rect.top + window.scrollY - tooltip.offsetHeight - 10) + 'px';
+                }
+            });
         }
-
-        this.selectionHighlight.style.width = rect.width + 'px';
-        this.selectionHighlight.style.height = rect.height + 'px';
-        this.selectionHighlight.style.left = (rect.left + window.scrollX) + 'px';
-        this.selectionHighlight.style.top = (rect.top + window.scrollY) + 'px';
-
-        // Speak and translate
-        this.speak(text);
-
-        this.translate(text).then(translated => {
-            // Store translation in the group
-            if (this.selectionGroups.has(groupId)) {
-                this.selectionGroups.get(groupId).translation = translated;
-            }
-
-            // Update the tooltip
-            if (this.groupTooltips.has(groupId)) {
-                const tooltip = this.groupTooltips.get(groupId);
-                tooltip.textContent = translated;
-                tooltip.style.top = (rect.top + window.scrollY - tooltip.offsetHeight - 10) + 'px';
-            }
-        });
     }
 
-    // Remove a specific group's tooltip
     removeGroupTooltip(groupId) {
         if (this.groupTooltips.has(groupId)) {
             const tooltip = this.groupTooltips.get(groupId);
@@ -752,30 +775,41 @@ export class VocabularyTool {
             this.groupTooltips.delete(groupId);
         }
 
-        // Also remove from the old single tooltip system if it exists
+        // Also remove any tooltips with data attributes
+        const attrTooltips = document.querySelectorAll(`[data-group-id="${groupId}"], [data-groupId="${groupId}"]`);
+        attrTooltips.forEach(tooltip => {
+            if (tooltip.parentNode) {
+                tooltip.parentNode.removeChild(tooltip);
+            }
+        });
+
         if (this.selectionTooltip.dataset.groupId === groupId) {
             this.selectionTooltip.style.display = "none";
             this.selectionTooltip.textContent = "";
         }
     }
 
-    // Get all selection groups for the Add to Flashcards button
-    getAllSelectionGroups() {
-        const groups = [];
-
-        this.selectionGroups.forEach((group, groupId) => {
-            if (group.text && group.translation) {
-                groups.push({
-                    text: group.text,
-                    translation: group.translation,
-                    wordCount: group.spans.length,
-                    groupId: groupId
-                });
-            }
-        });
-
-        return groups;
+    isUIControl(element) {
+        if (element.closest('#addToFlashBtn')) return true;
+        if (element.closest('#batch-add-to-flash-modal')) return true;
+        if (element.closest('#add-to-flash-modal')) return true;
+        if (element.closest('#active-recall-tool')) return true;
+        if (element.tagName === 'BUTTON') return true;
+        if (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA') return true;
+        return false;
     }
+
+    // // ========== API METHODS (you'll need to implement these) ==========
+    // speak(text) {
+    //     // Your speech implementation
+    //     console.log("Speaking:", text);
+    // }
+
+    // async translate(text) {
+    //     // Your translation implementation
+    //     console.log("Translating:", text);
+    //     return text;
+    // }
 
     // Add this method to your VocabularyTool class
     handleIndividualWordClick(span) {
@@ -1084,9 +1118,14 @@ export class VocabularyTool {
     getAllSelections() {
         const selections = [];
 
-        // 1. Get individual words (green highlights)
-        const individualSpans = this.output.querySelectorAll('span.highlighted:not(.multi-highlighted)');
+        // 1. Get individual words - FIXED: Look for spans with highlighted class but no group data attributes
+        const individualSpans = this.output.querySelectorAll('span.highlighted');
         individualSpans.forEach(span => {
+            // Skip if it's part of a group
+            if (span.dataset.selectionGroup || span.dataset.groupId) {
+                return;
+            }
+
             const word = span.textContent.trim();
             const tooltip = span.querySelector('.tooltip');
             const translation = tooltip ? tooltip.textContent : '';
@@ -1103,18 +1142,21 @@ export class VocabularyTool {
             }
         });
 
-        // 2. Get grouped words (blue highlights with group IDs)
+        // 2. Get all grouped words from the main selectionGroups map
         this.selectionGroups.forEach((group, groupId) => {
             if (group.text && group.translation) {
-                selections.push({
-                    words: group.spans.map(span => span.textContent.trim()),
-                    text: group.text,
-                    translation: group.translation,
-                    type: 'group',
-                    isGroup: true,
-                    wordCount: group.spans.length,
-                    groupId: groupId
-                });
+                // Only include groups with more than 1 word, or single words that aren't individually highlighted
+                if (group.spans.length > 1 || !group.spans[0].classList.contains('highlighted')) {
+                    selections.push({
+                        words: group.spans.map(span => span.textContent.trim()),
+                        text: group.text,
+                        translation: group.translation,
+                        type: 'group',
+                        isGroup: true,
+                        wordCount: group.spans.length,
+                        groupId: groupId
+                    });
+                }
             }
         });
 
@@ -1438,7 +1480,7 @@ export class VocabularyTool {
                 }
             });
 
-            if (this.isTouchDevice()) {
+            if (this.isTouchDevice) {
                 userInput.addEventListener('touchend', (e) => {
                     setTimeout(() => this.handleUserInput(), 100);
                 });
@@ -1452,7 +1494,7 @@ export class VocabularyTool {
             });
 
             // Mobile touch support for checkbox
-            if (this.isTouchDevice()) {
+            if (this.isTouchDevice) {
                 fuzzyMatch.addEventListener('touchend', (e) => {
                     e.preventDefault();
                     fuzzyMatch.checked = !fuzzyMatch.checked;
@@ -1470,7 +1512,7 @@ export class VocabularyTool {
                 console.log("Slow voice set to:", this.useSlowVoice)
             });
         }
-        if (slowVoice && this.isTouchDevice()) {
+        if (slowVoice && this.isTouchDevice) {
             slowVoice.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 slowVoice.checked = !slowVoice.checked;
@@ -1628,7 +1670,7 @@ export class VocabularyTool {
         });
 
         // Mobile-specific touch events
-        if (this.isTouchDevice()) {
+        if (this.isTouchDevice) {
             dropdownBtn.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1719,11 +1761,11 @@ export class VocabularyTool {
     }
 
     // Add helper method for touch device detection
-    isTouchDevice() {
-        return 'ontouchstart' in window ||
-            navigator.maxTouchPoints > 0 ||
-            navigator.msMaxTouchPoints > 0;
-    }
+    // isTouchDevice {
+    //     return 'ontouchstart' in window ||
+    //         navigator.maxTouchPoints > 0 ||
+    //         navigator.msMaxTouchPoints > 0;
+    // }
 
     // Unified input handler
     handleUserInput() {
@@ -2002,7 +2044,7 @@ export class VocabularyTool {
         document.getElementById('ar-finish-btn').classList.remove('hidden');
 
         // Mobile: Make buttons more touch-friendly
-        if (this.isTouchDevice()) {
+        if (this.isTouchDevice) {
             ['ar-next-btn', 'ar-back-btn', 'ar-repeat-btn', 'ar-finish-btn'].forEach(id => {
                 const btn = document.getElementById(id);
                 if (btn) {
@@ -2025,7 +2067,7 @@ export class VocabularyTool {
             displayArea.textContent = '🎧 Listen carefully...';
 
             // Mobile: Force a layout update
-            if (this.isTouchDevice()) {
+            if (this.isTouchDevice) {
                 setTimeout(() => {
                     document.body.style.overflow = 'hidden';
                     setTimeout(() => {
@@ -2040,7 +2082,7 @@ export class VocabularyTool {
                 userInput.value = '';
 
                 // Mobile: Focus input with delay for better UX
-                if (this.isTouchDevice()) {
+                if (this.isTouchDevice) {
                     setTimeout(() => {
                         userInput.focus();
                         // Mobile browsers need this to show keyboard properly
