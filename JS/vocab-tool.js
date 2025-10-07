@@ -341,14 +341,22 @@ export class VocabularyTool {
             return;
         }
 
-        // Store this selection group
-        this.storeSelectionGroup(selectedSpans, selectedText, this.desktop.currentGroupId);
+        // Translate first, then store
+        let translation = "";
+        try {
+            translation = await this.translate(selectedText);
+        } catch (error) {
+            console.error("Translation error:", error);
+            translation = "(translation failed)";
+        }
+
+        // Store this selection group with proper translation
+        this.storeSelectionGroup(selectedSpans, selectedText, translation, this.desktop.currentGroupId);
 
         // Show tooltip for this group
         const firstSpan = selectedSpans[0];
         const rect = firstSpan.getBoundingClientRect();
-
-        this.showSelectionTooltip(selectedText, rect, this.desktop.currentGroupId);
+        this.showSelectionTooltip(selectedText, rect, this.desktop.currentGroupId, translation);
 
         this.desktop.selectionStartSpan = null;
         this.desktop.currentGroupId = null;
@@ -616,7 +624,7 @@ export class VocabularyTool {
         tooltip.textContent = translation;
 
         // Adjust position based on the actual tooltip size
-        tooltip.style.top = (firstRect.top + window.scrollY - tooltip.offsetHeight - 10) + "px";
+        tooltip.style.top = (firstRect.top + window.scrollY - tooltip.offsetHeight - 1) + "px";
 
         // Center the tooltip over the selection if it's a long phrase
         if (wordCount > 3) {
@@ -824,16 +832,24 @@ export class VocabularyTool {
         console.log("Cleared all selections");
     }
 
-    storeSelectionGroup(spans, text, groupId, translation = '') {
+    storeSelectionGroup(spans, text, translation, groupId) {
+        // Ensure we're storing the actual word text, not word + translation
+        const actualText = spans.map(span => span.textContent.trim()).join(' ');
+
         const group = {
             spans: [...spans],
-            text: text,
-            translation: translation,
+            text: actualText, // The actual selected text from spans
+            translation: translation, // The translation
             timestamp: Date.now()
         };
 
+        // Make sure groupId is provided and valid
+        if (!groupId) {
+            groupId = 'group_' + Date.now();
+        }
+
         this.selectionGroups.set(groupId, group);
-        console.log(`Stored selection group ${groupId} with ${spans.length} spans`);
+        console.log(`Stored selection group ${groupId}: "${actualText}" -> "${translation}"`);
     }
 
     showSelectionTooltip(text, rect, groupId, translation = '') {
@@ -854,7 +870,7 @@ export class VocabularyTool {
             z-index: 30;
             white-space: nowrap;
             left: ${rect.left + window.scrollX}px;
-            top: ${rect.top + window.scrollY - 10}px;
+            top: ${rect.top + window.scrollY - 40}px;
             display: block;
         `;
 
@@ -1234,21 +1250,47 @@ export class VocabularyTool {
         addToFlashBtn.style.opacity = '1';
         addToFlashBtn.textContent = originalText;
     }
+
+    getSpanTextContent(span) {
+        // Get only the text content, excluding tooltip content
+        for (let node of span.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                return node.textContent.trim();
+            }
+        }
+        return span.textContent.trim(); // fallback
+    }
+
     // Get all selections: individual words + grouped words
     getAllSelections() {
         const selections = [];
 
-        // 1. Get individual words - FIXED: Look for spans with highlighted class but no group data attributes
-        const individualSpans = this.output.querySelectorAll('span.highlighted');
-        individualSpans.forEach(span => {
-            // Skip if it's part of a group
-            if (span.dataset.selectionGroup || span.dataset.groupId) {
-                return;
-            }
+        console.log("=== DEBUG getAllSelections ===");
 
-            const word = span.textContent.trim();
+        // 1. Get individual words
+        const individualSpans = this.output.querySelectorAll('span.highlighted');
+        console.log("Individual spans found:", individualSpans.length);
+
+        individualSpans.forEach((span, index) => {
+            const hasSelectionGroup = !!span.dataset.selectionGroup;
+            const hasGroupId = !!span.dataset.groupId;
+            const word = this.getSpanTextContent(span);
             const tooltip = span.querySelector('.tooltip');
             const translation = tooltip ? tooltip.textContent : '';
+
+            console.log(`Individual span ${index}:`, {
+                text: word,
+                hasSelectionGroup,
+                hasGroupId,
+                translation,
+                dataset: { ...span.dataset }
+            });
+
+            // Skip if it's part of a group
+            if (hasSelectionGroup || hasGroupId) {
+                console.log(`Skipping - part of group: ${word}`);
+                return;
+            }
 
             if (word && translation) {
                 selections.push({
@@ -1259,36 +1301,69 @@ export class VocabularyTool {
                     isGroup: false,
                     wordCount: 1
                 });
+                console.log(`Added individual: "${word}" -> "${translation}"`);
             }
         });
 
-        // 2. Get all grouped words from the main selectionGroups map
+        // 2. Debug selectionGroups
+        console.log("SelectionGroups map size:", this.selectionGroups.size);
+        console.log("SelectionGroups content:", Array.from(this.selectionGroups.entries()));
+
+        // Get all grouped words from the main selectionGroups map
         this.selectionGroups.forEach((group, groupId) => {
-            if (group.text && group.translation) {
-                // Only include groups with more than 1 word, or single words that aren't individually highlighted
-                if (group.spans.length > 1 || !group.spans[0].classList.contains('highlighted')) {
-                    selections.push({
-                        words: group.spans.map(span => span.textContent.trim()),
-                        text: group.text,
-                        translation: group.translation,
-                        type: 'group',
-                        isGroup: true,
-                        wordCount: group.spans.length,
-                        groupId: groupId
-                    });
-                }
+            console.log(`Processing group ${groupId}:`, {
+                text: group.text,
+                translation: group.translation,
+                spanCount: group.spans ? group.spans.length : 0,
+                spans: group.spans ? group.spans.map(s => s.textContent.trim()) : []
+            });
+
+            // Safe checks
+            if (!groupId || !group.text || !group.translation) {
+                console.log(`Skipping group ${groupId} - missing data`);
+                return;
+            }
+
+            // Check if this is a real group (more than 1 word) or mobile/desktop group
+            const isRealGroup = group.spans && group.spans.length > 1;
+            const isMobileGroup = groupId.includes('mobile_g');
+            const isDesktopGroup = groupId.includes('desktop_group_');
+
+            console.log(`Group ${groupId} checks:`, {
+                isRealGroup,
+                isMobileGroup,
+                isDesktopGroup,
+                spanCount: group.spans ? group.spans.length : 0
+            });
+
+            if (isRealGroup || isMobileGroup || isDesktopGroup) {
+                const words = group.spans ? group.spans.map(span => span.textContent.trim()) : [];
+                selections.push({
+                    words: words,
+                    text: group.text,
+                    translation: group.translation,
+                    type: 'group',
+                    isGroup: true,
+                    wordCount: words.length,
+                    groupId: groupId
+                });
+                console.log(`Added group: "${group.text}" -> "${group.translation}"`);
+            } else {
+                console.log(`Skipping - not a real group: ${groupId}`);
             }
         });
 
-        // Safely reset desktop state if it exists
-        if (this.desktop) {
-            this.desktop.potentialStartSpan = null;
-            this.desktop.isDragging = false;
-            this.desktop.isSelecting = false;
-            this.desktop.currentGroupId = null;
-        }
+        console.log(`=== FINAL: ${selections.length} total selections ===`);
+        selections.forEach((sel, index) => {
+            console.log(`Selection ${index}:`, {
+                text: sel.text,
+                translation: sel.translation,
+                type: sel.type,
+                wordCount: sel.wordCount,
+                isGroup: sel.isGroup
+            });
+        });
 
-        console.log(`Found ${selections.length} total selections: ${individualSpans.length} individual + ${this.selectionGroups.size} groups`);
         return selections;
     }
 
