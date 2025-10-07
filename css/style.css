@@ -407,10 +407,6 @@ span.multi-highlighted {
     /* More visible on mobile */
 }
 
-.touch-feedback {
-    background-color: rgba(156, 163, 175, 0.3) !important;
-    border-radius: 0.25rem;
-}
 
 /* Prevent layout shifts when highlighting */
 #output span {
@@ -454,4 +450,14 @@ span.multi-highlighted {
 .multi-highlighted.active {
     border-color: rgba(59, 130, 246, 0.4);
     background-color: rgba(254, 240, 138, 0.8);
+}
+
+.touch-feedback {
+    background-color: rgba(59, 130, 246, 0.3) !important;
+    border: 1px dashed rgba(59, 130, 246, 0.6) !important;
+}
+
+.multi-highlighted {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    border: 1px solid rgba(59, 130, 246, 0.4) !important;
 }

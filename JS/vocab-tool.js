@@ -42,6 +42,7 @@ export class VocabularyTool {
 
     setupSelectionSystem() {
         if (this.isTouchDevice) {
+            console.log("Detected touch device", this.isTouchDevice);
             this.setupMobileSelection();
         } else {
             this.setupDesktopSelection();
@@ -132,31 +133,6 @@ export class VocabularyTool {
         } catch {
             return "(error)";
         }
-    }
-
-    async onWordClick(word, span) {
-        console.log(`onWordClick -> Clicked on word: ${word}`);
-        if (span.classList.contains("highlighted")) {
-            console.log('.....Removing highlight');
-            span.classList.remove("highlighted");
-            span.querySelector(".tooltip")?.remove();
-            return;
-        }
-
-        span.classList.add('loading');
-        this.speak(word);
-        const translated = await this.translate(word);
-        console.log(`Translated "${word}" to "${translated}"`);
-        span.classList.remove('loading');
-        span.classList.add("highlighted");
-
-        const tip = document.createElement("div");
-        tip.className = "tooltip";
-        tip.textContent = translated;
-        tip.style.whiteSpace = "nowrap";
-        tip.style.textOverflow = "ellipsis";
-        tip.style.overflow = "hidden";
-        span.appendChild(tip);
     }
 
     setupDesktopSelection() {
@@ -384,7 +360,7 @@ export class VocabularyTool {
         if (span && this.isWordSpan(span)) {
             this.mobile.touchSelecting = true;
             this.mobile.touchStartTime = Date.now();
-            this.mobile.touchStartSpan = span;
+            this.mobile.touchStartSpan = span; // Store the starting span
 
             // Check if clicking on existing GROUP - remove it immediately
             const existingGroupId = span.dataset.groupId || span.dataset.selectionGroup;
@@ -395,26 +371,102 @@ export class VocabularyTool {
                 return;
             }
 
-            // Start selection with temporary visual feedback
+            // Clear previous selection and start new one
             this.mobile.touchedSpans.forEach(s => {
                 s.classList.remove('touch-feedback');
                 s.classList.remove('multi-highlighted');
             });
             this.mobile.touchedSpans.clear();
-            this.addSpanToTouched(span);
+
+            // Start with just the first span
+            this.mobile.touchedSpans.add(span);
+            span.classList.add('touch-feedback');
+            span.classList.add('multi-highlighted');
+            span.style.zIndex = '30';
 
         } else {
             this.mobile.touchSelecting = false;
         }
     }
 
+    // Add this helper method to get all spans between two spans
+    getSpansBetween(startSpan, endSpan) {
+        const allSpans = Array.from(this.output.querySelectorAll('span'));
+        const startIndex = allSpans.indexOf(startSpan);
+        const endIndex = allSpans.indexOf(endSpan);
+
+        if (startIndex === -1 || endIndex === -1) return [];
+
+        const start = Math.min(startIndex, endIndex);
+        const end = Math.max(startIndex, endIndex);
+
+        return allSpans.slice(start, end + 1);
+    }
+
+    // Update handleTouchMove to select ranges
     handleTouchMove(ev) {
-        if (!this.mobile.touchSelecting) return;
+        if (!this.mobile.touchSelecting || !this.mobile.touchStartSpan) return;
+
         const t = ev.touches[0];
-        const span = this.spanFromPoint(t.clientX, t.clientY);
-        if (span && this.isWordSpan(span)) {
-            this.addSpanToTouched(span);
+        const currentSpan = this.spanFromPoint(t.clientX, t.clientY);
+
+        if (currentSpan && this.isWordSpan(currentSpan)) {
+            // Get all spans between start and current position
+            const spansBetween = this.getSpansBetween(this.mobile.touchStartSpan, currentSpan);
+
+            // Clear previous selection
+            this.mobile.touchedSpans.forEach(span => {
+                if (!spansBetween.includes(span)) {
+                    span.classList.remove('touch-feedback');
+                    span.classList.remove('multi-highlighted');
+                }
+            });
+            this.mobile.touchedSpans.clear();
+
+            // Add all spans in between to selection
+            spansBetween.forEach(span => {
+                if (this.isWordSpan(span)) {
+                    this.mobile.touchedSpans.add(span);
+                    span.classList.add('touch-feedback');
+                    span.classList.add('multi-highlighted');
+                    span.style.zIndex = '30';
+                }
+            });
         }
+
+        ev.preventDefault();
+    }
+
+    handleTouchMove(ev) {
+        if (!this.mobile.touchSelecting || !this.mobile.touchStartSpan) return;
+
+        const t = ev.touches[0];
+        const currentSpan = this.spanFromPoint(t.clientX, t.clientY);
+
+        if (currentSpan && this.isWordSpan(currentSpan)) {
+            // Get all spans between start and current position
+            const spansBetween = this.getSpansBetween(this.mobile.touchStartSpan, currentSpan);
+
+            // Clear previous selection
+            this.mobile.touchedSpans.forEach(span => {
+                if (!spansBetween.includes(span)) {
+                    span.classList.remove('touch-feedback');
+                    span.classList.remove('multi-highlighted');
+                }
+            });
+            this.mobile.touchedSpans.clear();
+
+            // Add all spans in between to selection
+            spansBetween.forEach(span => {
+                if (this.isWordSpan(span)) {
+                    this.mobile.touchedSpans.add(span);
+                    span.classList.add('touch-feedback');
+                    span.classList.add('multi-highlighted');
+                    span.style.zIndex = '30';
+                }
+            });
+        }
+
         ev.preventDefault();
     }
 
@@ -423,51 +475,28 @@ export class VocabularyTool {
     }
 
     async handleTouchEnd(ev) {
-        if (!this.mobile.touchSelecting) return;
+        if (!this.mobile.touchSelecting || !this.mobile.touchStartSpan) return;
 
         const touchDuration = Date.now() - this.mobile.touchStartTime;
         const isQuickTap = touchDuration < 300;
         const spansArr = this.orderSpansByDOM(Array.from(this.mobile.touchedSpans));
 
-        console.log("🔄 handleTouchEnd:", {
-            touchDuration,
-            isQuickTap,
-            spansCount: spansArr.length,
-            spans: spansArr.map(s => s.textContent.trim())
-        });
-
         this.mobile.touchSelecting = false;
 
-        // Remove temporary visual feedback from all touched spans
+        // Remove temporary visual feedback
         this.mobile.touchedSpans.forEach(span => {
             span.classList.remove('touch-feedback');
         });
 
-        // If no spans, exit early
-        if (spansArr.length === 0) {
-            console.log("⚠️ No spans to process");
-            return;
-        }
-
-        // Handle single word toggle
-        if (spansArr.length === 1) {
+        // Handle single word toggle (only if it's truly a single word tap)
+        if (isQuickTap && spansArr.length === 1) {
             const singleSpan = spansArr[0];
             const isAlreadyHighlighted = singleSpan.classList.contains("highlighted");
             const hasGroup = singleSpan.dataset.groupId || singleSpan.dataset.selectionGroup;
 
-            console.log("🔍 Single word check:", {
-                text: singleSpan.textContent.trim(),
-                isAlreadyHighlighted,
-                hasGroup,
-                isQuickTap
-            });
-
-            // SIMPLE TOGGLE LOGIC:
-            // If already highlighted and quick tap → REMOVE
-            if (isQuickTap && isAlreadyHighlighted && !hasGroup) {
-                console.log("❌ Removing highlight from:", singleSpan.textContent.trim());
+            if (!hasGroup && isAlreadyHighlighted) {
+                console.log("❌ Quick tap on highlighted word - removing highlight");
                 singleSpan.classList.remove("highlighted");
-                singleSpan.classList.remove("multi-highlighted");
                 singleSpan.querySelector(".tooltip")?.remove();
 
                 // Clean up from selectionGroups
@@ -478,20 +507,16 @@ export class VocabularyTool {
                 this.mobile.touchedSpans.clear();
                 return;
             }
-
-            // If already highlighted and long press → KEEP (do nothing)
-            if (!isQuickTap && isAlreadyHighlighted && !hasGroup) {
-                console.log("⏭️ Long press on highlighted word - keeping as is");
-                this.mobile.touchedSpans.clear();
-                return;
-            }
         }
 
-        // PROCESS TRANSLATION FOR ALL CASES THAT REACH HERE
-        // This includes:
-        // - Quick tap on NON-highlighted word
-        // - Long press on NON-highlighted word  
-        // - Multi-word selections
+        // If no spans, exit early
+        if (spansArr.length === 0) {
+            console.log("⚠️ No spans to process");
+            return;
+        }
+
+        console.log("✅ Processing selection with", spansArr.length, "words");
+
         const words = spansArr.map(s => (s.childNodes[0]?.textContent || s.textContent).trim()).filter(Boolean);
         const phrase = words.join(" ");
 
