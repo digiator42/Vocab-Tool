@@ -110,13 +110,23 @@ export class VocabularyTool {
         });
     }
 
-    async translate(text) {
+    async translate(text, article = false) {
         try {
-            const res = await fetch(
-                "https://translate.googleapis.com/translate_a/single?client=gtx&sl=de&tl=" +
-                encodeURIComponent(this.selectedLang) +
-                "&dt=t&q=" + encodeURIComponent(text)
-            );
+            let res = '';
+            if (article) {
+                // Get the German translation from English words
+                res = await fetch(
+                    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=t&q=" +
+                    encodeURIComponent(text)
+                );
+            } else {
+
+                res = await fetch(
+                    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=de&tl=" +
+                    encodeURIComponent(this.selectedLang) +
+                    "&dt=t&q=" + encodeURIComponent(text)
+                );
+            }
             const data = await res.json();
             return this.joinTranslationChunks(data);
         } catch {
@@ -1440,22 +1450,49 @@ export class VocabularyTool {
         selections.forEach((selection, index) => {
             const selectionDiv = document.createElement('div');
             selectionDiv.className = 'p-3 border rounded-lg bg-gray-50';
+
+            // Add article button only for single words - moved to right side
+            const articleButton = !selection.isGroup && selection.words.length === 1 ? `
+            <div class="ml-4 flex flex-col items-center space-y-2">
+                <input type="checkbox" class="batch-selection-checkbox" data-index="${index}" checked>
+                <button class="get-article-btn px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors whitespace-nowrap"
+                        data-word="${selection.words[0]}" 
+                        data-index="${index}">
+                    Get Article
+                </button>
+            </div>
+        ` : `
+            <div class="ml-4">
+                <input type="checkbox" class="batch-selection-checkbox" data-index="${index}" checked>
+            </div>
+        `;
+
             selectionDiv.innerHTML = `
             <div class="flex items-center justify-between">
                 <div class="flex-1">
-                    <div class="font-semibold text-gray-800">${selection.words.join(' ')}</div>
+                    <div class="font-semibold text-gray-800 german-word">${selection.words.join(' ')}</div>
                     <div class="text-sm text-gray-600">${selection.translation}</div>
                     <div class="text-xs text-gray-500 mt-1">
                         ${selection.isGroup ? '📚 Word Group' : '🔤 Single Word'} • ${selection.words.length} word(s)
                     </div>
                 </div>
-                <div class="ml-4">
-                    <input type="checkbox" class="batch-selection-checkbox" data-index="${index}" checked>
-                </div>
+                ${articleButton}
             </div>
         `;
             selectionsList.appendChild(selectionDiv);
         });
+
+        // Add event listeners for article buttons
+        setTimeout(() => {
+            document.querySelectorAll('.get-article-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const word = btn.dataset.word;
+                    const index = parseInt(btn.dataset.index);
+                    this.handleGetArticle(word, index, btn);
+                });
+            });
+        }, 100);
 
         // Populate lists dropdown
         this.populateBatchListsDropdown();
@@ -1464,6 +1501,52 @@ export class VocabularyTool {
         document.getElementById('batch-new-list-name').value = '';
 
         modal.classList.remove('hidden');
+    }
+
+    async handleGetArticle(word, selectionIndex, button) {
+        // Show loading state
+        const originalText = button.textContent;
+        button.textContent = 'Loading...';
+        button.disabled = true;
+
+        console.log(`Getting article for "${word}" (selection index ${selectionIndex})`);
+
+        try {
+            // First, get the English translation of the German word
+            const englishTranslation = await this.translate(word);
+            console.log(`English translation: "${englishTranslation}"`);
+
+            // Now translate "the + english_word" back to German to get the article
+            const articleWord = await this.translate('the ' + englishTranslation, true);
+            console.log(`German with article: "${articleWord}"`);
+
+            // Update the selection in the original selections array
+            const selectionsList = document.getElementById('batch-selections-list');
+            const selectionDiv = selectionsList.children[selectionIndex];
+
+            // Update ONLY the German word text (the span with class "german-word")
+            const germanWordSpan = selectionDiv.querySelector('.german-word');
+            germanWordSpan.textContent = articleWord.charAt(0).toUpperCase() + articleWord.slice(1);;
+
+            // Update the button to show completion
+            button.textContent = '✓ Done';
+            button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            button.classList.add('bg-green-500', 'hover:bg-green-600');
+
+            // Update the translation display (show the original English translation)
+            const translationDisplay = selectionDiv.querySelector('.text-sm');
+            translationDisplay.textContent = englishTranslation;
+
+            console.log(`Updated "${word}" -> "${articleWord}" (English: "${englishTranslation}")`);
+
+        } catch (error) {
+            console.error('Error getting article:', error);
+            button.textContent = 'Error';
+            setTimeout(() => {
+                button.textContent = 'Get Article';
+                button.disabled = false;
+            }, 2000);
+        }
     }
 
     setupAddToFlashcardModal() {
