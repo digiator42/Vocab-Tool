@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const storyContainer = document.getElementById('input');
 
     for (const [key, value] of Object.entries(germanStories)) {
+        console.log(key);
       const option = document.createElement('option');
       option.value = key;
       option.textContent = value.title;

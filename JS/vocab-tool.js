@@ -17,6 +17,11 @@ export class VocabularyTool {
         this.useFuzzyMatching = true;
         this.originalText = '';
         this.useSlowVoice = false;
+        this.isSelecting = false;
+        this.selectionStartSpan = null;
+        this.currentGroupId = null;
+        this.selectionGroups = new Map()
+        this.groupTooltips = new Map(); // Map of groupId -> tooltip element
 
         this.init();
     }
@@ -27,6 +32,8 @@ export class VocabularyTool {
         this.setupAddToFlashcardModal();
         this.setupTouchMultiSelect();
         this.setupActiveRecall();
+        this.setupManualSelection();
+        // this.setupTooltipHover();
         this.processBtn.click();
     }
 
@@ -128,38 +135,15 @@ export class VocabularyTool {
         span.appendChild(tip);
     }
 
-    async onTouchWordClick(word, span) {
-        console.log(`Clicked on word: ${word}`);
-        if (span.classList.contains("highlighted")) {
-            console.log('.....Removing highlight');
-            span.classList.remove("highlighted");
-            span.querySelector(".tooltip")?.remove();
-            return;
-        }
-
-        span.classList.add('loading');
-        this.speak(word);
-        const translated = await this.translate(word);
-        console.log(`Translated "${word}" to "${translated}"`);
-        span.classList.remove('loading');
-        span.classList.add("highlighted");
-
-        const tip = document.createElement("div");
-        tip.className = "tooltip";
-        tip.textContent = translated;
-        tip.style.whiteSpace = "nowrap";
-        tip.style.textOverflow = "ellipsis";
-        tip.style.overflow = "hidden";
-        span.appendChild(tip);
-    }
-
     getSelectedWords() {
-        const selection = window.getSelection();
-        if (!selection.rangeCount || selection.toString().trim().length < 2) return null;
-        const range = selection.getRangeAt(0);
-        if (!this.output.contains(range.startContainer) && !this.output.contains(range.endContainer)) return null;
-        return { text: selection.toString().trim(), range };
+        // const selection = window.getSelection();
+        // if (!selection.rangeCount || selection.toString().trim().length < 2) return null;
+        // const range = selection.getRangeAt(0);
+        // if (!this.output.contains(range.startContainer) && !this.output.contains(range.endContainer)) return null;
+        // return { text: selection.toString().trim(), range };
+        this.setupManualSelection();
     }
+
     setupTouchMultiSelect() {
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         console.log("setupTouchMultiSelect: isTouchDevice =", isTouchDevice);
@@ -328,7 +312,7 @@ export class VocabularyTool {
                 // Create tooltip for this group
                 const tooltip = document.createElement("div");
                 tooltip.className = "group-tooltip";
-                tooltip.textContent = "Translating...";
+                // tooltip.textContent = "Translating...";
                 tooltip.style.position = "absolute";
                 tooltip.style.background = "#333";
                 tooltip.style.color = "#fff";
@@ -374,15 +358,361 @@ export class VocabularyTool {
             }
         }, true);
     }
+    setupManualSelection() {
+        this.isDragging = false;
+        this.dragStartTime = 0;
+        this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        this.lastTouchY = 0;
 
-    async handleSelection() {
-        const selection = this.getSelectedWords();
-        if (!selection) {
-            if (window.getSelection) window.getSelection().removeAllRanges();
+        // Mouse events for desktop
+        this.output.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'SPAN') {
+                this.handleSelectionStart(e.target, e);
+            }
+        });
+
+        this.output.addEventListener('mousemove', (e) => {
+            this.handleSelectionMove(e.target, e);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            this.handleSelectionEnd(e);
+        });
+
+        // Enhanced touch events for mobile
+        this.output.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) { // Only handle single touch
+                const touch = e.touches[0];
+                this.lastTouchY = touch.clientY;
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (element && element.tagName === 'SPAN') {
+                    this.handleSelectionStart(element, e);
+                }
+            }
+        }, { passive: false });
+
+        this.output.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+
+                // Prevent page scroll only if we're selecting
+                if (this.isSelecting || this.potentialStartSpan) {
+                    e.preventDefault();
+                }
+
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                this.handleSelectionMove(element, e);
+            }
+        }, { passive: false });
+
+        this.output.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) { // All touches ended
+                this.handleSelectionEnd(e);
+            }
+        });
+
+        this.output.addEventListener('touchcancel', (e) => {
+            this.handleSelectionEnd(e);
+        });
+
+        // Click to clear individual groups
+        this.output.addEventListener('click', (e) => {
+            if (e.target.tagName === 'SPAN' && !this.isSelecting && !this.isDragging) {
+                const groupId = this.findSpanGroupId(e.target);
+                if (groupId) {
+                    this.clearSelectionGroup(groupId);
+                    e.stopPropagation();
+                }
+            }
+        });
+
+        // Improved click outside detection
+        document.addEventListener('click', (e) => {
+            if (this.isSelecting) return;
+            if (this.isUIControl(e.target)) return;
+            if (!this.output.contains(e.target)) {
+                this.clearAllSelections();
+            }
+        });
+    }
+
+
+    // Unified selection start handler
+    handleSelectionStart(target, event) {
+        this.dragStartTime = Date.now();
+        this.isDragging = false;
+        this.potentialStartSpan = target;
+
+        // For touch devices, prevent default to avoid zoom/scroll
+        if (this.isTouchDevice) {
+            event.preventDefault();
+        }
+    }
+
+    // Unified selection move handler  
+    handleSelectionMove(target, event) {
+        if (this.potentialStartSpan && Date.now() - this.dragStartTime > 100) {
+            this.isDragging = true;
+            if (!this.isSelecting) {
+                this.startManualSelection(this.potentialStartSpan);
+            }
+        }
+
+        if (this.isSelecting && target && target.tagName === 'SPAN') {
+            this.updateManualSelection(target);
+        }
+    }
+
+    // Unified selection end handler
+    handleSelectionEnd(event) {
+        if (this.potentialStartSpan) {
+            const clickDuration = Date.now() - this.dragStartTime;
+            const isQuickTap = clickDuration < 200 && !this.isDragging;
+
+            if (isQuickTap) {
+                // Quick tap - handle as individual word click
+                this.handleIndividualWordClick(this.potentialStartSpan);
+            } else if (this.isSelecting) {
+                // Drag selection - finish it
+                this.finishManualSelection();
+            }
+
+            this.potentialStartSpan = null;
+            this.isDragging = false;
+            this.isSelecting = false;
+        }
+    }
+
+    // Check if the clicked element is a UI control that shouldn't clear selections
+    isUIControl(element) {
+        // Check if element is the Add button or its children
+        if (element.closest('#addToFlashBtn')) return true;
+
+        // Check if element is in the batch modal
+        if (element.closest('#batch-add-to-flash-modal')) return true;
+
+        // Check if element is in the add flashcard modal
+        if (element.closest('#add-to-flash-modal')) return true;
+
+        // Check if element is in the active recall tool
+        if (element.closest('#active-recall-tool')) return true;
+
+        // Check if element is any button
+        if (element.tagName === 'BUTTON') return true;
+
+        // Check if element is any input field
+        if (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA') return true;
+
+        return false;
+    }
+
+    startManualSelection(startSpan) {
+        // Don't start selection if this is an individually highlighted word
+        if (startSpan.classList.contains('highlighted')) {
             return;
         }
 
-        const rect = selection.range.getBoundingClientRect();
+        this.isSelecting = true;
+        this.selectionStartSpan = startSpan;
+        this.currentGroupId = 'group_' + Date.now();
+
+        // Highlight the start span with group ID
+        startSpan.classList.add('multi-highlighted');
+        startSpan.dataset.selectionGroup = this.currentGroupId;
+    }
+
+
+    updateManualSelection(currentSpan) {
+        if (!this.isSelecting || !this.selectionStartSpan) return;
+
+        // Clear only the current group being selected (not others)
+        this.clearCurrentGroupSelection();
+
+        // Get all spans
+        const allSpans = Array.from(this.output.querySelectorAll('span'));
+        const startIndex = allSpans.indexOf(this.selectionStartSpan);
+        const currentIndex = allSpans.indexOf(currentSpan);
+
+        if (startIndex === -1 || currentIndex === -1) return;
+
+        // Highlight all spans between start and current for current group
+        const start = Math.min(startIndex, currentIndex);
+        const end = Math.max(startIndex, currentIndex);
+
+        for (let i = start; i <= end; i++) {
+            allSpans[i].classList.add('multi-highlighted');
+            allSpans[i].dataset.selectionGroup = this.currentGroupId;
+        }
+    }
+
+    async finishManualSelection() {
+        this.isSelecting = false;
+
+        const selectedSpans = this.getCurrentGroupSpans();
+        if (selectedSpans.length === 0) {
+            this.selectionStartSpan = null;
+            this.currentGroupId = null;
+            return;
+        }
+
+        // Get selected text
+        const selectedText = selectedSpans.map(span => span.textContent).join(' ').trim();
+
+        if (!selectedText) {
+            this.clearCurrentGroupSelection();
+            return;
+        }
+
+        // Store this selection group
+        this.storeSelectionGroup(selectedSpans, selectedText);
+
+        // Show tooltip for this group
+        const firstSpan = selectedSpans[0];
+        const rect = firstSpan.getBoundingClientRect();
+
+        this.showSelectionTooltip(selectedText, rect, this.currentGroupId);
+
+        this.selectionStartSpan = null;
+        this.currentGroupId = null;
+    }
+
+    // Store a selection group
+    storeSelectionGroup(spans, text) {
+        const group = {
+            spans: [...spans], // Copy the array
+            text: text,
+            translation: '',
+            timestamp: Date.now()
+        };
+
+        this.selectionGroups.set(this.currentGroupId, group);
+        console.log(`Stored selection group ${this.currentGroupId} with ${spans.length} spans`);
+    }
+
+    // Get spans for current selection group
+    getCurrentGroupSpans() {
+        if (!this.currentGroupId) return [];
+        return Array.from(this.output.querySelectorAll(`span[data-selection-group="${this.currentGroupId}"]`));
+    }
+
+    // Find which group a span belongs to
+    findSpanGroupId(span) {
+        return span.dataset.selectionGroup || null;
+    }
+
+    // Clear only the current group being selected
+    // Updated clearCurrentGroupSelection method
+    clearCurrentGroupSelection() {
+        if (!this.currentGroupId) return;
+
+        const currentGroupSpans = this.getCurrentGroupSpans();
+        currentGroupSpans.forEach(span => {
+            span.classList.remove('multi-highlighted');
+            delete span.dataset.selectionGroup;
+        });
+
+        // Remove from groups map if it exists
+        if (this.selectionGroups.has(this.currentGroupId)) {
+            this.selectionGroups.delete(this.currentGroupId);
+        }
+
+        // Remove the tooltip for this group
+        this.removeGroupTooltip(this.currentGroupId);
+    }
+
+    // Updated clearSelectionGroup method
+    clearSelectionGroup(groupId) {
+        // const spans = this.output.querySelectorAll(`span[data-selection-group="${groupId}"]`);
+        // spans.forEach(span => {
+        //     span.classList.remove('multi-highlighted');
+        //     delete span.dataset.selectionGroup;
+        // });
+
+        this.selectionGroups.delete(groupId);
+
+        // Remove the tooltip for this group
+        this.removeGroupTooltip(groupId);
+
+        console.log(`Cleared selection group ${groupId}`);
+    }
+
+    // Updated clearAllSelections method
+    clearAllSelections() {
+        const highlightedSpans = this.output.querySelectorAll("span.multi-highlighted");
+        highlightedSpans.forEach(span => {
+            span.classList.remove("multi-highlighted");
+            delete span.dataset.selectionGroup;
+        });
+
+        this.selectionGroups.clear();
+
+        // Remove all group tooltips
+        this.groupTooltips.forEach((tooltip, groupId) => {
+            if (tooltip && tooltip.parentNode) {
+                tooltip.parentNode.removeChild(tooltip);
+            }
+        });
+        this.groupTooltips.clear();
+
+        if (this.selectionHighlight) {
+            this.selectionHighlight.remove();
+            this.selectionHighlight = null;
+        }
+
+        // Hide the main selection tooltip
+        this.selectionTooltip.style.display = "none";
+        this.selectionTooltip.textContent = "";
+
+        console.log("Cleared all selections");
+    }
+
+    // Updated clearMultiSelection - now clears only current selection
+    clearMultiSelection() {
+        // Clear the current selection in progress
+        if (this.currentGroupId) {
+            this.clearCurrentGroupSelection();
+        } else {
+            // If no current group, clear everything
+            this.clearAllSelections();
+        }
+
+        // Always hide visual elements
+        if (this.selectionHighlight) {
+            this.selectionHighlight.remove();
+            this.selectionHighlight = null;
+        }
+
+        this.selectionTooltip.style.display = "none";
+        this.selectionTooltip.textContent = "";
+    }
+
+    showSelectionTooltip(text, rect, groupId) {
+        // Remove any existing tooltip for this specific group
+        this.removeGroupTooltip(groupId);
+
+        // Create a new tooltip for this group
+        const tooltip = document.createElement('div');
+        tooltip.className = 'group-tooltip';
+        tooltip.dataset.groupId = groupId;
+        tooltip.style.cssText = `
+        position: absolute;
+        background: #333;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 14px;
+        z-index: 30;
+        white-space: nowrap;
+        left: ${rect.left + window.scrollX}px;
+        top: ${rect.top + window.scrollY - 10}px;
+        display: block;
+    `;
+        tooltip.textContent = "Translating...";
+
+        document.body.appendChild(tooltip);
+        this.groupTooltips.set(groupId, tooltip);
+
+        // Create or update selection highlight
         if (!this.selectionHighlight) {
             this.selectionHighlight = document.createElement('div');
             this.selectionHighlight.className = 'selection-highlight';
@@ -394,57 +724,167 @@ export class VocabularyTool {
         this.selectionHighlight.style.left = (rect.left + window.scrollX) + 'px';
         this.selectionHighlight.style.top = (rect.top + window.scrollY) + 'px';
 
-        try {
-            const sel = window.getSelection();
-            if (sel && sel.rangeCount) {
-                const spans = this.output.querySelectorAll("span");
-                spans.forEach(span => {
-                    if (sel.containsNode(span, true)) {
-                        span.classList.add("multi-highlighted");
-                        span.onclick = () => {
-                            const highlightedSpans = this.output.querySelectorAll("span.multi-highlighted");
-                            if (highlightedSpans.length > 0) {
-                                console.log('.....Removing highlight from all');
-                                highlightedSpans.forEach(s => s.classList.remove("multi-highlighted"));
-                                this.selectionHighlight?.remove();
-                                this.selectionHighlight = null;
-                                this.selectionTooltip.style.display = "none";
-                                this.selectionTooltip.textContent = "";
-                                if (window.getSelection) window.getSelection().removeAllRanges();
-                            }
-                        };
-                    }
-                });
+        // Speak and translate
+        this.speak(text);
+
+        this.translate(text).then(translated => {
+            // Store translation in the group
+            if (this.selectionGroups.has(groupId)) {
+                this.selectionGroups.get(groupId).translation = translated;
             }
-        } catch (err) {
-            console.warn("Could not apply span highlights:", err);
+
+            // Update the tooltip
+            if (this.groupTooltips.has(groupId)) {
+                const tooltip = this.groupTooltips.get(groupId);
+                tooltip.textContent = translated;
+                tooltip.style.top = (rect.top + window.scrollY - tooltip.offsetHeight - 10) + 'px';
+            }
+        });
+    }
+
+    // Remove a specific group's tooltip
+    removeGroupTooltip(groupId) {
+        if (this.groupTooltips.has(groupId)) {
+            const tooltip = this.groupTooltips.get(groupId);
+            if (tooltip && tooltip.parentNode) {
+                tooltip.parentNode.removeChild(tooltip);
+            }
+            this.groupTooltips.delete(groupId);
         }
 
-        if (window.getSelection) window.getSelection().removeAllRanges();
-        this.speak(selection.text);
-        this.selectionTooltip.textContent = "Translating...";
-        this.selectionTooltip.style.left = (rect.left + window.scrollX) + "px";
-        this.selectionTooltip.style.top = (rect.top + window.scrollY - 10) + "px";
-        this.selectionTooltip.style.display = "block";
-
-        const translated = await this.translate(selection.text);
-        this.selectionTooltip.textContent = translated;
-        this.selectionTooltip.style.top = (rect.top + window.scrollY - this.selectionTooltip.offsetHeight - 10) + "px";
-        this.selectionTooltip.style.zIndex = "30";
+        // Also remove from the old single tooltip system if it exists
+        if (this.selectionTooltip.dataset.groupId === groupId) {
+            this.selectionTooltip.style.display = "none";
+            this.selectionTooltip.textContent = "";
+        }
     }
+
+    // Get all selection groups for the Add to Flashcards button
+    getAllSelectionGroups() {
+        const groups = [];
+
+        this.selectionGroups.forEach((group, groupId) => {
+            if (group.text && group.translation) {
+                groups.push({
+                    text: group.text,
+                    translation: group.translation,
+                    wordCount: group.spans.length,
+                    groupId: groupId
+                });
+            }
+        });
+
+        return groups;
+    }
+
+    // Add this method to your VocabularyTool class
+    handleIndividualWordClick(span) {
+        console.log('SIMPLE VERSION - Individual word clicked:', span.textContent);
+
+        // Toggle behavior: click to add, click again to remove
+        if (span.classList.contains('highlighted')) {
+            // Remove highlight and tooltip
+            span.classList.remove('highlighted');
+            span.querySelector('.tooltip')?.remove();
+        } else {
+            // Add highlight and translation
+            this.highlightAndTranslateIndividualWord(span);
+        }
+    }
+    // This method should also be in your class
+    async highlightAndTranslateIndividualWord(span) {
+        const word = span.textContent.trim();
+        if (!word) return;
+
+        console.log('Translating individual word:', word);
+
+        span.classList.add('highlighted');
+        span.classList.add('loading');
+
+        // Speak the word
+        this.speak(word);
+
+        // Translate the word
+        try {
+            const translated = await this.translate(word);
+            span.classList.remove('loading');
+
+            // Remove existing tooltip if any
+            span.querySelector('.tooltip')?.remove();
+
+            // Add new tooltip
+            const tip = document.createElement("div");
+            tip.className = "tooltip";
+            tip.textContent = translated;
+            tip.style.whiteSpace = "nowrap";
+            tip.style.textOverflow = "ellipsis";
+            tip.style.overflow = "hidden";
+            span.appendChild(tip);
+
+            console.log('Individual word translation:', translated);
+        } catch (error) {
+            span.classList.remove('loading');
+            console.error('Translation error:', error);
+        }
+    }
+
+    // Updated clearCurrentGroupSelection method
+    clearCurrentGroupSelection() {
+        if (!this.currentGroupId) return;
+
+        const currentGroupSpans = this.getCurrentGroupSpans();
+        currentGroupSpans.forEach(span => {
+            span.classList.remove('multi-highlighted');
+            delete span.dataset.selectionGroup;
+        });
+
+        // Remove from groups map if it exists
+        if (this.selectionGroups.has(this.currentGroupId)) {
+            this.selectionGroups.delete(this.currentGroupId);
+        }
+
+        // Remove the tooltip for this group
+        this.removeGroupTooltip(this.currentGroupId);
+    }
+    // setupTooltipHover() {
+    //     this.output.addEventListener('mouseover', (e) => {
+    //         if (e.target.tagName === 'SPAN' && !this.isSelecting) {
+    //             const groupId = this.findSpanGroupId(e.target);
+    //             if (groupId && this.selectionGroups.has(groupId)) {
+    //                 this.showTooltipForGroup(groupId);
+    //             }
+    //         }
+    //     });
+
+    //     this.output.addEventListener('mouseout', (e) => {
+    //         if (e.target.tagName === 'SPAN') {
+    //             const groupId = this.findSpanGroupId(e.target);
+    //             if (groupId && this.selectionGroups.has(groupId)) {
+    //                 // Don't hide immediately - give user time to read
+    //                 setTimeout(() => {
+    //                     if (!this.output.matches(':hover')) {
+    //                         this.selectionTooltip.style.display = "none";
+    //                     }
+    //                 }, 1000);
+    //             }
+    //         }
+    //     });
+    // }
 
     setupEventListeners() {
         this.processBtn.addEventListener("click", () => {
             this.output.innerHTML = "";
+            // In your processBtn click handler:
             this.tokenize(this.input.value).forEach((tok) => {
                 if (/^[A-Za-zÄÖÜäöüß]+$/.test(tok)) {
                     const span = document.createElement("span");
                     span.textContent = tok;
                     span.className = "relative cursor-pointer hover:bg-yellow-100 rounded px-1 mx-0.5";
-                    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-                    if (!isTouchDevice) { // Ignore clicks on touch devices (handled in touch logic)
-                        span.addEventListener("click", () => this.onWordClick(tok, span));
-                    }
+
+                    // Individual word clicks are now handled by the manual selection system
+                    // Remove the old click listener since we're handling it manually
+                    // span.addEventListener("click", () => this.onWordClick(tok, span));
+
                     this.output.appendChild(span);
                 } else {
                     this.output.appendChild(document.createTextNode(tok));
@@ -454,7 +894,7 @@ export class VocabularyTool {
         });
 
         this.stopSpeechBtn.addEventListener("click", () => this.stopSpeech());
-        this.output.addEventListener("click", () => setTimeout(() => this.handleSelection(), 1000));
+        // this.output.addEventListener("click", () => setTimeout(() => this.handleSelection(), 1000));
     }
 
     // Add to Flashcard functionality
@@ -601,33 +1041,85 @@ export class VocabularyTool {
 
     async handleAddToFlashcard() {
         const addToFlashBtn = document.getElementById('addToFlashBtn');
+
+        // Visual feedback for mobile
         addToFlashBtn.disabled = true;
-        addToFlashBtn.innerHTML = `
-        <svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-        </svg>
-    `;
+        addToFlashBtn.style.opacity = '0.7';
 
-        const selections = await this.getCurrentHighlightedWords();
-        addToFlashBtn.disabled = false;
-        addToFlashBtn.textContent = "Add";
+        // Mobile-friendly loading indicator
+        const originalText = addToFlashBtn.textContent;
+        addToFlashBtn.textContent = 'Loading...';
 
-        console.log("Selections for flashcard:", selections);
+        // Get all selections: individual words + grouped words
+        const allSelections = this.getAllSelections();
 
-        if (!selections || selections.length === 0) {
-            this.setStatus("Highlight words first!");
+        if (allSelections.length === 0) {
+            this.setStatus("Select words first! Tap individual words or drag to create groups.");
+            addToFlashBtn.disabled = false;
+            addToFlashBtn.style.opacity = '1';
+            addToFlashBtn.textContent = originalText;
             return;
         }
 
-        if (selections.length === 1) {
-            // Single selection (word or group)
-            const selection = selections[0];
-            this.showAddToFlashModal(selection.words.join(' '), selection.translation);
+        console.log("All selections for flashcards:", allSelections);
+
+        // Small delay for better mobile UX
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (allSelections.length === 1) {
+            // Single selection - show normal modal
+            const selection = allSelections[0];
+            this.showAddToFlashModal(selection.text, selection.translation);
         } else {
             // Multiple selections - show batch modal
-            this.showBatchAddToFlashModal(selections);
+            this.showBatchAddToFlashModal(allSelections);
         }
+
+        // Reset button state
+        addToFlashBtn.disabled = false;
+        addToFlashBtn.style.opacity = '1';
+        addToFlashBtn.textContent = originalText;
+    }
+    // Get all selections: individual words + grouped words
+    getAllSelections() {
+        const selections = [];
+
+        // 1. Get individual words (green highlights)
+        const individualSpans = this.output.querySelectorAll('span.highlighted:not(.multi-highlighted)');
+        individualSpans.forEach(span => {
+            const word = span.textContent.trim();
+            const tooltip = span.querySelector('.tooltip');
+            const translation = tooltip ? tooltip.textContent : '';
+
+            if (word && translation) {
+                selections.push({
+                    words: [word],
+                    text: word,
+                    translation: translation,
+                    type: 'individual',
+                    isGroup: false,
+                    wordCount: 1
+                });
+            }
+        });
+
+        // 2. Get grouped words (blue highlights with group IDs)
+        this.selectionGroups.forEach((group, groupId) => {
+            if (group.text && group.translation) {
+                selections.push({
+                    words: group.spans.map(span => span.textContent.trim()),
+                    text: group.text,
+                    translation: group.translation,
+                    type: 'group',
+                    isGroup: true,
+                    wordCount: group.spans.length,
+                    groupId: groupId
+                });
+            }
+        });
+
+        console.log(`Found ${selections.length} total selections: ${individualSpans.length} individual + ${this.selectionGroups.size} groups`);
+        return selections;
     }
 
     createBatchAddModal() {
@@ -821,8 +1313,22 @@ export class VocabularyTool {
 
     showAddToFlashModal(word, translation) {
         const modal = document.getElementById('add-to-flash-modal');
+        if (!modal) {
+            this.createModal();
+        }
+
         modal.classList.remove('hidden');
         document.getElementById('selected-word-preview').textContent = `"${word}" → "${translation}"`;
+
+        // Mobile-specific modal positioning
+        if (this.isTouchDevice) {
+            modal.style.position = 'fixed';
+            modal.style.top = '50%';
+            modal.style.left = '50%';
+            modal.style.transform = 'translate(-50%, -50%)';
+            modal.style.width = '90%';
+            modal.style.maxWidth = '400px';
+        }
 
         const listsDiv = document.getElementById('flashcard-lists');
         const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
@@ -830,7 +1336,8 @@ export class VocabularyTool {
 
         Object.keys(customLists).forEach(listName => {
             const btn = document.createElement('button');
-            btn.className = "px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-left";
+            btn.className = "px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-left mb-2 w-full text-sm";
+            btn.style.minHeight = '44px'; // Mobile touch target
             btn.textContent = listName;
             btn.onclick = () => this.addWordToList(listName, word, translation);
             listsDiv.appendChild(btn);
@@ -839,9 +1346,10 @@ export class VocabularyTool {
         document.getElementById('add-flashcard-status').textContent = '';
         document.getElementById('new-list-name').value = '';
 
-        document.getElementById('create-new-list-btn').onclick = () => {
-            this.createNewList(word, translation);
-        };
+        // Mobile: focus on new list input
+        setTimeout(() => {
+            document.getElementById('new-list-name').focus();
+        }, 300);
     }
 
     addWordToList(listName, german, english) {
