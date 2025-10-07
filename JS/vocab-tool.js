@@ -341,6 +341,8 @@ export class VocabularyTool {
             return;
         }
 
+        this.speak(selectedText);
+
         // Translate first, then store
         let translation = "";
         try {
