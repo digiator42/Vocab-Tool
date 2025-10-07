@@ -411,3 +411,47 @@ span.multi-highlighted {
     background-color: rgba(156, 163, 175, 0.3) !important;
     border-radius: 0.25rem;
 }
+
+/* Prevent layout shifts when highlighting */
+#output span {
+    display: inline-block;
+    /* Consistent sizing */
+    min-height: 1.2em;
+    /* Maintain consistent height */
+    vertical-align: top;
+    /* Prevent baseline shifts */
+}
+
+/* Remove spacing between grouped highlighted words */
+.multi-highlighted {
+    margin: 0 !important;
+    padding: 0 1px !important;
+    /* Minimal padding for visual separation */
+    border-radius: 0;
+    /* Remove individual rounded corners */
+    transition: all 0.1s ease;
+    /* Smooth changes */
+
+}
+
+/* Round only the first and last spans in a group */
+.multi-highlighted:first-child {
+    border-top-left-radius: 0.25rem;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.multi-highlighted:last-child {
+    border-top-right-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+}
+
+/* Optional: Add a subtle gap between words for readability */
+.multi-highlighted+.multi-highlighted {
+    margin-left: 1px !important;
+}
+
+.highlighted.active,
+.multi-highlighted.active {
+    border-color: rgba(59, 130, 246, 0.4);
+    background-color: rgba(254, 240, 138, 0.8);
+}
