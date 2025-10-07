@@ -223,10 +223,10 @@ export class VocabularyTool {
             const isUIControl = this.isUIControl(e.target);
             const isTooltip = e.target.closest('.tooltip') || e.target.closest('.group-tooltip');
 
-            if (!isOutput && !isUIControl && !isTooltip) {
-                console.log("🗑️ Click on blank area - clearing selections");
-                this.clearAllSelections();
-            }
+            // if (!isOutput && !isUIControl && !isTooltip) {
+            //     console.log("🗑️ Click on blank area - clearing selections");
+            //     this.clearAllSelections();
+            // }
         });
     }
 
@@ -548,21 +548,55 @@ export class VocabularyTool {
             s.dataset.groupId = groupId;
         });
 
-        // Create group tooltip
+        // Calculate dynamic font size based on word count
+        const wordCount = spansArr.length;
+        let fontSize, padding, fontWeight;
+
+        if (wordCount >= 8) {
+            // Small text for many words
+            fontSize = '14px';
+            padding = '4px 8px';
+            fontWeight = '500';
+        } else if (wordCount >= 5) {
+            // Medium text for moderate words
+            fontSize = '14px';
+            padding = '6px 10px';
+            fontWeight = '500';
+        } else if (wordCount >= 3) {
+            // Large text for few words
+            fontSize = '16px';
+            padding = '8px 12px';
+            fontWeight = '500';
+        } else {
+            // Very large text for 2 words
+            fontSize = '12px';
+            padding = '10px 14px';
+            fontWeight = '600';
+        }
+
+        console.log(`📏 Dynamic sizing: ${wordCount} words -> ${fontSize} font`);
+
+        // Create group tooltip with dynamic sizing
         const tooltip = document.createElement("div");
         tooltip.className = "group-tooltip";
         tooltip.style.cssText = `
         position: absolute;
         background: #333;
         color: #fff;
-        padding: 4px 8px;
+        padding: ${padding};
         border-radius: 6px;
-        font-size: 14px;
+        font-size: ${fontSize};
+        font-weight: ${fontWeight};
         z-index: 32;
         white-space: nowrap;
+        line-height: 1.4;
+        max-width: 80vw; /* Prevent too wide on mobile */
+        text-align: center;
+        border-left: 3px solid #3b82f6;
+
     `;
 
-        // Position tooltip
+        // Position above first word
         const firstRect = spansArr[0].getBoundingClientRect();
         tooltip.style.left = (firstRect.left + window.scrollX) + "px";
         tooltip.style.top = (firstRect.top + window.scrollY - 10) + "px";
@@ -578,12 +612,23 @@ export class VocabularyTool {
             translation = "(translation error)";
         }
 
-        // Update tooltip
+        // Update tooltip text
         tooltip.textContent = translation;
+
+        // Adjust position based on the actual tooltip size
         tooltip.style.top = (firstRect.top + window.scrollY - tooltip.offsetHeight - 10) + "px";
 
-        // Store group
+        // Center the tooltip over the selection if it's a long phrase
+        if (wordCount > 3) {
+            const lastRect = spansArr[spansArr.length - 1].getBoundingClientRect();
+            const selectionCenter = (firstRect.left + lastRect.right) / 2;
+            tooltip.style.left = (selectionCenter - (tooltip.offsetWidth / 2) + window.scrollX) + "px";
+        }
+
+        // Store in main selectionGroups
         this.storeSelectionGroup(spansArr, phrase, translation, groupId);
+
+        // Also store tooltip reference
         this.groupTooltips.set(groupId, tooltip);
     }
 
@@ -735,6 +780,9 @@ export class VocabularyTool {
 
     clearAllSelections() {
         const highlightedSpans = this.output.querySelectorAll("span.multi-highlighted, span.highlighted");
+        const selectionGroups = this.output.querySelectorAll(".group-tooltip");
+        console.log('---> ', selectionGroups);
+
         highlightedSpans.forEach(span => {
             span.classList.remove("multi-highlighted");
             span.classList.remove("highlighted");
@@ -744,8 +792,10 @@ export class VocabularyTool {
         });
 
         this.selectionGroups.clear();
-        this.mobile.groups.clear();
-        this.mobile.touchedSpans.clear();
+        if (this.mobile) {
+            this.mobile.groups.clear();
+            this.mobile.touchedSpans.clear();
+        }
 
         // Remove all group tooltips
         this.groupTooltips.forEach((tooltip, groupId) => {
@@ -765,11 +815,12 @@ export class VocabularyTool {
         this.selectionTooltip.textContent = "";
 
         // Reset desktop state
-        this.desktop.potentialStartSpan = null;
-        this.desktop.isDragging = false;
-        this.desktop.isSelecting = false;
-        this.desktop.currentGroupId = null;
-
+        if (this.desktop) {
+            this.desktop.potentialStartSpan = null;
+            this.desktop.isDragging = false;
+            this.desktop.isSelecting = false;
+            this.desktop.currentGroupId = null;
+        }
         console.log("Cleared all selections");
     }
 
@@ -993,6 +1044,7 @@ export class VocabularyTool {
                 }
             });
             this.setStatus("Text processed");
+            this.clearAllSelections();
         });
 
         this.stopSpeechBtn.addEventListener("click", () => this.stopSpeech());
