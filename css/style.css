@@ -406,3 +406,8 @@ span.multi-highlighted {
     border-width: 2px !important;
     /* More visible on mobile */
 }
+
+.touch-feedback {
+    background-color: rgba(156, 163, 175, 0.3) !important;
+    border-radius: 0.25rem;
+}
