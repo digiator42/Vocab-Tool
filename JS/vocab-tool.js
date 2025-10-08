@@ -111,15 +111,23 @@ export class VocabularyTool {
         });
     }
 
+    async getArticle(word) {
+        try {
+            const response = await fetch(`/api/article?word=${word}`);
+            const data = await response.json();
+            return data.article; // This will be a string like "der"
+        } catch (error) {
+            console.error('Error fetching article:', error);
+            return null;
+        }
+    }
+
     async translate(text, article = false) {
         try {
             let res = '';
             if (article) {
-                // Get the German translation from English words
-                res = fetch('/api/article?word=Apfel')
-                    .then(res => res.json())
-                    .then(data => res = data.article); // Output: "der"
-                console.log('Article fetch result:', res);
+                const res = await getArticle('Apfel');
+                console.log(res);
                 // res = await fetch(
                 //     "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=t&q=" +
                 //     encodeURIComponent(text)
