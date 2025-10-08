@@ -352,14 +352,6 @@ span.loading {
         font-size: 16px;
     }
 
-    /* Better modal for mobile */
-    #add-to-flash-modal,
-    #batch-add-to-flash-modal {
-        width: 90vw;
-        max-width: 400px;
-        margin: 20px auto;
-    }
-
     /* Larger buttons in modals */
     #flashcard-lists button,
     #batch-add-all-btn,
