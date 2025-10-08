@@ -380,8 +380,9 @@ export class VocabularyTool {
 
             // Start with just the first span
             this.mobile.touchedSpans.add(span);
-            span.classList.add('touch-feedback');
-            span.classList.add('multi-highlighted');
+            // This is seems to be confusing 
+            // span.classList.add('touch-feedback');
+            // span.classList.add('multi-highlighted');
             span.style.zIndex = '30';
 
         } else {
@@ -497,6 +498,7 @@ export class VocabularyTool {
             if (!hasGroup && isAlreadyHighlighted) {
                 console.log("❌ Quick tap on highlighted word - removing highlight");
                 singleSpan.classList.remove("highlighted");
+                singleSpan.classList.remove("multi-highlighted");
                 singleSpan.querySelector(".tooltip")?.remove();
 
                 // Clean up from selectionGroups
@@ -693,6 +695,7 @@ export class VocabularyTool {
     }
 
     addSpanToTouched(span) {
+        console.log('Touching span:', span ? span.textContent : null);
         if (!span || !this.output.contains(span)) return false;
         if (!this.mobile.touchedSpans.has(span)) {
             this.mobile.touchedSpans.add(span);
