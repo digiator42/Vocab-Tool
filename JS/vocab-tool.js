@@ -1088,11 +1088,7 @@ export class VocabularyTool {
                 if (/^[A-Za-zÄÖÜäöüß]+$/.test(tok)) {
                     const span = document.createElement("span");
                     span.textContent = tok;
-                    span.className = "relative cursor-pointer hover:bg-yellow-100 rounded px-1 mx-0.5";
-
-                    // Individual word clicks are now handled by the manual selection system
-                    // Remove the old click listener since we're handling it manually
-                    // span.addEventListener("click", () => this.onWordClick(tok, span));
+                    span.className = "relative cursor-pointer hover:bg-yellow-100 rounded mx-0.5";
 
                     this.output.appendChild(span);
                 } else {
