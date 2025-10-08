@@ -127,7 +127,7 @@ export class VocabularyTool {
             let res = '';
             if (article) {
                 (async () => {
-                    res = await getArticle(text);
+                    res = await this.getArticle(text);
                     console.log('---> ', res);
                     return res;
                 })();
