@@ -1556,7 +1556,8 @@ export class VocabularyTool {
             console.log(`English translation: "${englishTranslation}"`);
 
             // Now translate "the + english_word" back to German to get the article
-            const articleWord = await this.translate(englishTranslation, true);
+            // const articleWord = await this.translate('the ' + englishTranslation, true);
+            const articleWord = await this.translate(word, true);
             console.log(`German with article: "${articleWord}"`);
 
             // Update the selection in the original selections array
