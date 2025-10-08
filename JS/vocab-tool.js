@@ -1546,9 +1546,27 @@ export class VocabularyTool {
         // Show loading state
         const originalText = button.textContent;
         button.textContent = 'Loading...';
-        button.disabled = true;
+        // button.disabled = true;
 
         console.log(`Getting article for "${word}" (selection index ${selectionIndex})`);
+        // Update the selection in the original selections array
+        const selectionsList = document.getElementById('batch-selections-list');
+        const selectionDiv = selectionsList.children[selectionIndex];
+
+        // Update ONLY the German word text (the span with class "german-word")
+        const germanWordSpan = selectionDiv.querySelector('.german-word');
+        console.log('Current germanWordSpan text: --> ', germanWordSpan.textContent);
+
+        // check the btn has show in inner text
+        const articles = ['Der', 'Die', 'Das'];
+        const matchedArticle = articles.find(a => germanWordSpan.textContent.startsWith(a + ' '));
+
+        if (matchedArticle) {
+            console.log('Article already fetched, opening dictionary...');
+            window.open(`https://der-artikel.de/${matchedArticle.toLowerCase()}/${word.charAt(0).toUpperCase() + word.slice(1)}.html`);
+            button.textContent = '✓ show more';
+            return;
+        }
 
         try {
             // First, get the English translation of the German word
@@ -1560,16 +1578,11 @@ export class VocabularyTool {
             const articleWord = await this.translate(word, true);
             console.log(`German with article: "${articleWord}"`);
 
-            // Update the selection in the original selections array
-            const selectionsList = document.getElementById('batch-selections-list');
-            const selectionDiv = selectionsList.children[selectionIndex];
-
-            // Update ONLY the German word text (the span with class "german-word")
-            const germanWordSpan = selectionDiv.querySelector('.german-word');
-            germanWordSpan.textContent = articleWord.charAt(0).toUpperCase() + articleWord.slice(1);;
+            // Update the German word display with the article
+            germanWordSpan.textContent = articleWord.charAt(0).toUpperCase() + articleWord.slice(1);
 
             // Update the button to show completion
-            button.textContent = '✓ Done';
+            button.textContent = '✓ show more';
             button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
             button.classList.add('bg-green-500', 'hover:bg-green-600');
 
@@ -1702,16 +1715,34 @@ export class VocabularyTool {
 
         const listsDiv = document.getElementById('flashcard-lists');
         const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        listsDiv.innerHTML = '';
+        listsDiv.innerHTML = ''; // Clear previous content
 
+        const select = document.createElement('select');
+        select.className = "px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm w-full";
+        select.style.minHeight = '44px'; // Mobile touch target
+
+        // Optional default option
+        const defaultOption = document.createElement('option');
+        defaultOption.textContent = 'Choose a list';
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        select.appendChild(defaultOption);
+
+        // Add each list as an option
         Object.keys(customLists).forEach(listName => {
-            const btn = document.createElement('button');
-            btn.className = "px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-left mb-2 w-full text-sm";
-            btn.style.minHeight = '44px'; // Mobile touch target
-            btn.textContent = listName;
-            btn.onclick = () => this.addWordToList(listName, word, translation);
-            listsDiv.appendChild(btn);
+            const option = document.createElement('option');
+            option.value = listName;
+            option.textContent = listName;
+            select.appendChild(option);
         });
+
+        // Handle selection
+        select.onchange = () => {
+            const selectedList = select.value;
+            this.addWordToList(selectedList, word, translation);
+        };
+
+        listsDiv.appendChild(select);
 
         document.getElementById('add-flashcard-status').textContent = '';
         document.getElementById('new-list-name').value = '';
@@ -1792,25 +1823,15 @@ export class VocabularyTool {
         });
 
         document.addEventListener('keydown', (e) => {
-            // Ctrl+Shift+R for repeat
-            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
-                e.preventDefault();
-                this.repeatAudio();
-            }
-            // Space bar for repeat (when not typing in input)
-            else if (e.key === ' ' && !e.target.matches('#ar-user-input')) {
-                e.preventDefault();
-                this.repeatAudio();
-            }
-            // R key for repeat (when not typing in input)
-            else if (e.key === 'r' && !e.ctrlKey && !e.shiftKey && !e.target.matches('#ar-user-input')) {
+            // Ctrl+Shift+E for repeat
+            if (e.ctrlKey && e.shiftKey && e.key === 'E') {
                 e.preventDefault();
                 this.repeatAudio();
             }
         });
 
-        // Input handling (unchanged)
         const userInput = document.getElementById('ar-user-input');
+        // Input handling (unchanged)
         const fuzzyMatch = document.getElementById('ar-fuzzy-match');
 
         if (userInput) {
@@ -1929,6 +1950,7 @@ export class VocabularyTool {
         </div>
 
         <div id="ar-input-area" class="mb-4 hidden">
+            <p class="mb-3 text-sm font-semibold">CTR+SHIFT+E to repeat audio</p>
             <textarea id="ar-user-input" 
                 placeholder="Type what you hear..." 
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"></textarea>
