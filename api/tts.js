@@ -8,7 +8,7 @@ export default async function handler(req, res) {
             return;
         }
 
-        const speed = slow === "true" ? "0.48" : "1";
+        const speed = slow === "true" ? "0.15" : "1";
         const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${encodeURIComponent(text)}&ttsspeed=${speed}`;
 
         const response = await fetch(googleUrl, {
