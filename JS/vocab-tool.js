@@ -1699,16 +1699,34 @@ export class VocabularyTool {
 
         const listsDiv = document.getElementById('flashcard-lists');
         const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        listsDiv.innerHTML = '';
+        listsDiv.innerHTML = ''; // Clear previous content
 
+        const select = document.createElement('select');
+        select.className = "px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm w-full";
+        select.style.minHeight = '44px'; // Mobile touch target
+
+        // Optional default option
+        const defaultOption = document.createElement('option');
+        defaultOption.textContent = 'Choose a list';
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        select.appendChild(defaultOption);
+
+        // Add each list as an option
         Object.keys(customLists).forEach(listName => {
-            const btn = document.createElement('button');
-            btn.className = "px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-left mb-2 w-full text-sm";
-            btn.style.minHeight = '44px'; // Mobile touch target
-            btn.textContent = listName;
-            btn.onclick = () => this.addWordToList(listName, word, translation);
-            listsDiv.appendChild(btn);
+            const option = document.createElement('option');
+            option.value = listName;
+            option.textContent = listName;
+            select.appendChild(option);
         });
+
+        // Handle selection
+        select.onchange = () => {
+            const selectedList = select.value;
+            this.addWordToList(selectedList, word, translation);
+        };
+
+        listsDiv.appendChild(select);
 
         document.getElementById('add-flashcard-status').textContent = '';
         document.getElementById('new-list-name').value = '';
