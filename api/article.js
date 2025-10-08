@@ -23,11 +23,16 @@ export default async function handler(req, res) {
 
         const html = await response.text();
 
-        const match = html.match(/<h1 class="mb-1"><span[^>]*>(.*?)<\/span>/);
-        const article = match?.[1];
+        // Extract the first <h1> tag and get the <span> content inside it
+        const start = html.indexOf('<h1');
+        const end = html.indexOf('</h1>', start);
+        const h1Content = html.slice(start, end + 5);
+
+        const spanMatch = h1Content.match(/<span[^>]*>(.*?)<\/span>/i);
+        const article = spanMatch?.[1]?.trim();
 
         if (!article) {
-            res.status(404).json({ error: "Article not found in page" });
+            res.status(404).json({ error: "Article not found in h1 tag" });
             return;
         }
 
