@@ -116,10 +116,14 @@ export class VocabularyTool {
             let res = '';
             if (article) {
                 // Get the German translation from English words
-                res = await fetch(
-                    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=t&q=" +
-                    encodeURIComponent(text)
-                );
+                res = fetch('/api/article?word=Apfel')
+                    .then(res => res.json())
+                    .then(data => res = data.article); // Output: "der"
+                console.log('Article fetch result:', res);
+                // res = await fetch(
+                //     "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=t&q=" +
+                //     encodeURIComponent(text)
+                // );
             } else {
 
                 res = await fetch(
