@@ -126,8 +126,11 @@ export class VocabularyTool {
         try {
             let res = '';
             if (article) {
-                const res = await getArticle('Apfel');
-                console.log(res);
+                (async () => {
+                    res = await getArticle(text);
+                    console.log('---> ', res);
+                    return res;
+                })();
                 // res = await fetch(
                 //     "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=t&q=" +
                 //     encodeURIComponent(text)
