@@ -1779,6 +1779,24 @@ export class VocabularyTool {
             }
         });
 
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+Shift+R for repeat
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                this.repeatAudio();
+            }
+            // Space bar for repeat (when not typing in input)
+            else if (e.key === ' ' && !e.target.matches('#ar-user-input')) {
+                e.preventDefault();
+                this.repeatAudio();
+            }
+            // R key for repeat (when not typing in input)
+            else if (e.key === 'r' && !e.ctrlKey && !e.shiftKey && !e.target.matches('#ar-user-input')) {
+                e.preventDefault();
+                this.repeatAudio();
+            }
+        });
+
         // Input handling (unchanged)
         const userInput = document.getElementById('ar-user-input');
         const fuzzyMatch = document.getElementById('ar-fuzzy-match');
@@ -2637,6 +2655,21 @@ export class VocabularyTool {
     }
 
     repeatAudio() {
+        const repeatBtn = document.getElementById('ar-repeat-btn');
+        if (repeatBtn) {
+            // Add multiple effects
+            repeatBtn.classList.add('glow-scale');
+
+            // Add temporary icon change
+            const originalText = repeatBtn.textContent;
+            repeatBtn.textContent = '🔊 Playing...';
+
+            setTimeout(() => {
+                repeatBtn.classList.remove('glow-scale');
+                repeatBtn.textContent = originalText;
+            }, 800);
+        }
+
         const sentence = this.sentences[this.currentSentenceIndex].trim();
         this.speak(sentence);
     }
