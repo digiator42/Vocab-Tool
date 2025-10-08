@@ -4,10 +4,14 @@ export class VocabularyTool {
         this.input = document.getElementById("input");
         this.output = document.getElementById("output");
         this.processBtn = document.getElementById("processBtn");
+        this.playBtn = document.getElementById("playBtn");
         this.stopSpeechBtn = document.getElementById("stopSpeechBtn");
         this.selectionTooltip = document.getElementById("selectionTooltip");
         this.statusEl = document.getElementById("status");
 
+        this.isSpeaking = false;
+        this.isPaused = false;
+        this.utterance = null;
         this.currentUtterance = null;
         this.speechSynth = window.speechSynthesis;
         this.selectionHighlight = null;
@@ -75,6 +79,23 @@ export class VocabularyTool {
         } catch {
             this.setStatus("Speech error");
         }
+    }
+
+    speakText(text, rate = 1) {
+        this.utterance = new SpeechSynthesisUtterance(text);
+        this.utterance.lang = 'de-DE';
+        this.utterance.rate = rate;
+
+        this.utterance.onend = () => {
+            this.isSpeaking = false;
+            this.isPaused = false;
+            this.utterance = null;
+            this.playBtn.textContent = 'Play';
+        };
+
+        speechSynthesis.speak(this.utterance);
+        this.isSpeaking = true;
+        this.playBtn.textContent = 'Pause';
     }
 
     stopSpeech() {
@@ -1116,6 +1137,26 @@ export class VocabularyTool {
 
         this.stopSpeechBtn.addEventListener("click", () => this.stopSpeech());
         // this.output.addEventListener("click", () => setTimeout(() => this.handleSelection(), 1000));
+        // this.playBtn.addEventListener('click', () => {
+        //     this.speakText(text);
+        // });
+        
+        this.playBtn.addEventListener('click', () => {
+            const rate = parseFloat(document.getElementById('rateSlider').value);
+            const text = this.input.value;
+
+            if (!this.isSpeaking) {
+                this.speakText(text, rate);
+            } else if (!this.isPaused) {
+                speechSynthesis.pause();
+                this.isPaused = true;
+                playBtn.textContent = 'Resume';
+            } else {
+                speechSynthesis.resume();
+                this.isPaused = false;
+                playBtn.textContent = 'Pause';
+            }
+        });
     }
 
     // Add to Flashcard functionality
