@@ -341,48 +341,6 @@ span.loading {
     transition: all 0.1s ease;
 }
 
-/* Mobile-optimized styles */
-@media (max-width: 768px) {
-
-    /* Larger touch targets */
-    #addToFlashBtn,
-    #clear-selections-btn {
-        min-height: 44px;
-        padding: 12px 16px;
-        font-size: 16px;
-    }
-
-    /* Larger buttons in modals */
-    #flashcard-lists button,
-    #batch-add-all-btn,
-    #batch-cancel-btn {
-        min-height: 44px;
-        font-size: 16px;
-        padding: 12px 16px;
-    }
-
-    /* Better text area for mobile */
-    #new-list-name,
-    #batch-new-list-name {
-        font-size: 16px;
-        /* Prevent zoom */
-        min-height: 44px;
-        padding: 12px;
-    }
-
-    /* Selection area improvements */
-    #output {
-        font-size: 18px;
-        /* Better readability on mobile */
-        line-height: 1.6;
-    }
-
-    #output span {
-        padding: 4px 6px;
-        margin: 2px;
-    }
-}
-
 /* Ensure proper touch handling */
 #output {
     -webkit-user-select: none;
