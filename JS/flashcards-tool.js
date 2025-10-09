@@ -51,7 +51,7 @@ export class FlashcardsTool {
         if (!card) return;
 
         const flashcard = document.createElement('div');
-        flashcard.className = `flashcard w-full h-96 flex items-center justify-center ${card.mastered ? 'border-4 border-green-500' : ''}`;
+        flashcard.className = `flashcard w-full h-96 flex items-center justify-center`;
         flashcard.dataset.index = this.currentPage - 1;
         flashcard.innerHTML = `
             <div class="flashcard-inner h-full w-full">
@@ -60,8 +60,8 @@ export class FlashcardsTool {
                     <button class="speak-btn mt-4 p-3 bg-indigo-100 rounded-full hover:bg-indigo-200">
                         <i data-feather="volume-2" class="text-indigo-700 w-6 h-6"></i>
                     </button>
-                    <p class="text-sm text-gray-500 mt-3">Click to flip</p>
-                    ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-6 h-6"></i>' : ''}
+                    <p class="text-xs text-gray-500 mt-8">Click to flip</p>
+                    ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-12 h-12 mt-4"></i>' : ''}
                 </div>
                 <div class="flashcard-back bg-indigo-100 rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
                     <h3 class="text-xl font-semibold text-center text-gray-800">${card.english}</h3>
@@ -79,24 +79,24 @@ export class FlashcardsTool {
     }
 
     renderGridMode(container) {
-        container.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mx-auto max-w-3xl";
+        container.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 mx-auto max-w-3xl";
         const startIndex = (this.currentPage - 1) * this.cardsPerPage;
         const endIndex = Math.min(startIndex + this.cardsPerPage, this.flashcards.length);
 
         this.flashcards.slice(startIndex, endIndex).forEach((card, idx) => {
             const actualIndex = startIndex + idx;
             const flashcard = document.createElement('div');
-            flashcard.className = `flashcard ${card.mastered ? 'border-2 border-green-500' : ''}`;
+            flashcard.className = `flashcard`;
             flashcard.dataset.index = actualIndex;
             flashcard.innerHTML = `
-                <div class="flashcard-inner h-full">
+                <div class="flashcard-inner min-h-36">
                     <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col items-center justify-center cursor-pointer h-full">
                         <h3 class="text-sm font-bold text-center text-indigo-700">${card.german}</h3>
-                        <button class="speak-btn mt-1 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200">
+                        <button class="speak-btn mt-3 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200">
                             <i data-feather="volume-2" class="text-indigo-700 w-3 h-3"></i>
                         </button>
-                        <p class="text-xs text-gray-500 mt-1">Click to flip</p>
-                        ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-1 w-3 h-3"></i>' : ''}
+                        <p class="text-xs text-gray-500 mt-5">Click to flip</p>
+                        ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-6 h-6"></i>' : ''}
                     </div>
                     <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col items-center justify-center cursor-pointer h-full">
                         <h3 class="text-xs font-semibold text-center text-gray-800">${card.english}</h3>
@@ -190,7 +190,7 @@ export class FlashcardsTool {
 
             const btn = document.createElement('button');
             btn.className = 'px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center';
-            btn.innerHTML = `<i data-feather="list" class="mr-2"></i> ${listName}`;
+            btn.innerHTML = `<i data-feather="list" class="mr-2"></i> ${listName} (${this.customLists[listName].length})`;
             btn.addEventListener('click', () => {
                 this.flashcards = [...this.customLists[listName]];
                 this.saveFlashcards();

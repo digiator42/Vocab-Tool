@@ -39,9 +39,13 @@
                 <button id="processBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow">GO</button>
                 <button id="playBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow">Play</button>
                 <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1">
-                <label for="rateSlider">Speed</label>
+                <label for="rateSlider"></label>
                 <button id="stopSpeechBtn" class="px-3 py-1 bg-red-500 text-white rounded-lg text-sm">Stop
                     Speech</button>
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="offline-speak" class="rounded">
+                    <label for="offline-speak" class="text-sm font-medium">Offline Mode</label>
+                </div>
             </div>
         </div>
         <div class="flex justify-center">

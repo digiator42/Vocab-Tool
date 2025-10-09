@@ -8,6 +8,9 @@ export class VocabularyTool {
         this.stopSpeechBtn = document.getElementById("stopSpeechBtn");
         this.selectionTooltip = document.getElementById("selectionTooltip");
         this.statusEl = document.getElementById("status");
+        this.rate = parseFloat(document.getElementById('rateSlider').value);
+        this.offlineSpeak = document.getElementById("offline-speak");
+        this.useOfflineSpeak = false;
 
         this.isSpeaking = false;
         this.isPaused = false;
@@ -36,7 +39,6 @@ export class VocabularyTool {
         this.setupEventListeners();
         this.setupLanguageSelector();
         this.setupAddToFlashcardModal();
-        // this.setupTouchMultiSelect();
         this.setupSelectionSystem();
         this.setupActiveRecall();
         // this.setupManualSelection();
@@ -70,6 +72,11 @@ export class VocabularyTool {
         this.setStatus("Loading audio...");
         if (lang === null || text === '' || this.isStopSpeechRequested) return;
         try {
+            // If offline mode is on
+            if (this.useOfflineSpeak) {
+                this.speakText(text, this.rate);
+                return;
+            }
             const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
             const audio = new Audio(url);
             audio.play();
@@ -77,7 +84,8 @@ export class VocabularyTool {
             audio.onended = () => this.setStatus("Ready");
             audio.onerror = () => this.setStatus("Speech error");
         } catch {
-            this.setStatus("Speech error");
+            this.setStatus("Speech error, System voice");
+            this.speakText(text, this.rate);
         }
     }
 
@@ -1140,11 +1148,10 @@ export class VocabularyTool {
         this.stopSpeechBtn.addEventListener("click", () => this.stopSpeech());
 
         this.playBtn.addEventListener('click', () => {
-            const rate = parseFloat(document.getElementById('rateSlider').value);
             const text = this.input.value;
 
             if (!this.isSpeaking) {
-                this.speakText(text, rate);
+                this.speakText(text, this.rate);
             } else if (!this.isPaused) {
                 this.speechSynth.pause();
                 this.isPaused = true;
@@ -1154,6 +1161,11 @@ export class VocabularyTool {
                 this.isPaused = false;
                 playBtn.textContent = 'Pause';
             }
+        });
+
+        this.offlineSpeak.addEventListener('change', (e) => {
+            this.useOfflineSpeak = e.target.checked;
+            console.log("On Off set to:", this.useOfflineSpeak ? "online" : "offline");
         });
     }
 
@@ -1871,7 +1883,6 @@ export class VocabularyTool {
 
         const userInput = document.getElementById('ar-user-input');
         // Input handling (unchanged)
-        const fuzzyMatch = document.getElementById('ar-fuzzy-match');
 
         if (userInput) {
             userInput.addEventListener('input', (e) => {
@@ -1892,6 +1903,8 @@ export class VocabularyTool {
                 });
             }
         }
+
+        const fuzzyMatch = document.getElementById('ar-fuzzy-match');
 
         if (fuzzyMatch) {
             fuzzyMatch.addEventListener('change', (e) => {
