@@ -8,7 +8,7 @@ export class VocabularyTool {
         this.stopSpeechBtn = document.getElementById("stopSpeechBtn");
         this.selectionTooltip = document.getElementById("selectionTooltip");
         this.statusEl = document.getElementById("status");
-        this.rate = parseFloat(document.getElementById('rateSlider').value);
+        this.rate = 1;
         this.offlineSpeak = document.getElementById("offline-speak");
         this.useOfflineSpeak = false;
 
@@ -90,6 +90,7 @@ export class VocabularyTool {
     }
 
     speakText(text, rate = 1) {
+        console.log('rate ---> ', rate);
         if (!text.trim()) return;
         this.speechSynth.cancel(); // Clear any previous utterance
         this.utterance = new SpeechSynthesisUtterance(text);
@@ -1162,6 +1163,13 @@ export class VocabularyTool {
                 playBtn.textContent = 'Pause';
             }
         });
+
+        const rateSlider = document.getElementById('rateSlider');
+        rateSlider.addEventListener('change', (e) => {
+            this.rate = e.target.value;
+            console.log('rate value - ', this.rate);
+        })
+
 
         this.offlineSpeak.addEventListener('change', (e) => {
             this.useOfflineSpeak = e.target.checked;
