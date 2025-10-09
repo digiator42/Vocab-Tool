@@ -74,6 +74,10 @@ export class VocabularyTool {
         try {
             // If offline mode is on
             if (this.useOfflineSpeak) {
+                console.log('========Offline Speaking Mode=========', this)
+                if (slow) {
+                    this
+                }
                 this.speakText(text, this.rate);
                 return;
             }
@@ -1165,15 +1169,18 @@ export class VocabularyTool {
         });
 
         const rateSlider = document.getElementById('rateSlider');
+        const rateSliderSpan = document.getElementById('rateSliderSpan');
+
         rateSlider.addEventListener('change', (e) => {
             this.rate = e.target.value;
+            rateSliderSpan.innerHTML = this.rate;
             console.log('rate value - ', this.rate);
         })
 
 
         this.offlineSpeak.addEventListener('change', (e) => {
             this.useOfflineSpeak = e.target.checked;
-            console.log("On Off set to:", this.useOfflineSpeak ? "online" : "offline");
+            console.log("On Off set to:", !this.useOfflineSpeak ? "online" : "offline");
         });
     }
 
@@ -1946,6 +1953,15 @@ export class VocabularyTool {
                 slowVoice.dispatchEvent(new Event('change'));
             });
         }
+        const rateSliderActiveRecall = document.getElementById('rateSliderActiveRecall');
+        const rateSliderSpanActiveRecall = document.getElementById('rateSliderSpanActiveRecall');
+
+        rateSliderActiveRecall.addEventListener('change', (e) => {
+            this.rate = e.target.value;
+            rateSliderSpanActiveRecall.innerHTML = this.rate;
+            console.log('rate value - ', this.rate);
+        })
+
         this.addActiveRecallButton();
     }
 
@@ -1977,6 +1993,9 @@ export class VocabularyTool {
                     <input type="checkbox" id="ar-slow-voice" class="rounded">
                     <label for="ar-slow-voice" class="text-sm font-medium">Slow Voice</label>
                 </div>
+                <input type="range" id="rateSliderActiveRecall" min="0.5" max="2" step="0.1" value="1">
+                <label for="rateSliderActiveRecall"></label>
+                <span id="rateSliderSpanActiveRecall" class="text-sm text-gray-700"></span>
             </div>
             
             ${this.getActiveRecallUIBody()}
