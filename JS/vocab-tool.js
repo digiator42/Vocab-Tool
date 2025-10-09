@@ -82,6 +82,8 @@ export class VocabularyTool {
     }
 
     speakText(text, rate = 1) {
+        if (!text.trim()) return;
+        this.speechSynth.cancel(); // Clear any previous utterance
         this.utterance = new SpeechSynthesisUtterance(text);
         this.utterance.lang = 'de-DE';
         this.utterance.rate = rate;
@@ -93,7 +95,7 @@ export class VocabularyTool {
             this.playBtn.textContent = 'Play';
         };
 
-        speechSynthesis.speak(this.utterance);
+        this.speechSynth.speak(this.utterance);
         this.isSpeaking = true;
         this.playBtn.textContent = 'Pause';
     }
@@ -1136,11 +1138,7 @@ export class VocabularyTool {
         });
 
         this.stopSpeechBtn.addEventListener("click", () => this.stopSpeech());
-        // this.output.addEventListener("click", () => setTimeout(() => this.handleSelection(), 1000));
-        // this.playBtn.addEventListener('click', () => {
-        //     this.speakText(text);
-        // });
-        
+
         this.playBtn.addEventListener('click', () => {
             const rate = parseFloat(document.getElementById('rateSlider').value);
             const text = this.input.value;
@@ -1148,11 +1146,11 @@ export class VocabularyTool {
             if (!this.isSpeaking) {
                 this.speakText(text, rate);
             } else if (!this.isPaused) {
-                speechSynthesis.pause();
+                this.speechSynth.pause();
                 this.isPaused = true;
                 playBtn.textContent = 'Resume';
             } else {
-                speechSynthesis.resume();
+                this.speechSynth.resume();
                 this.isPaused = false;
                 playBtn.textContent = 'Pause';
             }
