@@ -3,6 +3,7 @@ export class FlashcardsTool {
     constructor() {
         this.flashcards = JSON.parse(localStorage.getItem('germanFlashcards')) || [];
         this.customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+        this.originalListName = null;
         this.currentPage = 1;
         this.cardsPerPage = 20;
         this.singleCardMode = false;
@@ -194,6 +195,8 @@ export class FlashcardsTool {
             btn.addEventListener('click', () => {
                 this.flashcards = [...this.customLists[listName]];
                 this.saveFlashcards();
+                this.originalListName = listName;
+                console.log('---> ', this.originalListName);
                 this.currentPage = 1;
                 this.renderFlashcards();
             });
@@ -260,9 +263,11 @@ export class FlashcardsTool {
         });
 
         document.getElementById('show-original-btn').addEventListener('click', () => {
+
             const names = Object.keys(this.customLists);
+            console.log('original -> ', this.originalListName);
             if (names.length > 0) {
-                this.flashcards = [...this.customLists[names[0]]];
+                this.flashcards = [...this.customLists[this.originalListName || names[0]]];
                 this.currentPage = 1;
                 this.renderFlashcards();
             } else {
@@ -272,6 +277,7 @@ export class FlashcardsTool {
 
         document.getElementById('show-not-mastered-btn').addEventListener('click', () => {
             const listName = this.getCurrentListName();
+
             if (listName && this.customLists[listName]) {
                 this.flashcards = [...this.customLists[listName]];
             }
