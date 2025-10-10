@@ -162,15 +162,11 @@ export class VocabularyTool {
         try {
             let res = '';
             if (article) {
-                (async () => {
-                    res = await this.getArticle(text);
-                    console.log('---> ', res);
-                    return res;
-                })();
-                // res = await fetch(
-                //     "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=t&q=" +
-                //     encodeURIComponent(text)
-                // );
+                // Get the German translation from English words
+                res = await fetch(
+                    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=t&q=" +
+                    encodeURIComponent(text)
+                );
             } else {
 
                 res = await fetch(
@@ -1641,7 +1637,7 @@ export class VocabularyTool {
 
             // Now translate "the + english_word" back to German to get the article
             // const articleWord = await this.translate('the ' + englishTranslation, true);
-            const articleWord = await this.translate(word, true);
+            const articleWord = await this.translate('the ' + englishTranslation, true);
             console.log(`German with article: "${articleWord}"`);
 
             // Update the German word display with the article
