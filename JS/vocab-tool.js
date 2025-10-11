@@ -2264,7 +2264,7 @@ export class VocabularyTool {
         }
 
         if (this.activeRecallMode === 'beginner' && this.currentSentenceIndex >= 0) {
-            const sentence = this.sentences[this.currentSentenceIndex].trim();
+            const sentence = this.sentences[this.currentSentenceIndex].replace(/'|,/g, '').trim();
             const words = sentence.split(/\s+/);
 
             // Create dashed version, but reveal words that user has already typed correctly
@@ -2398,7 +2398,7 @@ export class VocabularyTool {
             activeRecallTool.classList.remove('hidden');
             this.input.disabled = true;
             this.input.value = '';
-            this.output.scrollIntoView({ behavior: 'smooth' });
+            activeRecallTool.scrollIntoView({ behavior: 'smooth' });
             this.output.innerHTML = '';
         } else {
             activeRecallTool.classList.add('hidden');
@@ -2587,7 +2587,8 @@ export class VocabularyTool {
 
     checkAnswer() {
         const userInput = document.getElementById('ar-user-input').value.trim();
-        const correctSentence = this.sentences[this.currentSentenceIndex].trim();
+        const correctSentence = this.sentences[this.currentSentenceIndex].replace(/'|,/g, '').trim();
+        console.log('--->>> ', `{${correctSentence}}`);
 
         if (!userInput) {
             alert('Please type what you heard!');

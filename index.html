@@ -129,9 +129,13 @@
             </div>
 
             <div id="custom-lists-container" class="flex flex-wrap justify-center gap-2"></div>
-            <button id="toggle-view-btn" class="px-4 py-2 bg-green-400 text-white rounded-lg">
-                Switch to Focus Mode
-            </button>
+            <div class="flex items-center space-x-4">
+                <button id="toggle-view-btn" class="px-4 py-2 bg-green-400 text-white rounded-lg">
+                    Switch to Focus Mode
+                </button>
+                <input type="checkbox" id="slow-speak" class="rounded">
+                <label for="slow-speak" class="text-sm font-medium">Slow Speak</label>
+            </div>
         </div>
         <div id="flashcards-container"
             class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mx-auto max-w-3xl"></div>

@@ -7,6 +7,7 @@ export class FlashcardsTool {
         this.currentPage = 1;
         this.cardsPerPage = 20;
         this.singleCardMode = false;
+        this.useSlowSpeak = false;
 
         this.init();
     }
@@ -158,10 +159,16 @@ export class FlashcardsTool {
         document.getElementById('next-page-btn').disabled = this.currentPage === totalPages;
     }
 
-    speakWord(text) {
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'de-DE';
-        speechSynthesis.speak(u);
+    speakWord(text, rate = 0.8) {
+        if (!text.trim()) return;
+        if (this.useSlowSpeak) rate = 0.6;
+        console.log('rate ---> ', rate);
+
+        this.utterance = new SpeechSynthesisUtterance(text);
+        this.utterance.lang = 'de-DE';
+        this.utterance.rate = rate;
+
+        speechSynthesis.speak(this.utterance);
     }
 
     getCurrentListName() {
@@ -240,6 +247,11 @@ export class FlashcardsTool {
                 : "Switch to Focus Mode";
             this.currentPage = 1;
             this.renderFlashcards();
+        });
+
+        document.getElementById('slow-speak').addEventListener('change', (e) => {
+            this.useSlowSpeak = e.target.checked;
+            console.log("On Off set to:", !this.useSlowSpeak ? "Normal" : "Slow");
         });
 
         // Control buttons
