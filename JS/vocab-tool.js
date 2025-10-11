@@ -1966,15 +1966,15 @@ export class VocabularyTool {
             let currentValue = Number(rateSliderActiveRecall.value);
             const step = Number(rateSliderActiveRecall.step) || 1;
 
-            if (event.key === 'ArrowRight') {
+            if (event.ctrlKey && event.shiftKey && event.key === 'ArrowRight') {
                 currentValue = Math.min(Number(rateSliderActiveRecall.max), currentValue + step);
                 rateSliderActiveRecall.value = currentValue;
                 event.preventDefault();
-            } else if (event.key === 'ArrowLeft') {
+            } else if (event.ctrlKey && event.shiftKey && event.key === 'ArrowLeft') {
                 currentValue = Math.max(Number(rateSliderActiveRecall.min), currentValue - step);
                 rateSliderActiveRecall.value = currentValue;
                 event.preventDefault();
-            } else if (event.key === ' ') {
+            } else if (event.ctrlKey && event.shiftKey && event.key === ' ') {
                 slowVoice.checked = !slowVoice.checked;
                 this.useSlowVoice = slowVoice.checked;
                 event.preventDefault();
