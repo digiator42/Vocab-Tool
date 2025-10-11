@@ -1886,7 +1886,7 @@ export class VocabularyTool {
 
         document.addEventListener('keydown', (e) => {
             // Ctrl+Shift+E for repeat
-            if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+            if (e.ctrlKey && e.shiftKey && e.key === 'F') {
                 e.preventDefault();
                 this.repeatAudio();
             }
@@ -2282,7 +2282,7 @@ export class VocabularyTool {
                     hintHTML += `<span class="text-green-600 font-bold">${word}</span> `;
                 } else {
                     // Use visible dashes that work on mobile
-                    hintHTML += `<span class="text-blue-400 font-mono">${'–'.repeat(Math.max(3, word.length))}</span> `;
+                    hintHTML += `<span class="text-blue-400 font-mono">${'–'.repeat(Math.max(2, word.length))}</span> `;
                 }
             });
 
