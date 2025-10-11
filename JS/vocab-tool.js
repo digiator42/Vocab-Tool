@@ -1982,6 +1982,7 @@ export class VocabularyTool {
             }
 
             rateSliderSpanActiveRecall.textContent = rateSliderActiveRecall.value;
+            this.rate = rateSliderActiveRecall.value;
         });
 
         this.addActiveRecallButton();
