@@ -8,8 +8,9 @@ export class VocabularyTool {
         this.stopSpeechBtn = document.getElementById("stopSpeechBtn");
         this.selectionTooltip = document.getElementById("selectionTooltip");
         this.statusEl = document.getElementById("status");
-        this.rate = 1;
         this.offlineSpeak = document.getElementById("offline-speak");
+        this.storySelect = document.getElementById("storySelect");
+        this.rate = 1;
         this.useOfflineSpeak = false;
 
         this.isSpeaking = false;
@@ -137,10 +138,10 @@ export class VocabularyTool {
         langSelector.id = "langSelector";
         langSelector.className = "ml-2 px-2 py-1 border rounded text-sm";
         langSelector.innerHTML = `
-            <option value="en" selected>English</option>
-            <option value="ar">Arabic</option>
+            <option value="en" selected>EN</option>
+            <option value="ar">AR</option>
         `;
-        this.processBtn.parentNode.insertBefore(langSelector, this.processBtn.nextSibling);
+        this.stopSpeechBtn.parentNode.insertBefore(langSelector, this.stopSpeechBtn.nextSibling);
 
         langSelector.addEventListener('change', () => {
             this.selectedLang = langSelector.value;
@@ -1191,7 +1192,7 @@ export class VocabularyTool {
         addToFlashBtn.id = "addToFlashBtn";
         addToFlashBtn.className = "px-4 py-2 bg-yellow-500 text-white rounded-lg shadow";
         addToFlashBtn.textContent = "Add";
-        this.stopSpeechBtn.parentNode.insertBefore(addToFlashBtn, this.stopSpeechBtn);
+        this.processBtn.parentNode.insertBefore(addToFlashBtn, this.processBtn.nextSibling);
         addToFlashBtn.addEventListener('click', () => this.handleAddToFlashcard());
     }
 
@@ -1885,7 +1886,7 @@ export class VocabularyTool {
         });
 
         document.addEventListener('keydown', (e) => {
-            // Ctrl+Shift+E for repeat
+            // Ctrl+Shift+F for repeat
             if (e.ctrlKey && e.shiftKey && e.key === 'F') {
                 e.preventDefault();
                 this.repeatAudio();
@@ -1951,12 +1952,37 @@ export class VocabularyTool {
         }
         const rateSliderActiveRecall = document.getElementById('rateSliderActiveRecall');
         const rateSliderSpanActiveRecall = document.getElementById('rateSliderSpanActiveRecall');
+        const activeRecallContainer = document.getElementById('active-recall-tool');
 
         rateSliderActiveRecall.addEventListener('change', (e) => {
             this.rate = e.target.value;
             rateSliderSpanActiveRecall.innerHTML = this.rate;
             console.log('rate value - ', this.rate);
         })
+
+        document.addEventListener('keydown', (event) => {
+            console.log('activated keydown active recall slider');
+
+            let currentValue = Number(rateSliderActiveRecall.value);
+            const step = Number(rateSliderActiveRecall.step) || 1;
+
+            if (event.key === 'ArrowRight') {
+                currentValue = Math.min(Number(rateSliderActiveRecall.max), currentValue + step);
+                rateSliderActiveRecall.value = currentValue;
+                event.preventDefault();
+            } else if (event.key === 'ArrowLeft') {
+                currentValue = Math.max(Number(rateSliderActiveRecall.min), currentValue - step);
+                rateSliderActiveRecall.value = currentValue;
+                event.preventDefault();
+            } else if (event.key === ' ') {
+                slowVoice.checked = !slowVoice.checked;
+                this.useSlowVoice = slowVoice.checked;
+                event.preventDefault();
+                console.log("Slow voice set to:", this.useSlowVoice)
+            }
+
+            rateSliderSpanActiveRecall.textContent = rateSliderActiveRecall.value;
+        });
 
         this.addActiveRecallButton();
     }
@@ -1989,9 +2015,9 @@ export class VocabularyTool {
                     <input type="checkbox" id="ar-slow-voice" class="rounded">
                     <label for="ar-slow-voice" class="text-sm font-medium">Slow Voice</label>
                 </div>
-                <input type="range" id="rateSliderActiveRecall" min="0.5" max="2" step="0.1" value="1">
+                <input type="range" id="rateSliderActiveRecall" min="0.5" max="1.5" step="0.1" value="0.8">
                 <label for="rateSliderActiveRecall"></label>
-                <span id="rateSliderSpanActiveRecall" class="text-sm text-gray-700"></span>
+                <span id="rateSliderSpanActiveRecall" class="text-sm text-gray-700">0.8</span>
             </div>
             
             ${this.getActiveRecallUIBody()}
@@ -2025,7 +2051,7 @@ export class VocabularyTool {
         </div>
 
         <div id="ar-input-area" class="mb-4 hidden">
-            <p class="mb-3 text-sm font-semibold">CTR+SHIFT+E to repeat audio</p>
+            <p class="mb-3 text-sm font-semibold">CTR+SHIFT+F to repeat audio</p>
             <textarea id="ar-user-input" 
                 placeholder="Type what you hear..." 
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"></textarea>
@@ -2397,6 +2423,7 @@ export class VocabularyTool {
             this.prepareActiveRecall();
             activeRecallTool.classList.remove('hidden');
             this.input.disabled = true;
+            this.storySelect.disabled = true;
             this.input.value = '';
             activeRecallTool.scrollIntoView({ behavior: 'smooth' });
             this.output.innerHTML = '';
@@ -2404,6 +2431,7 @@ export class VocabularyTool {
             activeRecallTool.classList.add('hidden');
             this.resetActiveRecall();
             this.input.disabled = false;
+            this.storySelect.disabled = false;
             this.input.value = this.originalText;
         }
     }

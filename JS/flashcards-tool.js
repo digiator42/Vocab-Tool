@@ -56,7 +56,7 @@ export class FlashcardsTool {
         flashcard.className = `flashcard w-full h-96 flex items-center justify-center`;
         flashcard.dataset.index = this.currentPage - 1;
         flashcard.innerHTML = `
-            <div class="flashcard-inner h-full w-full">
+            <div class="flashcard-inner h-full w-full ${card.mastered ? 'border-2 border-solid border-green-200 rounded-2xl' : ''}">
                 <div class="flashcard-front bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
                     <h3 class="text-2xl font-bold text-center text-indigo-700">${card.german}</h3>
                     <button class="speak-btn mt-4 p-3 bg-indigo-100 rounded-full hover:bg-indigo-200">
@@ -91,7 +91,7 @@ export class FlashcardsTool {
             flashcard.className = `flashcard`;
             flashcard.dataset.index = actualIndex;
             flashcard.innerHTML = `
-                <div class="flashcard-inner min-h-36">
+                <div class="flashcard-inner min-h-36 ${card.mastered ? 'border-2 border-solid border-green-200 rounded-lg' : ''}">
                     <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col items-center justify-center cursor-pointer h-full">
                         <h3 class="text-sm font-bold text-center text-indigo-700">${card.german}</h3>
                         <button class="speak-btn mt-3 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200">
