@@ -118,27 +118,25 @@ export class FlashcardsTool {
 
     setupFlashcardEventListeners(flashcard) {
 
-        document.addEventListener('keydown', (e) => {
-            // Space to flip card only if not on singleCardMode
-            if (e.code === 'Space' && this.singleCardMode && document.activeElement === document.body) {
-                e.preventDefault();
-                flashcard.classList.toggle('flipped');
-            }
-            // Left/Right arrows for pagination in singleCardMode
-            if (true) {
-                if (e.code === 'ArrowRight') {
-                    if (this.currentPage < this.flashcards.length) {
-                        this.currentPage++;
-                        this.renderFlashcards();
-                    }
-                } else if (e.code === 'ArrowLeft') {
-                    if (this.currentPage > 1) {
-                        this.currentPage--;
-                        this.renderFlashcards();
-                    }
+        if (!window.hasAttachedFlashcardListener) {
+            document.addEventListener('keydown', (e) => {
+                // Space to flip card only if not on singleCardMode
+                if (e.code === 'Space' && this.singleCardMode && document.activeElement === document.body) {
+                    const currentFlashcard = document.querySelector('.flashcard');
+                    e.preventDefault();
+                    currentFlashcard?.classList.toggle('flipped');
                 }
-            }
-        });
+
+                // Left/Right arrows for pagination in singleCardMode
+                if (e.code === 'ArrowRight') {
+                    document.getElementById('next-page-btn')?.click();
+                } else if (e.code === 'ArrowLeft') {
+                    document.getElementById('prev-page-btn')?.click();
+                }
+            });
+
+            window.hasAttachedFlashcardListener = true;
+        }
 
         flashcard.addEventListener('click', function (event) {
             if (!event.target.classList.contains('master-btn')) {
