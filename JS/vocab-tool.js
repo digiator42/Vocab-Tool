@@ -10,9 +10,12 @@ export class VocabularyTool {
         this.statusEl = document.getElementById("status");
         this.offlineSpeak = document.getElementById("offline-speak");
         this.storySelect = document.getElementById("storySelect");
+        this.voiceSelect = document.getElementById("voiceSelect");
+
+        this.germanVoices = [];
         this.rate = 1;
         this.useOfflineSpeak = false;
-
+        this.killianVoice = null;
         this.isSpeaking = false;
         this.isPaused = false;
         this.utterance = null;
@@ -45,6 +48,7 @@ export class VocabularyTool {
         // this.setupManualSelection();
         // this.setupTooltipHover();
         this.processBtn.click();
+        this.loadVoices();
     }
 
     setupSelectionSystem() {
@@ -79,7 +83,8 @@ export class VocabularyTool {
                 if (slow) {
                     this
                 }
-                this.speakText(text, this.rate);
+                const selectedVoiceName = this.voiceSelect.value;
+                this.speakText(text, selectedVoiceName, this.rate);
                 return;
             }
             const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
@@ -90,29 +95,106 @@ export class VocabularyTool {
             audio.onerror = () => this.setStatus("Speech error");
         } catch {
             this.setStatus("Speech error, System voice");
-            this.speakText(text, this.rate);
+            const selectedVoiceName = this.voiceSelect.value;
+            this.speakText(text, selectedVoiceName, this.rate);
         }
     }
 
-    speakText(text, rate = 1) {
-        console.log('rate ---> ', rate);
+    findGermanVoices() {
+        const voices = this.speechSynth.getVoices();
+        this.germanVoices = voices.filter(voice => voice.lang.startsWith('de-'));
+        console.log('Available German voices:', this.germanVoices.map(v => v.name));
+    }
+
+    loadVoices() {
+        console.log('Loading voices...');
+
+        const voiceChangeHandler = () => {
+            this.findGermanVoices();
+            this.populateVoiceDropdown(); // Call after voices are found
+        };
+
+        window.speechSynthesis.onvoiceschanged = voiceChangeHandler;
+
+        if (this.speechSynth.getVoices().length > 0) {
+            voiceChangeHandler(); // Initial call
+        }
+    }
+
+    getAvailableVoices() {
+        return this.germanVoices;
+    }
+
+    speakText(text, voiceName, rate = 1) {
         if (!text.trim()) return;
-        this.speechSynth.cancel(); // Clear any previous utterance
+        this.speechSynth.cancel();
         this.utterance = new SpeechSynthesisUtterance(text);
         this.utterance.lang = 'de-DE';
         this.utterance.rate = rate;
+
+        console.log('Selected voice name:', voiceName);
+
+        const selectedVoice = this.germanVoices.find(voice => voice.name === voiceName);
+        if (selectedVoice) {
+            this.utterance.voice = selectedVoice;
+        } else {
+            console.warn(`Voice "${voiceName}" not found. Falling back to default German voice.`);
+        }
 
         this.utterance.onend = () => {
             this.isSpeaking = false;
             this.isPaused = false;
             this.utterance = null;
-            this.playBtn.textContent = 'Play';
+            if (this.playBtn) this.playBtn.textContent = 'Play';
         };
 
         this.speechSynth.speak(this.utterance);
         this.isSpeaking = true;
-        this.playBtn.textContent = 'Pause';
+        if (this.playBtn) this.playBtn.textContent = 'Pause';
     }
+
+    populateVoiceDropdown() {
+        if (!this.voiceSelect) return; // Exit if dropdown element isn't found
+
+        // Check if voices are loaded before populating
+        if (this.getAvailableVoices().length === 0) {
+            console.warn('Voices not yet loaded. Cannot populate dropdown.');
+            return;
+        }
+
+        this.voiceSelect.innerHTML = ''; // Clear previous options
+
+        this.getAvailableVoices().forEach(voice => {
+            const option = document.createElement('option');
+            option.textContent = voice.name;
+            option.value = voice.name; // <--- This is the key change
+            if (voice.name.includes('Killian')) {
+                option.selected = true; // Select Killian by default if available
+            }
+            this.voiceSelect.appendChild(option);
+        });
+    }
+
+
+    // speakText(text, rate = 1) {
+    //     console.log('rate ---> ', rate);
+    //     if (!text.trim()) return;
+    //     this.speechSynth.cancel(); // Clear any previous utterance
+    //     this.utterance = new SpeechSynthesisUtterance(text);
+    //     this.utterance.lang = 'de-DE';
+    //     this.utterance.rate = rate;
+
+    //     this.utterance.onend = () => {
+    //         this.isSpeaking = false;
+    //         this.isPaused = false;
+    //         this.utterance = null;
+    //         this.playBtn.textContent = 'Play';
+    //     };
+
+    //     this.speechSynth.speak(this.utterance);
+    //     this.isSpeaking = true;
+    //     this.playBtn.textContent = 'Pause';
+    // }
 
     stopSpeech() {
         this.isStopSpeechRequested = !this.isStopSpeechRequested;
@@ -1153,7 +1235,8 @@ export class VocabularyTool {
             const text = this.input.value;
 
             if (!this.isSpeaking) {
-                this.speakText(text, this.rate);
+                const selectedVoiceName = this.voiceSelect.value;
+                this.speakText(text, selectedVoiceName, this.rate);
             } else if (!this.isPaused) {
                 this.speechSynth.pause();
                 this.isPaused = true;
