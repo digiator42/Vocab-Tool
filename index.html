@@ -142,6 +142,50 @@
                 </div>
             </div>
 
+            <!-- Edit Flashcard Modal -->
+            <div id="edit-flashcard-modal"
+                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-xl font-bold mb-4">Edit Flashcard</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">German Word *</label>
+                            <input type="text" id="edit-german-word" class="w-full p-2 border border-gray-300 rounded">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">German Sentence</label>
+                            <input type="text" id="edit-german-sentence"
+                                class="w-full p-2 border border-gray-300 rounded">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">English Word *</label>
+                            <input type="text" id="edit-english-word" class="w-full p-2 border border-gray-300 rounded">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">English Translation</label>
+                            <input type="text" id="edit-english-translation"
+                                class="w-full p-2 border border-gray-300 rounded">
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="edit-card-index">
+
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button id="close-edit-modal" type="button" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                            Cancel
+                        </button>
+                        <button id="save-edit-btn" type="button"
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="flex space-x-4">
                 <button id="shuffle-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Shuffle</button>
                 <button id="reset-btn" class="px-4 py-2 bg-gray-600 text-white rounded-lg">Reset</button>

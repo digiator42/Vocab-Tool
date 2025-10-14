@@ -34,6 +34,116 @@ export class FlashcardsTool {
         document.getElementById('progress-percentage').textContent = `${percentage}%`;
     }
 
+    setupEditModal() {
+        const modal = document.getElementById('edit-flashcard-modal');
+        const closeBtn = document.getElementById('close-edit-modal');
+        const saveBtn = document.getElementById('save-edit-btn');
+
+        // Add null checks for all elements
+        if (!modal || !closeBtn || !saveBtn) {
+            console.warn('Edit modal elements not found. Modal might not be available on this page.');
+            return;
+        }
+
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        saveBtn.addEventListener('click', () => {
+            this.handleEditFlashcard();
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.add('hidden');
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+            }
+        });
+    }
+
+    openEditModal(cardIndex) {
+        const modal = document.getElementById('edit-flashcard-modal');
+        if (!modal) {
+            console.error('Edit modal not found');
+            return;
+        }
+
+        const card = this.flashcards[cardIndex];
+        if (!card) return;
+
+        // Safely set values with null checks
+        const germanWordInput = document.getElementById('edit-german-word');
+        const germanSentenceInput = document.getElementById('edit-german-sentence');
+        const englishWordInput = document.getElementById('edit-english-word');
+        const englishTranslationInput = document.getElementById('edit-english-translation');
+        const cardIndexInput = document.getElementById('edit-card-index');
+
+        if (germanWordInput) germanWordInput.value = card.german;
+        if (germanSentenceInput) germanSentenceInput.value = card.sentence || '';
+        if (englishWordInput) englishWordInput.value = card.english;
+        if (englishTranslationInput) englishTranslationInput.value = card.sentenceTranslation || '';
+        if (cardIndexInput) cardIndexInput.value = cardIndex;
+
+        modal.classList.remove('hidden');
+    }
+
+    handleEditFlashcard() {
+        const cardIndexInput = document.getElementById('edit-card-index');
+        const germanWordInput = document.getElementById('edit-german-word');
+        const englishWordInput = document.getElementById('edit-english-word');
+
+        if (!cardIndexInput || !germanWordInput || !englishWordInput) {
+            console.error('Required edit form elements not found');
+            return;
+        }
+
+        const cardIndex = parseInt(cardIndexInput.value);
+        const germanWord = germanWordInput.value.trim();
+        const germanSentence = document.getElementById('edit-german-sentence')?.value.trim() || '';
+        const englishWord = englishWordInput.value.trim();
+        const englishTranslation = document.getElementById('edit-english-translation')?.value.trim() || '';
+
+        if (!germanWord || !englishWord) {
+            this.showNotification('Failed to update flashcard. Missing required fields.');
+            return;
+        }
+
+        // Validate card index
+        if (cardIndex < 0 || cardIndex >= this.flashcards.length) {
+            this.showNotification('Failed to update flashcard. Invalid index.');
+            return;
+        }
+
+        this.flashcards[cardIndex] = {
+            german: germanWord,
+            english: englishWord,
+            sentence: germanSentence || undefined,
+            sentenceTranslation: englishTranslation || undefined,
+            mastered: this.flashcards[cardIndex].mastered // Preserve mastered status
+        };
+
+        this.saveFlashcards();
+        this.renderFlashcards();
+
+        const modal = document.getElementById('edit-flashcard-modal');
+        if (modal) modal.classList.add('hidden');
+
+        this.showNotification('Flashcard updated successfully!');
+    }
+
+    handleRemoveFlashcard(cardIndex) {
+        if (confirm('Are you sure you want to remove this flashcard?')) {
+            this.flashcards.splice(cardIndex, 1);
+            this.saveFlashcards();
+            this.renderFlashcards();
+            this.showNotification('Flashcard removed successfully!');
+        }
+    }
+
     renderFlashcards() {
         const container = document.getElementById('flashcards-container');
         container.innerHTML = '';
@@ -96,9 +206,15 @@ export class FlashcardsTool {
                 </div>
                 <div class="flashcard-back bg-indigo-100 rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
                     ${backContent}
-                    <div class="mt-4">
+                    <div class="mt-4 flex space-x-2">
                         <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm">
-                            ${card.mastered ? 'Mastered: click to undo' : 'Mark as Mastered'}
+                            ${card.mastered ? 'Not Mastered' : 'Mastered'}
+                        </button>
+                        <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
+                            Edit
+                        </button>
+                        <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
+                            Remove
                         </button>
                     </div>
                 </div>
@@ -161,7 +277,13 @@ export class FlashcardsTool {
                         ${backContent}
                         <div class="mt-1 flex space-x-1">
                             <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
-                                ${card.mastered ? 'Mastered' : 'Mark as Mastered'}
+                                ${card.mastered ? 'Not Mastered' : 'Mastered'}
+                            </button>
+                            <button class="edit-btn px-2 py-0.5 bg-blue-500 text-white rounded text-xs">
+                                Edit
+                            </button>
+                            <button class="remove-btn px-2 py-0.5 bg-red-500 text-white rounded text-xs">
+                                Remove
                             </button>
                         </div>
                     </div>
@@ -195,7 +317,9 @@ export class FlashcardsTool {
         }
 
         flashcard.addEventListener('click', function (event) {
-            if (!event.target.classList.contains('master-btn')) {
+            if (!event.target.classList.contains('master-btn') &&
+                !event.target.classList.contains('edit-btn') &&
+                !event.target.classList.contains('remove-btn')) {
                 this.classList.toggle('flipped');
             }
         });
@@ -220,6 +344,25 @@ export class FlashcardsTool {
                 const idx = parseInt(flashcard.dataset.index);
                 const text = this.isFlipped ? this.flashcards[idx].english : this.flashcards[idx].german;
                 this.speakWord(text);
+            });
+        }
+
+        // Add edit and remove buttons functionality
+        const editBtn = flashcard.querySelector('.edit-btn');
+        if (editBtn) {
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(flashcard.dataset.index);
+                this.openEditModal(idx);
+            });
+        }
+
+        const removeBtn = flashcard.querySelector('.remove-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(flashcard.dataset.index);
+                this.handleRemoveFlashcard(idx);
             });
         }
     }
@@ -352,6 +495,8 @@ export class FlashcardsTool {
             console.log("On Off set to:", !this.useSlowSpeak ? "Normal" : "Slow");
         });
 
+        this.setupEditModal();
+
         // Control buttons
         document.getElementById('shuffle-btn').addEventListener('click', () => {
             this.flashcards = this.shuffleArray(this.flashcards);
@@ -380,7 +525,7 @@ export class FlashcardsTool {
                 this.currentPage = 1;
                 this.renderFlashcards();
             } else {
-                alert('No custom lists available.');
+                this.showNotification('No custom lists available.');
             }
         });
 
@@ -392,7 +537,7 @@ export class FlashcardsTool {
             }
             const notMastered = this.flashcards.filter(c => !c.mastered);
             if (notMastered.length === 0) {
-                alert('All words mastered!');
+                this.showNotification('All words mastered!');
                 return;
             }
             this.flashcards = notMastered;
@@ -455,7 +600,7 @@ export class FlashcardsTool {
         const listName = document.getElementById('list-name-input').value.trim();
 
         if (!raw || !listName) {
-            alert('Please enter both list name and flashcards!');
+            this.showNotification('Please enter both list name and flashcards!');
             return;
         }
 

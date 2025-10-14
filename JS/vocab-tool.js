@@ -1969,8 +1969,8 @@ export class VocabularyTool {
         });
 
         document.addEventListener('keydown', (e) => {
-            // Ctrl+Shift+F for repeat
-            if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+            // Alt+Shift+F for repeat
+            if (e.altKey && e.shiftKey && e.key === 'R') {
                 e.preventDefault();
                 this.repeatAudio();
             }
@@ -2063,6 +2063,13 @@ export class VocabularyTool {
                 event.preventDefault();
                 console.log("Slow voice set to:", this.useSlowVoice)
             }
+            // fuzzy match art+shift+f
+            else if (event.altKey && event.shiftKey && event.key === 'F') {
+                fuzzyMatch.checked = !fuzzyMatch.checked;
+                this.useFuzzyMatching = fuzzyMatch.checked;
+                event.preventDefault();
+                console.log("Fuzzy matching set to:", this.useFuzzyMatching);
+            }
 
             rateSliderSpanActiveRecall.textContent = rateSliderActiveRecall.value;
             this.rate = rateSliderActiveRecall.value;
@@ -2135,10 +2142,22 @@ export class VocabularyTool {
         </div>
 
         <div id="ar-input-area" class="mb-4 hidden">
-            <p class="mb-3 text-sm font-semibold">CTR+SHIFT+F to repeat audio</p>
+            <div class="text-xs text-gray-600 italic grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+            <div>ALT+SHIFT+R</div>
+            <div class="text-green-600">Repeat Audio</div>
+
+            <div>ALT+SHIFT+F</div>
+            <div class="text-green-600">Toggle Fuzzy Mode</div>
+
+            <div>CTRL+SHIFT+Space</div>
+            <div class="text-green-600">Toggle Online Slow Voice</div>
+
+            <div>CTRL+SHIFT+Left/Right</div>
+            <div class="text-green-600">Arrows Change Offline Range</div>
+            </div>
             <textarea id="ar-user-input" 
                 placeholder="Type what you hear..." 
-                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"></textarea>
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none mt-4"></textarea>
             <div class="flex justify-between mt-2 text-sm text-gray-600">
                 <span>Press Enter to submit</span>
                 <span id="ar-timer">Time: 0s</span>
