@@ -8,6 +8,7 @@ export class FlashcardsTool {
         this.cardsPerPage = 20;
         this.singleCardMode = false;
         this.useSlowSpeak = false;
+        this.isFlipped = false; // New state to track if list is flipped
 
         this.init();
     }
@@ -55,10 +56,38 @@ export class FlashcardsTool {
         const flashcard = document.createElement('div');
         flashcard.className = `flashcard w-full h-96 flex items-center justify-center`;
         flashcard.dataset.index = this.currentPage - 1;
+
+        // Determine front and back content based on flip state
+        let frontContent, backContent;
+
+        if (this.isFlipped) {
+            // Flipped: English on front, German on back
+            frontContent = card.sentenceTranslation ?
+                `<h3 class="text-2xl font-bold text-center text-indigo-700 mb-2">${card.english}</h3>
+                 <p class="text-sm text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
+                `<h3 class="text-2xl font-bold text-center text-indigo-700">${card.english}</h3>`;
+
+            backContent = card.sentence ?
+                `<h3 class="text-xl font-semibold text-center text-gray-800 mb-2">${card.german}</h3>
+                 <p class="text-sm text-gray-600 text-center italic">${card.sentence}</p>` :
+                `<h3 class="text-xl font-semibold text-center text-gray-800">${card.german}</h3>`;
+        } else {
+            // Normal: German on front, English on back
+            frontContent = card.sentence ?
+                `<h3 class="text-2xl font-bold text-center text-indigo-700 mb-2">${card.german}</h3>
+                 <p class="text-sm text-gray-600 text-center italic">${card.sentence}</p>` :
+                `<h3 class="text-2xl font-bold text-center text-indigo-700">${card.german}</h3>`;
+
+            backContent = card.sentenceTranslation ?
+                `<h3 class="text-xl font-semibold text-center text-gray-800 mb-2">${card.english}</h3>
+                 <p class="text-sm text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
+                `<h3 class="text-xl font-semibold text-center text-gray-800">${card.english}</h3>`;
+        }
+
         flashcard.innerHTML = `
             <div class="flashcard-inner h-full w-full ${card.mastered ? 'border-2 border-solid border-green-200 rounded-2xl' : ''}">
                 <div class="flashcard-front bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
-                    <h3 class="text-2xl font-bold text-center text-indigo-700">${card.german}</h3>
+                    ${frontContent}
                     <button class="speak-btn mt-4 p-3 bg-indigo-100 rounded-full hover:bg-indigo-200">
                         <i data-feather="volume-2" class="text-indigo-700 w-6 h-6"></i>
                     </button>
@@ -66,7 +95,7 @@ export class FlashcardsTool {
                     ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-12 h-12 mt-4"></i>' : ''}
                 </div>
                 <div class="flashcard-back bg-indigo-100 rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
-                    <h3 class="text-xl font-semibold text-center text-gray-800">${card.english}</h3>
+                    ${backContent}
                     <div class="mt-4">
                         <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm">
                             ${card.mastered ? 'Mastered: click to undo' : 'Mark as Mastered'}
@@ -90,10 +119,38 @@ export class FlashcardsTool {
             const flashcard = document.createElement('div');
             flashcard.className = `flashcard`;
             flashcard.dataset.index = actualIndex;
+
+            // Determine front and back content based on flip state
+            let frontContent, backContent;
+
+            if (this.isFlipped) {
+                // Flipped: English on front, German on back
+                frontContent = card.sentenceTranslation ?
+                    `<h3 class="text-sm font-bold text-center text-indigo-700 mb-1">${card.english}</h3>
+                     <p class="text-xs text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
+                    `<h3 class="text-sm font-bold text-center text-indigo-700">${card.english}</h3>`;
+
+                backContent = card.sentence ?
+                    `<h3 class="text-xs font-semibold text-center text-gray-800 mb-1">${card.german}</h3>
+                     <p class="text-xs text-gray-600 text-center italic">${card.sentence}</p>` :
+                    `<h3 class="text-xs font-semibold text-center text-gray-800">${card.german}</h3>`;
+            } else {
+                // Normal: German on front, English on back
+                frontContent = card.sentence ?
+                    `<h3 class="text-sm font-bold text-center text-indigo-700 mb-1">${card.german}</h3>
+                     <p class="text-xs text-gray-600 text-center italic">${card.sentence}</p>` :
+                    `<h3 class="text-sm font-bold text-center text-indigo-700">${card.german}</h3>`;
+
+                backContent = card.sentenceTranslation ?
+                    `<h3 class="text-xs font-semibold text-center text-gray-800 mb-1">${card.english}</h3>
+                     <p class="text-xs text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
+                    `<h3 class="text-xs font-semibold text-center text-gray-800">${card.english}</h3>`;
+            }
+
             flashcard.innerHTML = `
                 <div class="flashcard-inner min-h-36 ${card.mastered ? 'border-2 border-solid border-green-200 rounded-lg' : ''}">
                     <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col items-center justify-center cursor-pointer h-full">
-                        <h3 class="text-sm font-bold text-center text-indigo-700">${card.german}</h3>
+                        ${frontContent}
                         <button class="speak-btn mt-3 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200">
                             <i data-feather="volume-2" class="text-indigo-700 w-3 h-3"></i>
                         </button>
@@ -101,7 +158,7 @@ export class FlashcardsTool {
                         ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-6 h-6"></i>' : ''}
                     </div>
                     <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col items-center justify-center cursor-pointer h-full">
-                        <h3 class="text-xs font-semibold text-center text-gray-800">${card.english}</h3>
+                        ${backContent}
                         <div class="mt-1 flex space-x-1">
                             <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
                                 ${card.mastered ? 'Mastered' : 'Mark as Mastered'}
@@ -117,7 +174,6 @@ export class FlashcardsTool {
     }
 
     setupFlashcardEventListeners(flashcard) {
-
         if (!window.hasAttachedFlashcardListener) {
             document.addEventListener('keydown', (e) => {
                 // Space to flip card only if not on singleCardMode
@@ -155,6 +211,17 @@ export class FlashcardsTool {
                 this.renderFlashcards();
             });
         }
+
+        // Update speak button to handle flipped state
+        const speakBtn = flashcard.querySelector('.speak-btn');
+        if (speakBtn) {
+            speakBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(flashcard.dataset.index);
+                const text = this.isFlipped ? this.flashcards[idx].english : this.flashcards[idx].german;
+                this.speakWord(text);
+            });
+        }
     }
 
     shuffleArray(array) {
@@ -180,13 +247,14 @@ export class FlashcardsTool {
         document.getElementById('next-page-btn').disabled = this.currentPage === totalPages;
     }
 
-    speakWord(text, rate = 0.8) {
+    // Update speakWord to handle language
+    speakWord(text, rate = 0.8, lang = 'de-DE') {
         if (!text.trim()) return;
         if (this.useSlowSpeak) rate = 0.6;
         console.log('rate ---> ', rate);
 
         this.utterance = new SpeechSynthesisUtterance(text);
-        this.utterance.lang = 'de-DE';
+        this.utterance.lang = lang;
         this.utterance.rate = rate;
 
         speechSynthesis.speak(this.utterance);
@@ -258,7 +326,6 @@ export class FlashcardsTool {
 
         feather.replace();
     }
-
     setupEventListeners() {
         // View toggle
         document.getElementById("toggle-view-btn").addEventListener("click", () => {
@@ -266,6 +333,16 @@ export class FlashcardsTool {
             document.getElementById("toggle-view-btn").textContent = this.singleCardMode
                 ? "Switch to Grid Mode"
                 : "Switch to Focus Mode";
+            this.currentPage = 1;
+            this.renderFlashcards();
+        });
+
+        // Flip list toggle
+        document.getElementById("flip-list-btn").addEventListener("click", () => {
+            this.isFlipped = !this.isFlipped;
+            document.getElementById("flip-list-btn").textContent = this.isFlipped
+                ? "Switch to German → English"
+                : "Switch to English → German";
             this.currentPage = 1;
             this.renderFlashcards();
         });
@@ -296,7 +373,6 @@ export class FlashcardsTool {
         });
 
         document.getElementById('show-original-btn').addEventListener('click', () => {
-
             const names = Object.keys(this.customLists);
             console.log('original -> ', this.originalListName);
             if (names.length > 0) {
@@ -324,12 +400,14 @@ export class FlashcardsTool {
             this.renderFlashcards();
         });
 
-        // Speak functionality
+        // Speak functionality - updated to handle flipped state
         document.addEventListener('click', e => {
             if (e.target.closest('.speak-btn') || e.target.closest('.speak-btn i')) {
                 const card = e.target.closest('.flashcard');
                 const idx = card.dataset.index;
-                this.speakWord(this.flashcards[idx].german);
+                const text = this.isFlipped ? this.flashcards[idx].english : this.flashcards[idx].german;
+                const lang = this.isFlipped ? 'en-US' : 'de-DE';
+                this.speakWord(text, 0.8, lang);
             }
         });
 
@@ -383,9 +461,32 @@ export class FlashcardsTool {
 
         const newCards = [];
         raw.split('\n').forEach(line => {
-            const parts = line.split(/\s*(–|--|:|-|::)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
-            if (parts.length === 2 && parts[0] && parts[1]) {
-                newCards.push({ german: parts[0], english: parts[1], mastered: false });
+            line = line.trim();
+            if (!line) return;
+
+            // Parse the format: German word (german sentence) - English word (english translation)
+            const match = line.match(/^(.+?)\s*\((.*?)\)\s*[-–:]+?\s*(.+?)\s*\((.*?)\)$/);
+
+            if (match) {
+                // Format with sentences: German word (sentence) - English word (translation)
+                const [, german, sentence, english, sentenceTranslation] = match;
+                newCards.push({
+                    german: german.trim(),
+                    sentence: sentence.trim(),
+                    english: english.trim(),
+                    sentenceTranslation: sentenceTranslation.trim(),
+                    mastered: false
+                });
+            } else {
+                // Fallback to original format for backward compatibility
+                const parts = line.split(/\s*(–|--|:|-|::)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
+                if (parts.length === 2 && parts[0] && parts[1]) {
+                    newCards.push({
+                        german: parts[0],
+                        english: parts[1],
+                        mastered: false
+                    });
+                }
             }
         });
 
