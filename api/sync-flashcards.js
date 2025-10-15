@@ -57,13 +57,16 @@ export default async function handler(req, res) {
             console.log('Uploading data to Supabase...', Object.keys(data).length, 'lists');
 
             // Upload data to Supabase
+            const uploadData = {
+                data: data,
+                timestamp: new Date().toISOString(),
+                created_at: new Date().toISOString()
+            };
+
             const response = await fetch(`${SUPABASE_URL}/rest/v1/flashcards_sync`, {
                 method: 'POST',
                 headers: supabaseHeaders,
-                body: JSON.stringify({
-                    data: data,
-                    timestamp: new Date().toISOString()
-                })
+                body: JSON.stringify(uploadData)
             });
 
             if (!response.ok) {
