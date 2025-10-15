@@ -441,7 +441,7 @@ export class FlashcardsTool {
                 dragHandle.classList.replace('cursor-grabbing', 'cursor-grab');
             });
 
-            // List button - EXACTLY like before
+            // List button
             const btn = document.createElement('button');
             btn.className = 'px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center';
             btn.innerHTML = `<i data-feather="list" class="mr-2"></i> ${listName} (${this.customLists[listName].length})`;
@@ -453,7 +453,7 @@ export class FlashcardsTool {
                 this.renderFlashcards();
             });
 
-            // Remove button - EXACTLY like before
+            // Remove button
             const removeBtn = document.createElement('button');
             removeBtn.className = 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100';
             removeBtn.innerHTML = '×';
@@ -679,6 +679,20 @@ export class FlashcardsTool {
                 container.classList.remove('drag-over-zone');
             });
         }
+
+        // Playing audio event listener with v keyword for speak-btn
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'v') {
+                const activeCard = document.querySelector('.flashcard');
+                if (activeCard) {
+                    const idx = activeCard.dataset.index;
+                    const text = this.flashcards[idx].german + ',' + this.flashcards[idx].sentence;
+                    // adding word and sentence together
+                    const lang = 'de-DE';
+                    this.speakWord(text, 0.8, lang);
+                }
+            }
+        });
 
         this.setupAddFlashcardsModal();
     }
