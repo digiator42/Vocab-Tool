@@ -1,53 +1,43 @@
 // api/sync-flashcards.js
-exports.handler = async (event) => {
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-    };
+module.exports = async (req, res) => {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
 
-    if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers, body: '' };
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        if (event.httpMethod !== 'POST') {
-            return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
-        }
+        // Parse request body
+        const body = JSON.parse(req.body);
+        const { action, password, data } = body;
 
-        // Get environment variables
-        const REAL_PASSWORD = process.env.SYNC_PASSWORD;
+        // Verify environment variables
+        const SYNC_PASSWORD = process.env.SYNC_PASSWORD;
         const SUPABASE_URL = process.env.SUPABASE_URL;
         const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-        // Debug: log env status (remove in production)
-        console.log('Env check:', {
-            hasPassword: !!REAL_PASSWORD,
-            hasSupabaseUrl: !!SUPABASE_URL,
-            hasSupabaseKey: !!SUPABASE_KEY
-        });
-
-        if (!REAL_PASSWORD || !SUPABASE_URL || !SUPABASE_KEY) {
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ error: 'Server configuration error' })
-            };
+        if (!SYNC_PASSWORD || !SUPABASE_URL || !SUPABASE_KEY) {
+            console.log('Missing env vars:', {
+                SYNC_PASSWORD: !!SYNC_PASSWORD,
+                SUPABASE_URL: !!SUPABASE_URL,
+                SUPABASE_KEY: !!SUPABASE_KEY
+            });
+            return res.status(500).json({ error: 'Server configuration error' });
         }
 
-        const requestBody = JSON.parse(event.body);
-        const { data, password, action, timestamp } = requestBody;
-
-        console.log('Action:', action, 'Has data:', !!data);
-
-        // Verify password - use a simple string for testing first
-        if (password !== REAL_PASSWORD) {
-            console.log('Password mismatch:', { expected: REAL_PASSWORD, received: password });
-            return {
-                statusCode: 401,
-                headers,
-                body: JSON.stringify({ error: 'Unauthorized' })
-            };
+        // Verify password
+        if (password !== SYNC_PASSWORD) {
+            console.log('Password mismatch');
+            return res.status(401).json({ error: 'Unauthorized' });
         }
 
         // Supabase configuration
@@ -60,59 +50,36 @@ exports.handler = async (event) => {
 
         if (action === 'upload') {
             if (!data) {
-                return {
-                    statusCode: 400,
-                    headers,
-                    body: JSON.stringify({ error: 'No data provided' })
-                };
+                return res.status(400).json({ error: 'No data provided' });
             }
 
-            const uploadData = {
-                data: data,
-                timestamp: timestamp || new Date().toISOString()
-            };
-
-            console.log('Uploading data to Supabase...');
-
+            // Upload data to Supabase
             const response = await fetch(`${SUPABASE_URL}/rest/v1/flashcards_sync`, {
                 method: 'POST',
                 headers: supabaseHeaders,
-                body: JSON.stringify(uploadData)
+                body: JSON.stringify({
+                    data: data,
+                    timestamp: new Date().toISOString()
+                })
             });
-
-            console.log('Supabase response status:', response.status);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Supabase error:', errorText);
-                return {
-                    statusCode: 500,
-                    headers,
-                    body: JSON.stringify({
-                        error: 'Database error',
-                        details: errorText
-                    })
-                };
+                console.error('Supabase upload error:', errorText);
+                return res.status(500).json({ error: 'Failed to save data' });
             }
 
             const result = await response.json();
-            console.log('Upload successful:', result);
 
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({
-                    success: true,
-                    message: 'Data uploaded successfully',
-                    timestamp: result[0].timestamp,
-                    listsCount: Object.keys(data).length,
-                    totalCards: Object.values(data).reduce((sum, cards) => sum + cards.length, 0)
-                })
-            };
+            return res.status(200).json({
+                success: true,
+                message: 'Data uploaded successfully',
+                id: result[0].id,
+                timestamp: result[0].timestamp
+            });
         }
         else if (action === 'download') {
-            console.log('Downloading data from Supabase...');
-
+            // Download latest data from Supabase
             const response = await fetch(
                 `${SUPABASE_URL}/rest/v1/flashcards_sync?select=*&order=id.desc&limit=1`,
                 {
@@ -123,47 +90,27 @@ exports.handler = async (event) => {
                     }
                 }
             );
-
-            console.log('Download response status:', response.status);
 
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Supabase download error:', errorText);
-                return {
-                    statusCode: 500,
-                    headers,
-                    body: JSON.stringify({
-                        error: 'Database error',
-                        details: errorText
-                    })
-                };
+                return res.status(500).json({ error: 'Failed to fetch data' });
             }
 
             const result = await response.json();
-            console.log('Download result:', result);
 
             if (!result || result.length === 0) {
-                return {
-                    statusCode: 404,
-                    headers,
-                    body: JSON.stringify({ error: 'No data found' })
-                };
+                return res.status(404).json({ error: 'No data found' });
             }
 
-            const latest = result[0];
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({
-                    success: true,
-                    data: latest.data,
-                    timestamp: latest.timestamp,
-                    listsCount: Object.keys(latest.data).length,
-                    totalCards: Object.values(latest.data).reduce((sum, cards) => sum + cards.length, 0)
-                })
-            };
+            return res.status(200).json({
+                success: true,
+                data: result[0].data,
+                timestamp: result[0].timestamp
+            });
         }
         else if (action === 'info') {
+            // Get server info
             const response = await fetch(
                 `${SUPABASE_URL}/rest/v1/flashcards_sync?select=*&order=id.desc&limit=1`,
                 {
@@ -177,46 +124,29 @@ exports.handler = async (event) => {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                return {
-                    statusCode: 500,
-                    headers,
-                    body: JSON.stringify({ error: 'Database error' })
-                };
+                console.error('Supabase info error:', errorText);
+                return res.status(500).json({ error: 'Failed to fetch info' });
             }
 
             const result = await response.json();
             const hasData = result && result.length > 0;
-            const latest = hasData ? result[0] : null;
 
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({
-                    success: true,
-                    hasData: hasData,
-                    timestamp: latest?.timestamp,
-                    listsCount: latest ? Object.keys(latest.data).length : 0,
-                    totalCards: latest ? Object.values(latest.data).reduce((sum, cards) => sum + cards.length, 0) : 0
-                })
-            };
+            return res.status(200).json({
+                success: true,
+                hasData: hasData,
+                timestamp: hasData ? result[0].timestamp : null,
+                listsCount: hasData ? Object.keys(result[0].data).length : 0
+            });
         }
         else {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Invalid action' })
-            };
+            return res.status(400).json({ error: 'Invalid action' });
         }
 
     } catch (error) {
         console.error('Server error:', error);
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({
-                error: 'Internal server error',
-                message: error.message
-            })
-        };
+        return res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
     }
 };
