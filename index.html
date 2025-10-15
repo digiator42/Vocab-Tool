@@ -111,13 +111,10 @@
                     placeholder="Imported/Exported JSON will appear here"></textarea>
             </div>
             <!-- Sync Data Modal -->
-            <!-- Sync Data Modal -->
             <div id="sync-data-modal"
                 class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
                 <div class="bg-white rounded-lg p-6 w-full max-w-md">
-                    <h3 class="text-xl font-bold mb-4">🔒 Secure Cloud Sync</h3>
-
-                    <p class="text-sm text-gray-600 mb-4">Enter password to sync across browsers</p>
+                    <h3 class="text-xl font-bold mb-4">🔒 Cloud Sync</h3>
 
                     <div class="grid grid-cols-2 gap-3 mb-4">
                         <button id="upload-data-btn"
@@ -143,13 +140,12 @@
                     </div>
 
                     <div class="text-xs text-gray-500 bg-gray-100 p-3 rounded">
-                        <strong>Security:</strong> Password is sent over HTTPS and verified on server.
-                        Never stored in client code.
+                        <strong>Security:</strong> This is for personal use.
                     </div>
 
                     <div class="flex justify-end mt-4">
                         <button onclick="document.getElementById('sync-data-modal').classList.add('hidden')"
-                            class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                            class="px-4 py-2 text-gray-600 hover:text-gray-800 bg-red-300">
                             Close
                         </button>
                     </div>
