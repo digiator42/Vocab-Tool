@@ -4,7 +4,8 @@ import { FlashcardsTool } from './flashcards-tool.js';
 import { ImportExportManager } from './import-export.js';
 import { TabManager } from './tab-manager.js';
 import { ExerciseTool } from './exercise-tool.js';
-import { germanStories } from './stories.js'
+import { germanStories } from './stories.js';
+import { SyncManager } from './sync-manager.js';
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -17,7 +18,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const importExportManager = new ImportExportManager();
 
     // Initialize tools only when needed
-    let vocabTool, flashCardsTool, exerciseTool;
+    let vocabTool, flashCardsTool, exerciseTool, syncManager;
+
+    syncManager = new SyncManager();
+    window.syncManager = syncManager;
 
     // Initialize vocabulary tool when its tab is clicked or if it's the default tab
     document.getElementById("tab-vocab").addEventListener("click", () => {
@@ -29,10 +33,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize flashcards tool when its tab is clicked
     document.getElementById("tab-flash").addEventListener("click", () => {
         if (!flashCardsTool) {
+            console.log('Initializing FlashcardsTool...');
             flashCardsTool = new FlashcardsTool();
         }
         // second click on flashcards tab refreshes the custom lists
         flashCardsTool.renderCustomListButtons();
+    });
+
+    // Open sync modal
+    document.getElementById('open-sync-modal').addEventListener('click', () => {
+        document.getElementById('sync-data-modal').classList.remove('hidden');
     });
 
     document.getElementById("tab-exercise").addEventListener("click", () => {

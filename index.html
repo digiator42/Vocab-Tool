@@ -106,6 +106,55 @@
                 <textarea id="import-export-json-area" class="w-full max-w-lg p-2 border rounded text-sm mt-2" rows="3"
                     placeholder="Imported/Exported JSON will appear here"></textarea>
             </div>
+            <!-- Sync Data Modal -->
+            <!-- Sync Data Modal -->
+            <div id="sync-data-modal"
+                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-xl font-bold mb-4">🔒 Secure Cloud Sync</h3>
+
+                    <p class="text-sm text-gray-600 mb-4">Enter password to sync across browsers</p>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <button id="upload-data-btn"
+                            class="px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center">
+                            <i data-feather="upload" class="mr-2 w-4 h-4"></i>
+                            Upload
+                        </button>
+                        <button id="download-data-btn"
+                            class="px-4 py-3 bg-green-600 text-white rounded hover:bg-green-700 flex items-center justify-center">
+                            <i data-feather="download" class="mr-2 w-4 h-4"></i>
+                            Download
+                        </button>
+                        <button id="sync-info-btn"
+                            class="px-4 py-3 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center justify-center">
+                            <i data-feather="info" class="mr-2 w-4 h-4"></i>
+                            Info
+                        </button>
+                        <button id="set-password-btn"
+                            class="px-4 py-3 bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center justify-center">
+                            <i data-feather="key" class="mr-2 w-4 h-4"></i>
+                            Reset
+                        </button>
+                    </div>
+
+                    <div class="text-xs text-gray-500 bg-gray-100 p-3 rounded">
+                        <strong>Security:</strong> Password is sent over HTTPS and verified on server.
+                        Never stored in client code.
+                    </div>
+
+                    <div class="flex justify-end mt-4">
+                        <button onclick="document.getElementById('sync-data-modal').classList.add('hidden')"
+                            class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Add sync button to your main interface -->
+            <button id="open-sync-modal" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                <i data-feather="cloud"></i> Sync Data
+            </button>
             <div class="mt-6 flex justify-center">
                 <div class="w-full max-w-md bg-white rounded-lg shadow p-4">
                     <div class="flex justify-between mb-1">
@@ -185,7 +234,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="flex space-x-4">
                 <button id="shuffle-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Shuffle</button>
                 <button id="reset-btn" class="px-4 py-2 bg-gray-600 text-white rounded-lg">Reset</button>

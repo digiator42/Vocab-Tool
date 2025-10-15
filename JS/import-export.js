@@ -41,32 +41,74 @@ export class ImportExportManager {
     }
 
     exportData(jsonArea) {
-        const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        const exportData = {};
+        try {
+            const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+            const exportData = {};
 
-        for (const [name, cards] of Object.entries(customLists)) {
-            exportData[name] = cards.map(c => ({
-                german: c.german,
-                english: c.english,
-                sentence: c.sentence || '',
-                sentenceTranslation: c.sentenceTranslation || '',
-                mastered: !!c.mastered
-            }));
+            for (const [name, cards] of Object.entries(customLists)) {
+                exportData[name] = cards.map(c => ({
+                    german: c.german,
+                    english: c.english,
+                    sentence: c.sentence || '',
+                    sentenceTranslation: c.sentenceTranslation || '',
+                    mastered: !!c.mastered
+                }));
+            }
+
+            const jsonStr = JSON.stringify(exportData, null, 2);
+
+            // Update the textarea
+            if (jsonArea) {
+                jsonArea.value = jsonStr;
+            }
+
+            // Alternative download method
+            this.downloadJSON(jsonStr);
+
+            this.showNotification(`Exported ${Object.keys(exportData).length} lists successfully!`);
+
+        } catch (error) {
+            console.error('Export error:', error);
+            this.showNotification('Export failed!');
+        }
+    }
+
+    // Separate method for download to ensure it works
+    downloadJSON(jsonStr) {
+        // Method 1: Try the standard approach first
+        try {
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `german-flashcards-${new Date().toISOString().split('T')[0]}.json`;
+
+            // This part is important for some browsers
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Revoke the object URL after a delay
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+            return;
+        } catch (error) {
+            console.warn('Standard download failed, trying alternative method');
         }
 
-        const jsonStr = JSON.stringify(exportData, null, 2);
-        jsonArea.value = jsonStr;
-
-        // Download as file
-        const blob = new Blob([jsonStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'german-flashcards.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Method 2: Alternative approach for browsers that block the first method
+        try {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonStr);
+            const link = document.createElement('a');
+            link.href = dataStr;
+            link.download = `german-flashcards-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('All download methods failed:', error);
+            // Last resort: show the JSON in textarea and let user copy manually
+            this.showNotification('Download blocked. Copy JSON from text area manually.');
+        }
     }
 
     triggerFileImport(importInput) {
@@ -93,7 +135,7 @@ export class ImportExportManager {
         }
         this.processImportData(text, jsonArea, 'text');
     }
-    
+
     processImportData(data, jsonArea, type) {
         try {
             // Trim and validate input

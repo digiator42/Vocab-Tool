@@ -433,7 +433,7 @@ export class FlashcardsTool {
             // Add drag handle as the first element (invisible but draggable)
             const dragHandle = document.createElement('div');
             dragHandle.className = 'absolute -left-6 top-1/2 transform -translate-y-1/2 cursor-grab text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity';
-            dragHandle.innerHTML = '<i data-feather="grip-vertical" class="w-4 h-4"></i>';
+            // dragHandle.innerHTML = '<i data-feather="move" class="w-4 h-4"></i>';
             dragHandle.addEventListener('mousedown', () => {
                 dragHandle.classList.replace('cursor-grab', 'cursor-grabbing');
             });
