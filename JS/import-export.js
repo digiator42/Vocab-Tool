@@ -48,6 +48,8 @@ export class ImportExportManager {
             exportData[name] = cards.map(c => ({
                 german: c.german,
                 english: c.english,
+                sentence: c.sentence || '',
+                sentenceTranslation: c.sentenceTranslation || '',
                 mastered: !!c.mastered
             }));
         }
@@ -91,43 +93,99 @@ export class ImportExportManager {
         }
         this.processImportData(text, jsonArea, 'text');
     }
-
+    
     processImportData(data, jsonArea, type) {
         try {
-            const importedData = JSON.parse(data);
-            if (typeof importedData !== 'object' || Array.isArray(importedData)) throw new Error();
+            // Trim and validate input
+            const trimmedData = data.trim();
+            if (!trimmedData) {
+                throw new Error('Empty input');
+            }
+
+            const importedData = JSON.parse(trimmedData);
+
+            // Validate the structure
+            if (typeof importedData !== 'object' || Array.isArray(importedData)) {
+                throw new Error('Root must be an object');
+            }
+
+            if (Object.keys(importedData).length === 0) {
+                throw new Error('No lists found in import data');
+            }
 
             let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
             let importedCount = 0;
+            let listCount = 0;
 
             for (const [name, cards] of Object.entries(importedData)) {
-                if (Array.isArray(cards) && cards.length && cards[0].german && cards[0].english) {
-                    if (!customLists[name]) {
-                        customLists[name] = [];
+                if (!Array.isArray(cards)) {
+                    console.warn(`Skipping "${name}" - not an array`);
+                    continue;
+                }
+
+                if (cards.length === 0) {
+                    console.warn(`Skipping "${name}" - empty list`);
+                    continue;
+                }
+
+                // Validate first card has required fields
+                const firstCard = cards[0];
+                if (!firstCard.german || !firstCard.english) {
+                    console.warn(`Skipping "${name}" - missing german/english fields`);
+                    continue;
+                }
+
+                listCount++;
+
+                if (!customLists[name]) {
+                    customLists[name] = [];
+                }
+
+                const existing = new Set(customLists[name].map(c => c.german + '|' + c.english));
+
+                cards.forEach((card, index) => {
+                    // Validate required fields for each card
+                    if (!card.german || !card.english) {
+                        console.warn(`Skipping card ${index} in "${name}" - missing german/english fields`);
+                        return;
                     }
 
-                    const existing = new Set(customLists[name].map(c => c.german + '|' + c.english));
-                    cards.forEach(card => {
-                        const key = card.german + '|' + card.english;
-                        if (!existing.has(key)) {
-                            customLists[name].push({
-                                german: card.german,
-                                english: card.english,
-                                mastered: !!card.mastered
-                            });
-                            importedCount++;
-                        }
-                    });
-                }
+                    const key = card.german + '|' + card.english;
+                    if (!existing.has(key)) {
+                        // Handle both old and new format with proper defaults
+                        customLists[name].push({
+                            german: card.german,
+                            english: card.english,
+                            sentence: card.sentence || '',
+                            sentenceTranslation: card.sentenceTranslation || '',
+                            mastered: !!card.mastered
+                        });
+                        importedCount++;
+                        existing.add(key);
+                    }
+                });
+            }
+
+            if (listCount === 0) {
+                throw new Error('No valid lists found in import data');
             }
 
             localStorage.setItem('customGermanLists', JSON.stringify(customLists));
-            jsonArea.value = data;
-            location.reload();
+            jsonArea.value = JSON.stringify(importedData, null, 2);
 
-            this.showNotification(`Imported ${importedCount} new flashcards${type === 'text' ? ' from text' : ''}.`);
-        } catch {
-            jsonArea.value = "Invalid JSON format.";
+            this.showNotification(`Imported ${importedCount} new flashcards from ${listCount} lists${type === 'text' ? ' from text' : ''}.`);
+
+            // Reload after a short delay to show notification
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+
+        } catch (error) {
+            console.error('Import error:', error);
+            const errorMessage = error.message || 'Invalid JSON format';
+            jsonArea.value = `Import Error: ${errorMessage}\n\nPlease check:\n- JSON syntax is correct\n- Data has { "ListName": [ { "german": "...", "english": "..." } ] } format\n- No trailing commas\n- Proper quotes`;
+
+            this.showNotification(`Import failed: ${errorMessage}`);
         }
     }
 

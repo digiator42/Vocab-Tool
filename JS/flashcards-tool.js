@@ -427,7 +427,21 @@ export class FlashcardsTool {
         Object.keys(this.customLists).forEach(listName => {
             const wrapper = document.createElement('div');
             wrapper.className = 'relative group';
+            wrapper.draggable = true;
+            wrapper.dataset.listName = listName;
 
+            // Add drag handle as the first element (invisible but draggable)
+            const dragHandle = document.createElement('div');
+            dragHandle.className = 'absolute -left-6 top-1/2 transform -translate-y-1/2 cursor-grab text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity';
+            dragHandle.innerHTML = '<i data-feather="grip-vertical" class="w-4 h-4"></i>';
+            dragHandle.addEventListener('mousedown', () => {
+                dragHandle.classList.replace('cursor-grab', 'cursor-grabbing');
+            });
+            dragHandle.addEventListener('mouseup', () => {
+                dragHandle.classList.replace('cursor-grabbing', 'cursor-grab');
+            });
+
+            // List button - EXACTLY like before
             const btn = document.createElement('button');
             btn.className = 'px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center';
             btn.innerHTML = `<i data-feather="list" class="mr-2"></i> ${listName} (${this.customLists[listName].length})`;
@@ -435,11 +449,11 @@ export class FlashcardsTool {
                 this.flashcards = [...this.customLists[listName]];
                 this.saveFlashcards();
                 this.originalListName = listName;
-                console.log('---> ', this.originalListName);
                 this.currentPage = 1;
                 this.renderFlashcards();
             });
 
+            // Remove button - EXACTLY like before
             const removeBtn = document.createElement('button');
             removeBtn.className = 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100';
             removeBtn.innerHTML = '×';
@@ -462,6 +476,50 @@ export class FlashcardsTool {
                 }
             });
 
+            // Drag and drop events
+            wrapper.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', listName);
+                wrapper.classList.add('opacity-50');
+                // Make the entire wrapper draggable, not just the handle
+                if (e.target === dragHandle) {
+                    e.dataTransfer.setData('text/plain', listName);
+                }
+            });
+
+            wrapper.addEventListener('dragend', () => {
+                wrapper.classList.remove('opacity-50');
+                container.querySelectorAll('.drag-over').forEach(el => {
+                    el.classList.remove('drag-over');
+                });
+            });
+
+            wrapper.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                wrapper.classList.add('drag-over');
+            });
+
+            wrapper.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                wrapper.classList.add('drag-over');
+            });
+
+            wrapper.addEventListener('dragleave', () => {
+                wrapper.classList.remove('drag-over');
+            });
+
+            wrapper.addEventListener('drop', (e) => {
+                e.preventDefault();
+                wrapper.classList.remove('drag-over');
+
+                const draggedListName = e.dataTransfer.getData('text/plain');
+                if (draggedListName !== listName) {
+                    this.reorderLists(draggedListName, listName);
+                }
+            });
+
+            // Assemble the wrapper
+            wrapper.appendChild(dragHandle);
             wrapper.appendChild(btn);
             wrapper.appendChild(removeBtn);
             container.appendChild(wrapper);
@@ -469,6 +527,28 @@ export class FlashcardsTool {
 
         feather.replace();
     }
+
+    reorderLists(draggedListName, targetListName) {
+        if (draggedListName === targetListName) return;
+
+        const lists = Object.entries(this.customLists);
+        const draggedIndex = lists.findIndex(([name]) => name === draggedListName);
+        const targetIndex = lists.findIndex(([name]) => name === targetListName);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        // Remove dragged item and insert at target position
+        const [draggedItem] = lists.splice(draggedIndex, 1);
+        lists.splice(targetIndex, 0, draggedItem);
+
+        // Convert back to object
+        this.customLists = Object.fromEntries(lists);
+        localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+        this.renderCustomListButtons();
+
+        this.showNotification(`Moved "${draggedListName}" before "${targetListName}"`);
+    }
+
     setupEventListeners() {
         // View toggle
         document.getElementById("toggle-view-btn").addEventListener("click", () => {
@@ -579,6 +659,26 @@ export class FlashcardsTool {
         document.getElementById('add-flashcards-btn').addEventListener('click', () => {
             this.handleAddFlashcards();
         });
+
+        // Enhanced drag and drop for the container
+        const container = document.getElementById('custom-lists-container');
+        if (container) {
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                container.classList.add('drag-over-zone');
+            });
+
+            container.addEventListener('dragleave', (e) => {
+                if (!container.contains(e.relatedTarget)) {
+                    container.classList.remove('drag-over-zone');
+                }
+            });
+
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                container.classList.remove('drag-over-zone');
+            });
+        }
 
         this.setupAddFlashcardsModal();
     }

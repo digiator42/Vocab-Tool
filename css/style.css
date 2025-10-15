@@ -102,6 +102,22 @@
     transform: rotateY(180deg);
 }
 
+.drag-over {
+    border: 2px dashed #3b82f6 !important;
+    background-color: #eff6ff !important;
+}
+
+/* Smooth transitions for drag elements */
+[custom-lists-container]>div {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Visual feedback during drag */
+[custom-lists-container].drag-over-zone {
+    background-color: #f8fafc;
+    border: 2px dashed #cbd5e1;
+}
+
 .progress-bar {
     transition: width 0.3s ease;
 }
