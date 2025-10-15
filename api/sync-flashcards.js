@@ -1,5 +1,5 @@
 // api/sync-flashcards.js
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -149,4 +149,4 @@ module.exports = async (req, res) => {
             message: error.message
         });
     }
-};
+}
