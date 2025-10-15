@@ -16,9 +16,10 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Parse request body
-        const body = JSON.parse(req.body);
-        const { action, password, data } = body;
+        // Vercel automatically parses JSON bodies, so req.body is already an object
+        const { action, password, data } = req.body;
+
+        console.log('Received request:', { action, hasPassword: !!password, hasData: !!data });
 
         // Verify environment variables
         const SYNC_PASSWORD = process.env.SYNC_PASSWORD;
@@ -53,6 +54,8 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: 'No data provided' });
             }
 
+            console.log('Uploading data to Supabase...', Object.keys(data).length, 'lists');
+
             // Upload data to Supabase
             const response = await fetch(`${SUPABASE_URL}/rest/v1/flashcards_sync`, {
                 method: 'POST',
@@ -65,20 +68,25 @@ export default async function handler(req, res) {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Supabase upload error:', errorText);
-                return res.status(500).json({ error: 'Failed to save data' });
+                console.error('Supabase upload error:', response.status, errorText);
+                return res.status(500).json({ error: 'Failed to save data to Supabase' });
             }
 
             const result = await response.json();
+            console.log('Upload successful:', result[0].id);
 
             return res.status(200).json({
                 success: true,
                 message: 'Data uploaded successfully',
                 id: result[0].id,
-                timestamp: result[0].timestamp
+                timestamp: result[0].timestamp,
+                listsCount: Object.keys(data).length,
+                totalCards: Object.values(data).reduce((sum, cards) => sum + cards.length, 0)
             });
         }
         else if (action === 'download') {
+            console.log('Downloading data from Supabase...');
+
             // Download latest data from Supabase
             const response = await fetch(
                 `${SUPABASE_URL}/rest/v1/flashcards_sync?select=*&order=id.desc&limit=1`,
@@ -93,23 +101,29 @@ export default async function handler(req, res) {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Supabase download error:', errorText);
-                return res.status(500).json({ error: 'Failed to fetch data' });
+                console.error('Supabase download error:', response.status, errorText);
+                return res.status(500).json({ error: 'Failed to fetch data from Supabase' });
             }
 
             const result = await response.json();
+            console.log('Download result:', result.length, 'records found');
 
             if (!result || result.length === 0) {
                 return res.status(404).json({ error: 'No data found' });
             }
 
+            const latest = result[0];
             return res.status(200).json({
                 success: true,
-                data: result[0].data,
-                timestamp: result[0].timestamp
+                data: latest.data,
+                timestamp: latest.timestamp,
+                listsCount: Object.keys(latest.data).length,
+                totalCards: Object.values(latest.data).reduce((sum, cards) => sum + cards.length, 0)
             });
         }
         else if (action === 'info') {
+            console.log('Getting server info...');
+
             // Get server info
             const response = await fetch(
                 `${SUPABASE_URL}/rest/v1/flashcards_sync?select=*&order=id.desc&limit=1`,
@@ -124,18 +138,20 @@ export default async function handler(req, res) {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Supabase info error:', errorText);
-                return res.status(500).json({ error: 'Failed to fetch info' });
+                console.error('Supabase info error:', response.status, errorText);
+                return res.status(500).json({ error: 'Failed to fetch info from Supabase' });
             }
 
             const result = await response.json();
             const hasData = result && result.length > 0;
+            console.log('Info result:', hasData ? 'Data exists' : 'No data');
 
             return res.status(200).json({
                 success: true,
                 hasData: hasData,
                 timestamp: hasData ? result[0].timestamp : null,
-                listsCount: hasData ? Object.keys(result[0].data).length : 0
+                listsCount: hasData ? Object.keys(result[0].data).length : 0,
+                totalCards: hasData ? Object.values(result[0].data).reduce((sum, cards) => sum + cards.length, 0) : 0
             });
         }
         else {
