@@ -56,8 +56,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const params = new URL(window.location).searchParams;
     if (params.get('page') === 'flashcards') {
         flashCardsTool = new FlashcardsTool();
-    } else {
+    } else if (params.get('page') === 'vocab') {
         vocabTool = new VocabularyTool();
+    } else {
+        exerciseTool = new ExerciseTool();
     }
 
 
