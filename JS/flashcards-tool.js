@@ -701,7 +701,8 @@ export class FlashcardsTool {
                 const activeCard = document.querySelector('.flashcard');
                 if (activeCard) {
                     const idx = activeCard.dataset.index;
-                    const text = this.flashcards[idx].german + ',' + this.flashcards[idx]?.sentence;
+                    const sentence = this.flashcards[idx]?.sentence ? `, ${this.flashcards[idx].sentence}` : '';
+                    const text = this.flashcards[idx].german + ',' + sentence;
                     // adding word and sentence together
                     const lang = 'de-DE';
                     this.speakWord(text, 0.8, lang);

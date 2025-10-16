@@ -1580,7 +1580,7 @@ export class VocabularyTool {
             <div class="mt-4">
                 <label class="block text-sm font-medium mb-2">Add to list:</label>
                 <div class="flex gap-2">
-                    <select id="batch-list-select" class="flex-1 p-2 border rounded">
+                    <select id="batch-list-select" class="flex-1 p-2 border rounded max-w-[50%]">
                         <option value="">Select a list...</option>
                     </select>
                     <input id="batch-new-list-name" type="text" class="flex-1 p-2 border rounded" placeholder="Or create new list">

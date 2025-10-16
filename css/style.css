@@ -18,6 +18,7 @@ body.dark-mode {
 .dark-mode #ar-mode-dropdown-btn,
 .dark-mode #ar-mode-dropdown-menu,
 .dark-mode #ar-summary,
+.dark-mode #batch-add-to-flash-modal div,
 .dark-mode #sync-data-modal div,
 .dark-mode #add-flashcards-modal div,
 .dark-mode #ar-detailed-results div:not(.sentence-comparison),
@@ -27,6 +28,10 @@ body.dark-mode {
     background-color: rgb(12, 12, 23) !important;
     color: white !important;
     border-color: #444 !important;
+}
+
+.dark-mode #vocab-tool-container {
+    border: 1px solid #444;
 }
 
 .dark-mode .sentence-comparison {
@@ -97,6 +102,10 @@ body.dark-mode {
 }
 
 .dark-mode .flashcard-back p {
+    color: rgb(182, 179, 179) !important;
+}
+
+.dark-mode #ar-detailed-results .text-gray-700 {
     color: rgb(182, 179, 179) !important;
 }
 
