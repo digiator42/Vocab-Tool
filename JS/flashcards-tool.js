@@ -22,6 +22,21 @@ export class FlashcardsTool {
         AOS.init();
     }
 
+
+    sanitizeInput(input) {
+        const substitutions = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#x27;',
+            '/': '&#x2F;'
+        };
+
+        const substituted = input.replace(/[&<>"'/]/g, (match) => substitutions[match]);
+        return substituted;
+    }
+
     saveFlashcards() {
         localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
         this.updateCurrentCustomList();
@@ -682,11 +697,11 @@ export class FlashcardsTool {
 
         // Playing audio event listener with v keyword for speak-btn
         document.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'v') {
+            if (e.key.toLowerCase() === 'v' && document.activeElement === document.body) {
                 const activeCard = document.querySelector('.flashcard');
                 if (activeCard) {
                     const idx = activeCard.dataset.index;
-                    const text = this.flashcards[idx].german + ',' + this.flashcards[idx].sentence;
+                    const text = this.flashcards[idx].german + ',' + this.flashcards[idx]?.sentence;
                     // adding word and sentence together
                     const lang = 'de-DE';
                     this.speakWord(text, 0.8, lang);
@@ -719,7 +734,7 @@ export class FlashcardsTool {
         }
 
         const newCards = [];
-        raw.split('\n').forEach(line => {
+        this.sanitizeInput(raw).split('\n').forEach(line => {
             line = line.trim();
             if (!line) return;
 
@@ -750,7 +765,7 @@ export class FlashcardsTool {
         });
 
         if (newCards.length > 0) {
-            this.customLists[listName] = newCards;
+            this.customLists[this.sanitizeInput(listName)] = newCards;
             localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
             document.getElementById('new-flashcards-input').value = '';
             document.getElementById('list-name-input').value = '';

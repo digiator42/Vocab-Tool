@@ -2087,7 +2087,7 @@ export class VocabularyTool {
             <div class="mb-4 flex flex-wrap gap-4 items-center">
                 <div class="flex items-center space-x-2">
                     <span class="text-sm font-medium">Mode:</span>
-                    <div class="relative">
+                    <div id="ative-recall-dropdown" class="relative">
                         <button id="ar-mode-dropdown-btn" class="w-48 p-2 border rounded text-sm bg-white text-left flex justify-between items-center">
                             <span id="ar-mode-display">Normal</span>
                             <span>▼</span>

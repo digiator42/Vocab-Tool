@@ -52,6 +52,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    if (localStorage.getItem('theme') === 'dark-mode') {
+        document.body.classList.add('dark-mode');
+    }
+
+    const toggleBtn = document.getElementById('toggleTheme');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('dark-mode');
+            console.log('Theme toggled. Dark mode:', isDark, document.body.classList);
+            if (isDark) {
+                localStorage.setItem('theme', 'dark-mode');
+            } else {
+                localStorage.removeItem('theme');
+            }
+        });
+    }
+
     // Initialize the default tool based on URL parameter
     const params = new URL(window.location).searchParams;
     if (params.get('page') === 'flashcards') {

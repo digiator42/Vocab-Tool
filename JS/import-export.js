@@ -9,6 +9,20 @@ export class ImportExportManager {
         this.setupEventListeners();
     }
 
+    sanitizeInput(input) {
+        const substitutions = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#x27;',
+            '/': '&#x2F;'
+        };
+
+        const substituted = input.replace(/[&<>"'/]/g, (match) => substitutions[match]);
+        return substituted;
+    }
+
     async loadInitialData() {
         let customLists = JSON.parse(localStorage.getItem('customGermanLists') || '{}');
         if (!customLists || Object.keys(customLists).length === 0) {
@@ -146,37 +160,53 @@ export class ImportExportManager {
 
             const importedData = JSON.parse(trimmedData);
 
-            // Validate the structure
-            if (typeof importedData !== 'object' || Array.isArray(importedData)) {
-                throw new Error('Root must be an object');
+            // SANITIZE THE PARSED DATA
+            const sanitizedData = {};
+            for (const [name, cards] of Object.entries(importedData)) {
+                // Sanitize the list name
+                const sanitizedName = this.sanitizeInput(name);
+
+                if (!Array.isArray(cards)) {
+                    console.warn(`Skipping "${sanitizedName}" - not an array`);
+                    continue;
+                }
+
+                // Sanitize each card in the array
+                sanitizedData[sanitizedName] = cards.map((card, index) => {
+                    // Skip invalid cards
+                    if (!card || typeof card !== 'object') {
+                        console.warn(`Skipping card ${index} in "${sanitizedName}" - not an object`);
+                        return null;
+                    }
+
+                    // Sanitize all card fields
+                    return {
+                        german: this.sanitizeInput(card.german || ''),
+                        english: this.sanitizeInput(card.english || ''),
+                        sentence: this.sanitizeInput(card.sentence || ''),
+                        sentenceTranslation: this.sanitizeInput(card.sentenceTranslation || ''),
+                        mastered: !!card.mastered
+                    };
+                }).filter(card => card !== null); // Remove null entries
+
+                // Remove empty arrays after filtering
+                if (sanitizedData[sanitizedName].length === 0) {
+                    delete sanitizedData[sanitizedName];
+                    console.warn(`Removed "${sanitizedName}" - no valid cards after sanitization`);
+                }
             }
 
-            if (Object.keys(importedData).length === 0) {
-                throw new Error('No lists found in import data');
+            // Use the sanitized data instead of the original importedData
+            if (Object.keys(sanitizedData).length === 0) {
+                throw new Error('No valid lists found after sanitization');
             }
 
+            // Continue with the rest of your function using sanitizedData
             let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
             let importedCount = 0;
             let listCount = 0;
 
-            for (const [name, cards] of Object.entries(importedData)) {
-                if (!Array.isArray(cards)) {
-                    console.warn(`Skipping "${name}" - not an array`);
-                    continue;
-                }
-
-                if (cards.length === 0) {
-                    console.warn(`Skipping "${name}" - empty list`);
-                    continue;
-                }
-
-                // Validate first card has required fields
-                const firstCard = cards[0];
-                if (!firstCard.german || !firstCard.english) {
-                    console.warn(`Skipping "${name}" - missing german/english fields`);
-                    continue;
-                }
-
+            for (const [name, cards] of Object.entries(sanitizedData)) {
                 listCount++;
 
                 if (!customLists[name]) {
@@ -185,23 +215,10 @@ export class ImportExportManager {
 
                 const existing = new Set(customLists[name].map(c => c.german + '|' + c.english));
 
-                cards.forEach((card, index) => {
-                    // Validate required fields for each card
-                    if (!card.german || !card.english) {
-                        console.warn(`Skipping card ${index} in "${name}" - missing german/english fields`);
-                        return;
-                    }
-
+                cards.forEach((card) => {
                     const key = card.german + '|' + card.english;
                     if (!existing.has(key)) {
-                        // Handle both old and new format with proper defaults
-                        customLists[name].push({
-                            german: card.german,
-                            english: card.english,
-                            sentence: card.sentence || '',
-                            sentenceTranslation: card.sentenceTranslation || '',
-                            mastered: !!card.mastered
-                        });
+                        customLists[name].push(card);
                         importedCount++;
                         existing.add(key);
                     }
@@ -213,11 +230,12 @@ export class ImportExportManager {
             }
 
             localStorage.setItem('customGermanLists', JSON.stringify(customLists));
-            jsonArea.value = JSON.stringify(importedData, null, 2);
+
+            // Display the sanitized data in textarea
+            jsonArea.value = JSON.stringify(sanitizedData, null, 2);
 
             this.showNotification(`Imported ${importedCount} new flashcards from ${listCount} lists${type === 'text' ? ' from text' : ''}.`);
 
-            // Reload after a short delay to show notification
             setTimeout(() => {
                 location.reload();
             }, 1000);
