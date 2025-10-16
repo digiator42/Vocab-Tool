@@ -178,8 +178,8 @@ export class ExerciseTool {
 
         // Soft Tailwind-like color palette
         const colors = [
-            "#fef9c3", // yellow-100
-            "#e0f2fe", // sky-100
+            "#ddd366ff", // yellow-100
+            "#88bde1ff", // sky-100
             "#fce7f3", // pink-100
             "#d1fae5", // green-100
             "#ede9fe", // purple-100

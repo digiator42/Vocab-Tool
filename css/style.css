@@ -15,6 +15,7 @@ body.dark-mode {
 .dark-mode textarea,
 .dark-mode #exercise-tool,
 .dark-mode #exercise-tool div,
+.dark-mode #exercise-tool section,
 .dark-mode #ar-mode-dropdown-btn,
 .dark-mode #ar-mode-dropdown-menu,
 .dark-mode #ar-summary,
@@ -28,6 +29,46 @@ body.dark-mode {
     background-color: rgb(12, 12, 23) !important;
     color: white !important;
     border-color: #444 !important;
+}
+
+.dark-mode #exercise-tool {
+    border: 1px solid #444;
+}
+
+.dark-mode #grammerContainer table {
+    color: rgb(175, 173, 173) !important;
+    /* lighter gray for better contrast */
+    font-weight: 600;
+    /* semi-bold */
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.dark-mode #grammerContainer table th,
+.dark-mode #grammerContainer table td {
+    padding: 8px 12px;
+    border: 1px solid #444;
+    font-weight: bold;
+    text-shadow: 0 0 1px rgba(255, 255, 255, 0.1);
+    /* subtle glow */
+}
+
+.dark-mode #grammerContainer table tr:nth-child(even) {
+    background-color: #1a1a2e;
+    /* alternating row color */
+}
+
+.dark-mode #grammerContainer table tr:hover {
+    background-color: #2a2a3e;
+    /* hover effect */
+    transition: background-color 0.2s ease-in-out;
+}
+
+.dark-mode #grammerContainer ul,
+.dark-mode #grammerContainer h3,
+.dark-mode #grammerContainer h4,
+.dark-mode #grammerContainer p {
+    color: rgb(251, 249, 249) !important;
 }
 
 .dark-mode #vocab-tool-container {
@@ -107,6 +148,17 @@ body.dark-mode {
 
 .dark-mode #ar-detailed-results .text-gray-700 {
     color: rgb(182, 179, 179) !important;
+}
+
+#grammerContainer table tr:nth-child(even) {
+    background-color: #eaeaec;
+    /* alternating row color */
+}
+
+#grammerContainer table tr:hover {
+    background-color: #ceced2;
+    /* hover effect */
+    transition: background-color 0.2s ease-in-out;
 }
 
 .tooltip {
