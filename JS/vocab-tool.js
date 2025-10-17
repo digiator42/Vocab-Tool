@@ -2393,7 +2393,8 @@ export class VocabularyTool {
         }
 
         if (this.activeRecallMode === 'beginner' && this.currentSentenceIndex >= 0) {
-            const sentence = this.sentences[this.currentSentenceIndex].replace(/'|,/g, '').trim();
+            // removes all Unicode punctuation
+            const sentence = this.sentences[this.currentSentenceIndex].replace(/[\p{P}]/gu, '').trim();
             const words = sentence.split(/\s+/);
 
             // Create dashed version, but reveal words that user has already typed correctly
@@ -2718,7 +2719,8 @@ export class VocabularyTool {
 
     checkAnswer() {
         const userInput = document.getElementById('ar-user-input').value.trim();
-        const correctSentence = this.sentences[this.currentSentenceIndex].replace(/'|,/g, '').trim();
+        // removes all Unicode punctuation
+        const correctSentence = this.sentences[this.currentSentenceIndex].replace(/[\p{P}]/gu, '').trim();
         console.log('--->>> ', `{${correctSentence}}`);
 
         if (!userInput) {

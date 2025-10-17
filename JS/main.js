@@ -13,6 +13,26 @@ document.addEventListener('DOMContentLoaded', function () {
         var browser = chrome;
     }
 
+    const toggleBtn = document.getElementById('toggleTheme');
+
+    if (localStorage.getItem('theme') === 'dark-mode') {
+        document.body.classList.add('dark-mode');
+        toggleBtn.innerHTML = '☀️';
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('dark-mode');
+            console.log('Theme toggled. Dark mode:', isDark, document.body.classList);
+            toggleBtn.innerHTML = isDark ? '☀️' : '🌙';
+            if (isDark) {
+                localStorage.setItem('theme', 'dark-mode');
+            } else {
+                localStorage.removeItem('theme');
+            }
+        });
+    }
+
     // Initialize all modules
     const tabManager = new TabManager();
     const importExportManager = new ImportExportManager();
@@ -51,23 +71,6 @@ document.addEventListener('DOMContentLoaded', function () {
             window.exerciseTool = exerciseTool;
         }
     });
-
-    if (localStorage.getItem('theme') === 'dark-mode') {
-        document.body.classList.add('dark-mode');
-    }
-
-    const toggleBtn = document.getElementById('toggleTheme');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            const isDark = document.body.classList.toggle('dark-mode');
-            console.log('Theme toggled. Dark mode:', isDark, document.body.classList);
-            if (isDark) {
-                localStorage.setItem('theme', 'dark-mode');
-            } else {
-                localStorage.removeItem('theme');
-            }
-        });
-    }
 
     // Initialize the default tool based on URL parameter
     const params = new URL(window.location).searchParams;
