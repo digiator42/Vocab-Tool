@@ -119,16 +119,15 @@ body.dark-mode {
 
 .dark-mode .highlighted:hover {
     background-color: rgb(136, 114, 6);
-    color: #030e1e !important;
+    color: #1e0603 !important;
+}
+
+.dark-mode .multi-highlighted:hover {
+    background-color: rgba(27, 62, 117, 0.2) !important;
 }
 
 .dark-mode .bg-gray-100 {
     background-color: rgb(18, 18, 30) !important;
-}
-
-.dark-mode #output span:hover {
-    background-color: rgb(251, 235, 156);
-    color: #030e1e !important;
 }
 
 .dark-mode .group-tooltip {
