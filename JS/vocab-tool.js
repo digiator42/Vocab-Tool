@@ -1284,7 +1284,7 @@ export class VocabularyTool {
         modal.id = "add-to-flash-modal";
         modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden";
         modal.innerHTML = `
-            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+            <div id="single-add-model" class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
                 <button id="close-add-to-flash-modal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">&times;</button>
                 <h3 class="text-lg font-bold text-indigo-700 mb-2">Add to Flashcards</h3>
                 <div id="selected-word-preview" class="mb-4 text-center text-lg font-semibold text-gray-800"></div>
@@ -1583,7 +1583,7 @@ export class VocabularyTool {
                     <select id="batch-list-select" class="flex-1 p-2 border rounded max-w-[50%]">
                         <option value="">Select a list...</option>
                     </select>
-                    <input id="batch-new-list-name" type="text" class="flex-1 p-2 border rounded" placeholder="Or create new list">
+                    <input id="batch-new-list-name" type="text" class="flex-1 p-2 border rounded max-w-md" placeholder="Or create new list">
                 </div>
             </div>
             

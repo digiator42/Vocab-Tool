@@ -6,6 +6,7 @@ body.dark-mode {
 .dark-mode .container,
 .dark-mode .main-content,
 .dark-mode #vocab-tool-container,
+.dark-mode #add-to-flash-modal div,
 .dark-mode #flashcard-tool-container,
 .dark-mode #active-recall-tool,
 .dark-mode #ar-current-sentence,
@@ -32,16 +33,22 @@ body.dark-mode {
     border-color: #444 !important;
 }
 
-.dark-mode #ar-summary > div > * {
+.dark-mode #output>span:not(.highlighted):not(.multi-highlighted):hover {
+    background-color: rgb(255, 213, 0);
+    color: black;
+}
+
+.dark-mode #ar-summary>div>* {
     padding: 0.75rem;
     background-color: #0a0a0a;
     border: 1px solid #94a3b8;
     border-radius: 0.5rem;
 }
 
-.dark-mode #ar-mode-dropdown-menu > button:hover {
+.dark-mode #ar-mode-dropdown-menu>button:hover {
     background-color: #454545;
 }
+
 /* 
 .dark-mode .sentence-comparison > #missing {
     color: #f87171;
