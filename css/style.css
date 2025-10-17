@@ -19,6 +19,7 @@ body.dark-mode {
 .dark-mode #ar-mode-dropdown-btn,
 .dark-mode #ar-mode-dropdown-menu,
 .dark-mode #ar-summary,
+.dark-mode #ar-hint-display,
 .dark-mode #batch-add-to-flash-modal div,
 .dark-mode #sync-data-modal div,
 .dark-mode #add-flashcards-modal div,
@@ -30,6 +31,24 @@ body.dark-mode {
     color: white !important;
     border-color: #444 !important;
 }
+
+.dark-mode #ar-summary > div > * {
+    padding: 0.75rem;
+    background-color: #0a0a0a;
+    border: 1px solid #94a3b8;
+    border-radius: 0.5rem;
+}
+
+.dark-mode #ar-mode-dropdown-menu > button:hover {
+    background-color: #454545;
+}
+/* 
+.dark-mode .sentence-comparison > #missing {
+    color: #f87171;
+    background-color: #4b5563;
+    padding: 0.15rem 0.15rem;
+    border-radius: 0.25rem;
+} */
 
 .dark-mode #exercise-tool {
     border: 1px solid #444;

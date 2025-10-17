@@ -3039,7 +3039,7 @@ export class VocabularyTool {
             if (wordObj) {
                 if (wordObj.isMissing) {
                     // Missing word - show in brackets
-                    displayHTML += `<span class="text-red-600 bg-red-100 px-1 rounded" title="Missing word">[${wordObj.correct}]</span> `;
+                    displayHTML += `<span id="missing" class="text-red-600 px-1 rounded" title="Missing word">${wordObj.correct}</span> `;
                 } else if (wordObj.isFuzzyMatch) {
                     // Fuzzy match - show with correction hint
                     displayHTML += `<span class="text-yellow-600 px-1 rounded relative group" title="Close match: ${wordObj.user} → ${wordObj.correct}">
