@@ -7,6 +7,7 @@ body.dark-mode {
 .dark-mode .main-content,
 .dark-mode #vocab-tool-container,
 .dark-mode #add-to-flash-modal div,
+.dark-mode #edit-flashcard-modal div,
 .dark-mode #flashcard-tool-container,
 .dark-mode #active-recall-tool,
 .dark-mode #ar-current-sentence,
