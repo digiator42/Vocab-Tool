@@ -16,6 +16,7 @@ export class VocabularyTool {
         this.rate = 1;
         this.useOfflineSpeak = false;
         this.killianVoice = null;
+        this.activeRecallBtn = null;
         this.isSpeaking = false;
         this.isPaused = false;
         this.isProcessed = false;
@@ -2047,6 +2048,14 @@ export class VocabularyTool {
                 slowVoice.dispatchEvent(new Event('change'));
             });
         }
+
+        const offlineSpeakRecall = document.getElementById('offline-speak-recall');
+
+        offlineSpeakRecall.addEventListener('change', (e) => {
+            this.useOfflineSpeak = e.target.checked;
+            console.log("On Off set to:", !this.useOfflineSpeak ? "online" : "offline");
+        });
+
         const rateSliderActiveRecall = document.getElementById('rateSliderActiveRecall');
         const rateSliderSpanActiveRecall = document.getElementById('rateSliderSpanActiveRecall');
         const activeRecallContainer = document.getElementById('active-recall-tool');
@@ -2423,7 +2432,7 @@ export class VocabularyTool {
         document.body.classList.remove('overflow-hidden');
         document.body.classList.add('overflow-auto');
     }
-    
+
     // Update focus mode indicator to show controls hint
     addFocusModeIndicator() {
         const indicator = document.createElement('div');
@@ -2500,6 +2509,10 @@ export class VocabularyTool {
                 <div class="flex items-center space-x-2">
                     <input type="checkbox" id="ar-slow-voice" class="rounded">
                     <label for="ar-slow-voice" class="text-sm font-medium">Slow Voice</label>
+                </div>
+                <div class="flex flex-row items-center space-x-1">
+                    <input type="checkbox" id="offline-speak-recall" class="rounded">
+                    <label for="offline-speak-recall" class="text-sm font-medium">Offline Mode</label>
                 </div>
                 <input type="range" id="rateSliderActiveRecall" min="0.5" max="1.5" step="0.1" value="0.8">
                 <label for="rateSliderActiveRecall"></label>
@@ -2898,15 +2911,15 @@ export class VocabularyTool {
     }
 
     addActiveRecallButton() {
-        const activeRecallBtn = document.createElement('button');
-        activeRecallBtn.id = 'active-recall-btn';
-        activeRecallBtn.className = 'mt-5 px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700';
-        activeRecallBtn.innerHTML = '🎯 Active Recall';
-        activeRecallBtn.addEventListener('click', () => this.toggleActiveRecall());
+        this.activeRecallBtn = document.createElement('button');
+        this.activeRecallBtn.id = 'active-recall-btn';
+        this.activeRecallBtn.className = 'mt-5 px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700';
+        this.activeRecallBtn.innerHTML = '🎯 Active Recall';
+        this.activeRecallBtn.addEventListener('click', () => this.toggleActiveRecall());
 
         // Insert after the Add to Flashcards button
         const addToFlashBtn = document.getElementById('addToFlashBtn');
-        this.output.insertAdjacentElement('afterend', activeRecallBtn);
+        this.output.insertAdjacentElement('afterend', this.activeRecallBtn);
     }
 
     toggleActiveRecall() {
@@ -2918,6 +2931,11 @@ export class VocabularyTool {
             this.originalText = this.input.value;
         }
 
+        // Hide all elements in vocab-tool except output, selectionTooltip, and essential controls
+        const vocabTool = document.getElementById('vocab-tool');
+        const vocabToolContainer = document.getElementById('vocab-tool-div');
+
+
         if (!isVisible) {
             this.prepareActiveRecall();
             activeRecallTool.classList.remove('hidden');
@@ -2925,13 +2943,51 @@ export class VocabularyTool {
             this.storySelect.disabled = true;
             this.input.value = '';
             activeRecallTool.scrollIntoView({ behavior: 'smooth' });
+            this.processBtn.click();
             this.output.innerHTML = '';
+            const elementsToHide = Array.from(vocabTool.children).filter(
+                child => !['active-recall-tool', 'active-recall-btn'].includes(child.id)
+            );
+
+            elementsToHide.forEach(element => {
+                element.dataset.originalDisplay = element.style.display || '';
+                element.style.display = 'none';
+            });
+
+            if (vocabToolContainer) {
+                vocabToolContainer.dataset.originalDisplay = vocabToolContainer.style.display || '';
+                vocabToolContainer.style.display = 'none';
+            }
+            this.activeRecallBtn.innerHTML = '❌ Exit Active Recall';
+            console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
         } else {
+            console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
             activeRecallTool.classList.add('hidden');
             this.resetActiveRecall();
             this.input.disabled = false;
             this.storySelect.disabled = false;
             this.input.value = this.originalText;
+
+            // Show all hidden elements
+            const elementsToShow = Array.from(vocabTool.children).filter(
+                child => child.hasAttribute('data-original-display')
+            );
+
+            elementsToShow.forEach(element => {
+                const originalDisplay = element.dataset.originalDisplay;
+                element.style.display = originalDisplay || '';
+                delete element.dataset.originalDisplay;
+            });
+
+            const vocabToolContainer = document.getElementById('vocab-tool-div');
+            if (vocabToolContainer && vocabToolContainer.hasAttribute('data-original-display')) {
+                const originalDisplay = vocabToolContainer.dataset.originalDisplay;
+                vocabToolContainer.style.display = originalDisplay || '';
+                delete vocabToolContainer.dataset.originalDisplay;
+            }
+            this.activeRecallBtn.innerHTML = '🎯 Active Recall';
+
+            this.processBtn.click();
         }
     }
 
