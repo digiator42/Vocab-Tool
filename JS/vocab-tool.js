@@ -2167,6 +2167,9 @@ export class VocabularyTool {
         console.log('Entering focus mode');
         this.isFocusMode = true;
 
+        // Reset tool tips
+        this.processBtn.click()
+
         // Store original state
         this.originalState = {
             bodyOverflow: document.body.style.overflow,
@@ -2246,6 +2249,7 @@ export class VocabularyTool {
         const originalRateSlider = document.getElementById('rateSlider');
         const originalRateSpan = document.getElementById('rateSliderSpan');
         const originalOfflineCheckbox = document.getElementById('offline-speak');
+        const originalAddToFlashBtn = document.getElementById('addToFlashBtn');
 
         // Create focus controls container using innerHTML
         const focusControls = document.createElement('div');
@@ -2263,6 +2267,10 @@ export class VocabularyTool {
         
         <button id="focus-stop-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors">
             Stop Speech
+        </button>
+        
+        <button id="focus-add-flash-btn" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">
+            ${originalAddToFlashBtn ? originalAddToFlashBtn.innerText : 'Add Flash'}
         </button>
         
         <div class="flex items-center gap-2">
@@ -2284,6 +2292,7 @@ export class VocabularyTool {
         const focusGoBtn = focusControls.querySelector('#focus-go-btn');
         const focusPlayBtn = focusControls.querySelector('#focus-play-btn');
         const focusStopBtn = focusControls.querySelector('#focus-stop-btn');
+        const focusAddFlashBtn = focusControls.querySelector('#focus-add-flash-btn');
         const focusRateSlider = focusControls.querySelector('#focus-rate-slider');
         const focusRateSpan = focusControls.querySelector('#focus-rate-span');
         const focusOfflineCheckbox = focusControls.querySelector('#focus-offline-checkbox');
@@ -2292,6 +2301,16 @@ export class VocabularyTool {
         focusGoBtn.onclick = () => originalProcessBtn.click();
         focusPlayBtn.onclick = () => originalPlayBtn.click();
         focusStopBtn.onclick = () => originalStopBtn.click();
+
+        // Add to Flash button event listener
+        if (originalAddToFlashBtn) {
+            focusAddFlashBtn.onclick = () => originalAddToFlashBtn.click();
+        } else {
+            // If the original button doesn't exist, disable this one
+            focusAddFlashBtn.disabled = true;
+            focusAddFlashBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
         focusExitBtn.onclick = () => this.exitFocusMode();
 
         focusRateSlider.oninput = (e) => {
@@ -2308,13 +2327,16 @@ export class VocabularyTool {
 
         document.body.appendChild(focusControls);
     }
-    
+
     // Enhanced exit focus mode
     exitFocusMode() {
         if (!this.isFocusMode) return;
 
         console.log('Exiting focus mode');
         this.isFocusMode = false;
+
+        // Reset tool tips
+        this.processBtn.click()
 
         // Remove focus controls
         const focusControls = document.getElementById('focus-controls');
