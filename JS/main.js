@@ -7,6 +7,8 @@ import { ExerciseTool } from './exercise-tool.js';
 import { germanStories } from './stories.js';
 import { SyncManager } from './sync-manager.js';
 
+const processBtn = document.getElementById("processBtn");
+
 document.addEventListener('DOMContentLoaded', function () {
 
     if (typeof browser === "undefined") {
@@ -90,15 +92,20 @@ document.addEventListener('DOMContentLoaded', function () {
     for (const [key, value] of Object.entries(germanStories)) {
         console.log(key);
         const option = document.createElement('option');
-        option.value = key;
+        option.value = key;  // Store the key (story name)
         option.textContent = value.title;
         storySelect.appendChild(option);
     }
 
     function displayStory() {
-        const originalText = germanStories[storySelect.value].text;
+        const selectedKey = storySelect.value;  // Get the selected key
+        const originalText = germanStories[selectedKey].text;  // Use key to get text from germanStories
         const formattedText = formatStoryText(originalText);
         storyContainer.value = formattedText;
+
+        // Save selected story KEY to localStorage
+        localStorage.setItem('lastSelectedStory', selectedKey);
+        processBtn.click();  // Trigger processing of the new story
     }
 
     function formatStoryText(text) {
@@ -114,35 +121,31 @@ document.addEventListener('DOMContentLoaded', function () {
             currentChunk.push(word);
             wordCount++;
 
-            // Check if we've reached or exceeded 52 words
-            if (wordCount >= 52) {
-                // Look ahead to find the next period
-                let periodIndex = -1;
-
-                // Search for the next period in the remaining words
+            // Check if we've reached 52 words AND the current word ends with a period
+            if (wordCount >= 52 && word.endsWith('.')) {
+                result.push(currentChunk.join(' '));
+                currentChunk = [];
+                wordCount = 0;
+            }
+            // If we've reached 52 words but no period, keep going until we find one
+            else if (wordCount >= 52) {
+                // Continue adding words until we find a period
+                let periodFound = false;
                 for (let j = i + 1; j < words.length; j++) {
-                    if (words[j].includes('.')) {
-                        periodIndex = j;
+                    currentChunk.push(words[j]);
+                    wordCount++;
+                    i = j; // Move the index forward
+
+                    if (words[j].endsWith('.')) {
+                        periodFound = true;
                         break;
                     }
                 }
 
-                // If we found a period nearby, include all words up to that period
-                if (periodIndex !== -1 && periodIndex - i <= 15) { // Look up to 15 words ahead
-                    // Add all words from current position to the period
-                    for (let k = i + 1; k <= periodIndex; k++) {
-                        currentChunk.push(words[k]);
-                    }
-                    i = periodIndex; // Skip ahead to the period
-                    result.push(currentChunk.join(' '));
-                    currentChunk = [];
-                    wordCount = 0;
-                } else {
-                    // If no nearby period, just split at current position
-                    result.push(currentChunk.join(' '));
-                    currentChunk = [];
-                    wordCount = 0;
-                }
+                // If we found a period (or reached end), add the chunk
+                result.push(currentChunk.join(' '));
+                currentChunk = [];
+                wordCount = 0;
             }
         }
 
@@ -154,5 +157,21 @@ document.addEventListener('DOMContentLoaded', function () {
         return result.join('\n\n');
     }
 
+    // Load last selected story from localStorage
+    function loadLastSelectedStory() {
+        const lastStoryKey = localStorage.getItem('lastSelectedStory');
+        if (lastStoryKey && germanStories[lastStoryKey]) {
+            storySelect.value = lastStoryKey;  // Set the dropdown to the saved key
+            displayStory();  // This will get the text from germanStories using the key
+        } else {
+            // If no saved story or invalid story, load the first one
+            storySelect.selectedIndex = 0;
+            displayStory();
+        }
+    }
+
     storySelect.addEventListener('change', displayStory);
+
+    // Initialize with the last selected story when page loads
+    loadLastSelectedStory();
 });
