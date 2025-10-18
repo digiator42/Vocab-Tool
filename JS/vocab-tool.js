@@ -2405,39 +2405,25 @@ export class VocabularyTool {
         // Get computed styles from the original output element
         const outputStyles = getComputedStyle(this.output);
 
-        this.output.className = 'focus-mode-output';
-        this.output.style.cssText = `
-        position: fixed !important;
-        top: 80px !important; /* Make space for controls */
-        left: 0 !important;
-        width: 100vw !important;
-        height: calc(100vh - 100px) !important; /* Account for controls */
-        margin: 0 !important;
-        padding: 2rem !important;
-        border: none !important;
-        border-radius: 0 !important;
-        z-index: 30 !important;
-        background: ${outputStyles.backgroundColor} !important;
-        color: ${outputStyles.color} !important;
-        overflow: auto !important;
-        font-size: 1.5rem !important;
-        line-height: 2 !important;
-        box-sizing: border-box !important;
-        font-family: inherit !important;
-    `;
+        // Apply Tailwind classes - use absolute positioning and let content flow naturally
+        this.output.className = 'focus-mode-output absolute top-28 mt-12 mx-10 left-4 right-4 z-30 bg-inherit text-inherit font-inherit p-8 text-[1.5rem] leading-loose min-h-screen';
 
-        // Style the selection tooltip
+        // Clear any inline styles
+        this.output.style.cssText = '';
+
+        // Style the selection tooltip with Tailwind
         if (this.selectionTooltip) {
-            this.selectionTooltip.style.zIndex = '10001';
+            this.selectionTooltip.classList.add('z-[10001]');
         }
 
         // Style any existing group-tooltip
         this.styleTooltipForFocusMode();
 
-        // Style the body
-        document.body.style.overflow = 'hidden';
+        // Allow normal browser scroll - this is key!
+        document.body.classList.remove('overflow-hidden');
+        document.body.classList.add('overflow-auto');
     }
-
+    
     // Update focus mode indicator to show controls hint
     addFocusModeIndicator() {
         const indicator = document.createElement('div');
