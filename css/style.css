@@ -27,7 +27,9 @@ body.dark-mode {
 .dark-mode #ar-detailed-results div:not(.sentence-comparison),
 .dark-mode #input,
 .dark-mode input,
-.dark-mode #output {
+.dark-mode #output,
+.dark-mode #focus-controls,
+.dark-mode #focus-controls span, label {
     background-color: rgb(12, 12, 23) !important;
     color: white !important;
     border-color: #444 !important;

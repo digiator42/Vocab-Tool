@@ -18,6 +18,7 @@ export class VocabularyTool {
         this.killianVoice = null;
         this.isSpeaking = false;
         this.isPaused = false;
+        this.isProcessed = false;
         this.utterance = null;
         this.currentUtterance = null;
         this.speechSynth = window.speechSynthesis;
@@ -33,6 +34,9 @@ export class VocabularyTool {
         this.currentGroupId = null;
         this.selectionGroups = new Map()
         this.groupTooltips = new Map(); // Map of groupId -> tooltip element
+        this.isFocusMode = false;
+        this.originalState = null;
+
         this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 
@@ -45,6 +49,7 @@ export class VocabularyTool {
         this.setupAddToFlashcardModal();
         this.setupSelectionSystem();
         this.setupActiveRecall();
+        this.setupFocusMode();
         // this.setupManualSelection();
         // this.setupTooltipHover();
         this.processBtn.click();
@@ -146,11 +151,15 @@ export class VocabularyTool {
             this.isPaused = false;
             this.utterance = null;
             if (this.playBtn) this.playBtn.textContent = 'Play';
+            const focusModePlayBTN = document.getElementById("focus-play-btn");
+            if (focusModePlayBTN) focusModePlayBTN.textContent = 'Play';
         };
 
         this.speechSynth.speak(this.utterance);
         this.isSpeaking = true;
         if (this.playBtn) this.playBtn.textContent = 'Pause';
+        const focusModePlayBTN = document.getElementById("focus-play-btn");
+        if (focusModePlayBTN) focusModePlayBTN.textContent = 'Pause';
     }
 
     populateVoiceDropdown() {
@@ -198,14 +207,17 @@ export class VocabularyTool {
 
     stopSpeech() {
         this.isStopSpeechRequested = !this.isStopSpeechRequested;
-        console.log(this.isStopSpeechRequested ? 'Stopping speech' : 'Speech activated');
+        const focusModeStopBtn = document.getElementById("focus-stop-btn");
+
         const stopSpeecBtn = document.getElementById("stopSpeechBtn");
         if (this.isStopSpeechRequested) {
             stopSpeecBtn.innerHTML = 'Activate Speech';
+            if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
             this.setStatus("Speech Stopped");
         }
         else {
             stopSpeecBtn.innerHTML = 'Stop Speech';
+            if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
             this.setStatus("Speech Activated");
         }
     }
@@ -1213,6 +1225,12 @@ export class VocabularyTool {
     setupEventListeners() {
         this.processBtn.addEventListener("click", () => {
             this.output.innerHTML = "";
+            this.isProcessed = !this.isProcessed;
+            this.processBtn.innerText = this.isProcessed ? "Reset" : "GO";
+            const focusModeGoBTN = document.getElementById("focus-go-btn");
+            if (focusModeGoBTN) {
+                focusModeGoBTN.innerText = this.processBtn.innerText;
+            }
             // In your processBtn click handler:
             this.tokenize(this.input.value).forEach((tok) => {
                 if (/^[A-Za-zÄÖÜäöüß]+$/.test(tok)) {
@@ -1233,6 +1251,7 @@ export class VocabularyTool {
 
         this.playBtn.addEventListener('click', () => {
             const text = this.input.value;
+            const focusModePlayBTN = document.getElementById("focus-play-btn");
 
             if (!this.isSpeaking) {
                 const selectedVoiceName = this.voiceSelect.value;
@@ -1245,6 +1264,9 @@ export class VocabularyTool {
                 this.speechSynth.resume();
                 this.isPaused = false;
                 playBtn.textContent = 'Pause';
+            }
+            if (focusModePlayBTN) {
+                focusModePlayBTN.textContent = playBtn.textContent;
             }
         });
 
@@ -1968,14 +1990,6 @@ export class VocabularyTool {
             }
         });
 
-        document.addEventListener('keydown', (e) => {
-            // Alt+Shift+F for repeat
-            if (e.altKey && e.shiftKey && e.key === 'R') {
-                e.preventDefault();
-                this.repeatAudio();
-            }
-        });
-
         const userInput = document.getElementById('ar-user-input');
         // Input handling (unchanged)
 
@@ -2043,39 +2057,412 @@ export class VocabularyTool {
             console.log('rate value - ', this.rate);
         })
 
-        document.addEventListener('keydown', (event) => {
+        document.addEventListener('keydown', (e) => {
             console.log('activated keydown active recall slider');
 
             let currentValue = Number(rateSliderActiveRecall.value);
             const step = Number(rateSliderActiveRecall.step) || 1;
 
-            if (event.ctrlKey && event.shiftKey && event.key === 'ArrowRight') {
+            if (e.ctrlKey && e.shiftKey && e.key === 'ArrowRight') {
                 currentValue = Math.min(Number(rateSliderActiveRecall.max), currentValue + step);
                 rateSliderActiveRecall.value = currentValue;
-                event.preventDefault();
-            } else if (event.ctrlKey && event.shiftKey && event.key === 'ArrowLeft') {
+                e.preventDefault();
+            } else if (e.ctrlKey && e.shiftKey && e.key === 'ArrowLeft') {
                 currentValue = Math.max(Number(rateSliderActiveRecall.min), currentValue - step);
                 rateSliderActiveRecall.value = currentValue;
-                event.preventDefault();
-            } else if (event.ctrlKey && event.shiftKey && event.key === ' ') {
+                e.preventDefault();
+            } else if (e.ctrlKey && e.shiftKey && e.key === ' ') {
                 slowVoice.checked = !slowVoice.checked;
                 this.useSlowVoice = slowVoice.checked;
-                event.preventDefault();
+                e.preventDefault();
                 console.log("Slow voice set to:", this.useSlowVoice)
             }
             // fuzzy match art+shift+f
-            else if (event.altKey && event.shiftKey && event.key === 'F') {
+            else if (e.altKey && e.shiftKey && e.key === 'F') {
                 fuzzyMatch.checked = !fuzzyMatch.checked;
                 this.useFuzzyMatching = fuzzyMatch.checked;
-                event.preventDefault();
+                e.preventDefault();
                 console.log("Fuzzy matching set to:", this.useFuzzyMatching);
             }
+            // // Alt+Shift+F for repeat
+            // else if (e.altKey && e.shiftKey && e.key === 'R') {
+            //     e.preventDefault();
+            //     this.repeatAudio();
+            // }
+            // // keyboard shortcut for focus mode
+            // if (e.altKey && e.shiftKey && e.key === 'G') {
+            //     e.preventDefault();
+            //     this.toggleFocusMode();
+            // }
+
+            // // Escape to exit focus mode
+            // if (this.isFocusMode && e.key === 'Escape') {
+            //     e.preventDefault();
+            //     this.toggleFocusMode();
+            // }
 
             rateSliderSpanActiveRecall.textContent = rateSliderActiveRecall.value;
             this.rate = rateSliderActiveRecall.value;
         });
 
         this.addActiveRecallButton();
+    }
+
+    // Enhanced focus mode with mobile support
+    setupFocusMode() {
+        document.addEventListener('keydown', (e) => {
+            // Check for Alt+Shift+G
+            if (e.altKey && e.shiftKey && e.key === 'G') {
+                e.preventDefault();
+                this.toggleFocusMode();
+            }
+
+            // Escape to exit focus mode
+            if (this.isFocusMode && e.key === 'Escape') {
+                e.preventDefault();
+                this.toggleFocusMode();
+            }
+        });
+
+        // Mobile: Add touch gesture for focus mode (optional)
+        this.setupMobileFocusModeGesture();
+    }
+
+    // Toggle focus mode
+    toggleFocusMode() {
+        if (this.isFocusMode) {
+            this.exitFocusMode();
+        } else {
+            this.enterFocusMode();
+        }
+    }
+
+    // Optional: Mobile gesture for focus mode
+    setupMobileFocusModeGesture() {
+        let touchStartY = 0;
+        let touchCount = 0;
+        let lastTouchTime = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 3) { // Three-finger touch
+                touchStartY = e.touches[0].clientY;
+                touchCount = e.touches.length;
+                lastTouchTime = Date.now();
+            }
+        });
+
+        document.addEventListener('touchend', (e) => {
+            if (touchCount === 3 && Date.now() - lastTouchTime < 1000) {
+                // Three-finger tap to toggle focus mode
+                this.toggleFocusMode();
+            }
+            touchCount = 0;
+        });
+    }
+
+    // Enhanced enter focus mode
+    enterFocusMode() {
+        if (this.isFocusMode) return;
+
+        console.log('Entering focus mode');
+        this.isFocusMode = true;
+
+        // Store original state
+        this.originalState = {
+            bodyOverflow: document.body.style.overflow,
+            bodyBg: document.body.style.backgroundColor,
+            outputClasses: this.output.className,
+            outputStyle: this.output.getAttribute('style') || ''
+        };
+
+        // Hide all elements in vocab-tool except output, selectionTooltip, and essential controls
+        const vocabTool = document.getElementById('vocab-tool');
+        const elementsToHide = Array.from(vocabTool.children).filter(
+            child => !['output', 'selectionTooltip'].includes(child.id)
+        );
+
+        elementsToHide.forEach(element => {
+            element.dataset.originalDisplay = element.style.display || '';
+            element.style.display = 'none';
+        });
+
+        const vocabToolContainer = document.getElementById('vocab-tool-div');
+        if (vocabToolContainer) {
+            vocabToolContainer.dataset.originalDisplay = vocabToolContainer.style.display || '';
+            vocabToolContainer.style.display = 'none';
+        }
+
+        // Create and show focus mode controls
+        this.createFocusControls();
+
+        // Apply focus mode styling
+        this.applyFocusModeStyles();
+
+        // Add focus mode indicator
+        this.addFocusModeIndicator();
+
+        // Setup observer to handle dynamically created tooltips
+        this.setupTooltipObserver();
+    }
+
+    // Setup MutationObserver to watch for dynamically created tooltips
+    setupTooltipObserver() {
+        // Create observer to watch for new tooltips
+        this.tooltipObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === 1) { // Element node
+                        // Check if this is the group-tooltip or contains it
+                        if (node.id === 'group-tooltip' || node.querySelector && node.querySelector('#group-tooltip')) {
+                            this.styleTooltipForFocusMode();
+                        }
+                    }
+                });
+            });
+        });
+
+        // Start observing
+        this.tooltipObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        // Also check if group-tooltip already exists
+        this.styleTooltipForFocusMode();
+    }
+
+    // Create focus mode controls
+    createFocusControls() {
+        // Remove existing focus controls if any
+        const existingControls = document.getElementById('focus-controls');
+        if (existingControls) {
+            existingControls.remove();
+        }
+
+        // Get references to original controls
+        const originalProcessBtn = document.getElementById('processBtn');
+        const originalPlayBtn = document.getElementById('playBtn');
+        const originalStopBtn = document.getElementById('stopSpeechBtn');
+        const originalRateSlider = document.getElementById('rateSlider');
+        const originalRateSpan = document.getElementById('rateSliderSpan');
+        const originalOfflineCheckbox = document.getElementById('offline-speak');
+
+        // Create focus controls container using innerHTML
+        const focusControls = document.createElement('div');
+        focusControls.id = 'focus-controls';
+        focusControls.className = 'fixed top-10 left-1/2 transform -translate-x-1/2 z-[10002] bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg flex gap-3 items-center min-w-[320px] justify-center';
+
+        focusControls.innerHTML = `
+        <button id="focus-go-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
+            ${originalProcessBtn.innerText}
+        </button>
+        
+        <button id="focus-play-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors">
+            ${originalPlayBtn.innerText}
+        </button>
+        
+        <button id="focus-stop-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors">
+            Stop Speech
+        </button>
+        
+        <div class="flex items-center gap-2">
+            <span id="focus-rate-span" class="text-sm text-gray-700">${originalRateSpan.textContent}</span>
+            <input id="focus-rate-slider" type="range" min="${originalRateSlider.min}" max="${originalRateSlider.max}" step="${originalRateSlider.step}" value="${originalRateSlider.value}" class="w-20">
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <input id="focus-offline-checkbox" type="checkbox" ${originalOfflineCheckbox.checked ? 'checked' : ''} class="rounded">
+            <label for="focus-offline-checkbox" class="text-sm font-medium text-gray-700">Offline</label>
+        </div>
+        
+        <button id="focus-exit-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
+            ❌ Exit
+        </button>
+    `;
+
+        // Add event listeners
+        const focusGoBtn = focusControls.querySelector('#focus-go-btn');
+        const focusPlayBtn = focusControls.querySelector('#focus-play-btn');
+        const focusStopBtn = focusControls.querySelector('#focus-stop-btn');
+        const focusRateSlider = focusControls.querySelector('#focus-rate-slider');
+        const focusRateSpan = focusControls.querySelector('#focus-rate-span');
+        const focusOfflineCheckbox = focusControls.querySelector('#focus-offline-checkbox');
+        const focusExitBtn = focusControls.querySelector('#focus-exit-btn');
+
+        focusGoBtn.onclick = () => originalProcessBtn.click();
+        focusPlayBtn.onclick = () => originalPlayBtn.click();
+        focusStopBtn.onclick = () => originalStopBtn.click();
+        focusExitBtn.onclick = () => this.exitFocusMode();
+
+        focusRateSlider.oninput = (e) => {
+            originalRateSlider.value = e.target.value;
+            focusRateSpan.textContent = e.target.value;
+            originalRateSpan.textContent = e.target.value;
+            originalRateSlider.dispatchEvent(new Event('input'));
+        };
+
+        focusOfflineCheckbox.onchange = (e) => {
+            originalOfflineCheckbox.checked = e.target.checked;
+            originalOfflineCheckbox.dispatchEvent(new Event('change'));
+        };
+
+        document.body.appendChild(focusControls);
+    }
+    
+    // Enhanced exit focus mode
+    exitFocusMode() {
+        if (!this.isFocusMode) return;
+
+        console.log('Exiting focus mode');
+        this.isFocusMode = false;
+
+        // Remove focus controls
+        const focusControls = document.getElementById('focus-controls');
+        if (focusControls) {
+            focusControls.remove();
+        }
+
+        // Stop observing for tooltips
+        if (this.tooltipObserver) {
+            this.tooltipObserver.disconnect();
+            this.tooltipObserver = null;
+        }
+
+        // Show all hidden elements
+        const vocabTool = document.getElementById('vocab-tool');
+        const elementsToShow = Array.from(vocabTool.children).filter(
+            child => child.hasAttribute('data-original-display')
+        );
+
+        elementsToShow.forEach(element => {
+            const originalDisplay = element.dataset.originalDisplay;
+            element.style.display = originalDisplay || '';
+            delete element.dataset.originalDisplay;
+        });
+
+        const vocabToolContainer = document.getElementById('vocab-tool-div');
+        if (vocabToolContainer && vocabToolContainer.hasAttribute('data-original-display')) {
+            const originalDisplay = vocabToolContainer.dataset.originalDisplay;
+            vocabToolContainer.style.display = originalDisplay || '';
+            delete vocabToolContainer.dataset.originalDisplay;
+        }
+
+        // Restore tooltip z-index if it exists
+        const groupTooltip = document.getElementById('group-tooltip');
+        if (groupTooltip && groupTooltip.dataset.focusModeStyled) {
+            groupTooltip.style.zIndex = ''; // Reset to original
+            delete groupTooltip.dataset.focusModeStyled;
+        }
+
+        // Restore original styling
+        this.restoreOriginalStyles();
+
+        // Remove focus mode indicator
+        this.removeFocusModeIndicator();
+    }
+
+    // Remove focus mode indicator
+    removeFocusModeIndicator() {
+        const indicator = document.getElementById('focus-mode-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+
+    // Style existing or new tooltips for focus mode
+    styleTooltipForFocusMode() {
+        const groupTooltip = document.getElementById('group-tooltip');
+        if (groupTooltip) {
+            groupTooltip.style.zIndex = '10001';
+            groupTooltip.dataset.focusModeStyled = 'true';
+        }
+    }
+
+    // Apply focus mode styles
+    applyFocusModeStyles() {
+        // Get computed styles from the original output element
+        const outputStyles = getComputedStyle(this.output);
+
+        this.output.className = 'focus-mode-output';
+        this.output.style.cssText = `
+        position: fixed !important;
+        top: 80px !important; /* Make space for controls */
+        left: 0 !important;
+        width: 100vw !important;
+        height: calc(100vh - 100px) !important; /* Account for controls */
+        margin: 0 !important;
+        padding: 2rem !important;
+        border: none !important;
+        border-radius: 0 !important;
+        z-index: 30 !important;
+        background: ${outputStyles.backgroundColor} !important;
+        color: ${outputStyles.color} !important;
+        overflow: auto !important;
+        font-size: 1.5rem !important;
+        line-height: 2 !important;
+        box-sizing: border-box !important;
+        font-family: inherit !important;
+    `;
+
+        // Style the selection tooltip
+        if (this.selectionTooltip) {
+            this.selectionTooltip.style.zIndex = '10001';
+        }
+
+        // Style any existing group-tooltip
+        this.styleTooltipForFocusMode();
+
+        // Style the body
+        document.body.style.overflow = 'hidden';
+    }
+
+    // Update focus mode indicator to show controls hint
+    addFocusModeIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'focus-mode-indicator';
+        indicator.innerHTML = `
+        <div style="
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #10b981;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 10003;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        ">
+            🎯 Focus Mode
+        </div>
+    `;
+        document.body.appendChild(indicator);
+    }
+
+    // Restore original styles
+    restoreOriginalStyles() {
+        // Restore output
+        if (this.originalState) {
+            this.output.className = this.originalState.outputClasses;
+            this.output.setAttribute('style', this.originalState.outputStyle);
+        } else {
+            this.output.removeAttribute('style');
+        }
+
+        // Restore selection tooltip
+        if (this.selectionTooltip) {
+            this.selectionTooltip.style.zIndex = '12';
+        }
+
+        // Restore body
+        if (this.originalState) {
+            document.body.style.overflow = this.originalState.bodyOverflow;
+            document.body.style.backgroundColor = this.originalState.bodyBg;
+        } else {
+            document.body.style.overflow = '';
+            document.body.style.backgroundColor = '';
+        }
     }
 
     createActiveRecallUI() {

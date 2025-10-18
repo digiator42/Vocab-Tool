@@ -15,7 +15,7 @@
 <body class="bg-gray-100 min-h-screen p-6">
 
     <!-- Tabs -->
-    <div class="max-w-4xl mx-auto mb-6 flex justify-center space-x-4">
+    <div id="vocab-tool-div" class="max-w-4xl mx-auto mb-6 flex justify-center space-x-4">
         <button id="tab-vocab" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700">Vocabulary
             Tool</button>
         <button id="tab-flash"
@@ -43,6 +43,11 @@
                     <!-- More voice options -->
                 </select>
             </div>
+        </div>
+        <div class="text-xs text-gray-500 m-2">💡 Press <kbd
+                class="px-1 py-0.5 bg-gray-100 border rounded text-xs">Alt</kbd>+<kbd
+                class="px-1 py-0.5 bg-gray-100 border rounded text-xs">Shift</kbd>+<kbd
+                class="px-1 py-0.5 bg-gray-100 border rounded text-xs">G</kbd> for focus mode
         </div>
         <div id="vocab-tool-container" class="bg-white p-4 rounded-lg shadow-sm mb-6">
             <textarea id="input"
