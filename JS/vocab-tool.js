@@ -2093,11 +2093,11 @@ export class VocabularyTool {
                 e.preventDefault();
                 console.log("Fuzzy matching set to:", this.useFuzzyMatching);
             }
-            // // Alt+Shift+F for repeat
-            // else if (e.altKey && e.shiftKey && e.key === 'R') {
-            //     e.preventDefault();
-            //     this.repeatAudio();
-            // }
+            // Alt+Shift+F for repeat
+            else if (e.altKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                this.repeatAudio();
+            }
             // // keyboard shortcut for focus mode
             // if (e.altKey && e.shiftKey && e.key === 'G') {
             //     e.preventDefault();
@@ -2119,7 +2119,11 @@ export class VocabularyTool {
 
     // Enhanced focus mode with mobile support
     setupFocusMode() {
+        const vocabTool = document.getElementById('vocab-tool');
+
         document.addEventListener('keydown', (e) => {
+            // check if output div is not hidde
+            if (this.output.style.display === 'none' || vocabTool.classList.contains('hidden')) return;
             // Check for Alt+Shift+G
             if (e.altKey && e.shiftKey && e.key === 'G') {
                 e.preventDefault();

@@ -115,11 +115,14 @@ body.dark-mode {
 .dark-mode input,
 .dark-mode #output,
 .dark-mode #focus-controls,
-.dark-mode #focus-controls span,
-label {
+.dark-mode #focus-controls span {
     background-color: rgb(12, 12, 23) !important;
     color: white !important;
     border-color: #444 !important;
+}
+
+.dark-mode #focus-controls label {
+    color: white !important;
 }
 
 .dark-mode #output>span:not(.highlighted):not(.multi-highlighted):hover {
