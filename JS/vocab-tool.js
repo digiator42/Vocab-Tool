@@ -1663,7 +1663,7 @@ export class VocabularyTool {
         this.processBtn.addEventListener("click", () => {
             this.output.innerHTML = "";
             this.isProcessed = !this.isProcessed;
-            this.processBtn.innerText = this.isProcessed ? "Reset" : "GO";
+            this.processBtn.innerText = this.isProcessed ? "Reset" : "Process";
             const focusModeGoBTN = document.getElementById("focus-go-btn");
             if (focusModeGoBTN) {
                 focusModeGoBTN.innerText = this.processBtn.innerText;
@@ -1732,9 +1732,14 @@ export class VocabularyTool {
     createAddToFlashcardButton() {
         const addToFlashBtn = document.createElement('button');
         addToFlashBtn.id = "addToFlashBtn";
-        addToFlashBtn.className = "px-4 py-2 bg-yellow-500 text-white rounded-lg shadow";
+        addToFlashBtn.className = "px-4 py-2 bg-yellow-500 text-white rounded-lg shadow w-1/2 hover:bg-yellow-600";
         addToFlashBtn.textContent = "Add";
-        this.processBtn.parentNode.insertBefore(addToFlashBtn, this.processBtn.nextSibling);
+        const extraToolsContainer = document.getElementById('extra-tools-container');
+        if (extraToolsContainer) {
+            // extraToolsContainer.insertAdjacentElement('beforeend', addToFlashBtn);
+            extraToolsContainer.insertBefore(addToFlashBtn, extraToolsContainer.firstChild);
+        }
+        // this.processBtn.parentNode.insertBefore(addToFlashBtn, this.processBtn.nextSibling);
         addToFlashBtn.addEventListener('click', () => this.handleAddToFlashcard());
     }
 
@@ -2924,7 +2929,7 @@ export class VocabularyTool {
         focusControls.className = 'fixed top-10 left-1/2 transform -translate-x-1/2 z-[10002] bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg flex gap-3 items-center min-w-[320px] justify-center';
 
         focusControls.innerHTML = `
-        <button id="focus-go-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
+        <button id="focus-go-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
             ${originalProcessBtn.innerText}
         </button>
         
@@ -3571,13 +3576,21 @@ export class VocabularyTool {
     addActiveRecallButton() {
         this.activeRecallBtn = document.createElement('button');
         this.activeRecallBtn.id = 'active-recall-btn';
-        this.activeRecallBtn.className = 'mt-5 px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700';
+        this.activeRecallBtn.className = 'px-4 py-4 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 w-1/2';
         this.activeRecallBtn.innerHTML = '🎯 Active Recall';
         this.activeRecallBtn.addEventListener('click', () => this.toggleActiveRecall());
 
+        const extraToolsContainer = document.getElementById('extra-tools-container');
+        if (extraToolsContainer) {
+            // insert in extraToolsContainer
+
+            extraToolsContainer.insertAdjacentElement('beforeend', this.activeRecallBtn);
+            return;
+        }
+
         // Insert after the Add to Flashcards button
         const addToFlashBtn = document.getElementById('addToFlashBtn');
-        this.output.insertAdjacentElement('afterend', this.activeRecallBtn);
+        // this.output.insertAdjacentElement('beforeend', this.activeRecallBtn);
     }
 
     toggleActiveRecall() {
@@ -3594,6 +3607,7 @@ export class VocabularyTool {
         const vocabToolContainer = document.getElementById('vocab-tool-div');
 
         console.log('Flashcard load requested:--> ', this.isFlashCardLoadRequested);
+        const addToFlashBtn = document.getElementById('addToFlashBtn');
 
         if (!isVisible) {
             this.prepareActiveRecall();
@@ -3608,13 +3622,15 @@ export class VocabularyTool {
             }
             this.output.innerHTML = '';
             const elementsToHide = Array.from(vocabTool.children).filter(
-                child => !['active-recall-tool', 'active-recall-btn'].includes(child.id)
+                child => !['active-recall-tool', 'active-recall-btn', 'extra-tools-container'].includes(child.id)
             );
 
             elementsToHide.forEach(element => {
                 element.dataset.originalDisplay = element.style.display || '';
                 element.style.display = 'none';
             });
+            console.log('----------->>> ', elementsToHide);
+            addToFlashBtn.style.display = 'none';
 
             if (vocabToolContainer) {
                 vocabToolContainer.dataset.originalDisplay = vocabToolContainer.style.display || '';
@@ -3653,6 +3669,7 @@ export class VocabularyTool {
                 this.processBtn.click();
             }
             this.isFlashCardLoadRequested = !this.isFlashCardLoadRequested;
+            addToFlashBtn.style.display = 'inline-block';
         }
     }
 
@@ -4223,12 +4240,13 @@ export class VocabularyTool {
                 No flashcard lists found. Create some lists first!
             </div>
         </div>
-    `;
+        `;
 
         // Insert before the Active Recall button
         const activeRecallBtn = document.getElementById('active-recall-btn');
         if (activeRecallBtn) {
-            activeRecallBtn.parentNode.insertBefore(selectorContainer, activeRecallBtn);
+            // activeRecallBtn.parentNode.insertBefore(selectorContainer, activeRecallBtn);
+            this.output.insertAdjacentElement('afterend', selectorContainer);
         } else {
             // Fallback: insert after the output
             this.output.insertAdjacentElement('afterend', selectorContainer);
