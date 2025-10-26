@@ -88,7 +88,7 @@ export class FlashcardsTool {
         this.singleCardMode = true;
         this.renderFlashcards();
 
-        this.showNotification(`Starting spaced repetition with ${this.spacedRepetitionCards.length} cards due for review!`);
+        this.showNotification(`Starting spaced repetition with ${this.spacedRepetitionCards.length} cards! Use A/H/G/E for ratings, M for mastered, Space to flip, Arrows to navigate.`);
     }
 
     // Add SR controls to flashcard back
@@ -98,17 +98,17 @@ export class FlashcardsTool {
         const srControls = document.createElement('div');
         srControls.className = 'mt-4 flex flex-wrap gap-2 justify-center';
         srControls.innerHTML = `
-        <button class="sr-again-btn px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600">
-            Again (1 min)
+        <button class="sr-again-btn px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600" title="Shortcut: A">
+            Again (1 min) [A]
         </button>
-        <button class="sr-hard-btn px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600">
-            Hard (10 min)
+        <button class="sr-hard-btn px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600" title="Shortcut: H">
+            Hard (10 min) [H]
         </button>
-        <button class="sr-good-btn px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600">
-            Good (1 day)
+        <button class="sr-good-btn px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600" title="Shortcut: G">
+            Good (1 day) [G]
         </button>
-        <button class="sr-easy-btn px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600">
-            Easy (4 days)
+        <button class="sr-easy-btn px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600" title="Shortcut: E">
+            Easy (4 days) [E]
         </button>
     `;
 
@@ -797,16 +797,16 @@ export class FlashcardsTool {
             const regularControls = document.createElement('div');
             regularControls.className = 'mt-4 flex space-x-2';
             regularControls.innerHTML = `
-            <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm">
-                ${card.mastered ? 'Not Mastered' : 'Mastered'}
-            </button>
-            <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
-                Edit
-            </button>
-            <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
-                Remove
-            </button>
-        `;
+                <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
+                    ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
+                </button>
+                <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
+                    Edit
+                </button>
+                <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
+                    Remove
+                </button>
+            `;
             backContentDiv.appendChild(regularControls);
         }
 
