@@ -955,6 +955,63 @@ export class FlashcardsTool {
                 this.handleRemoveFlashcard(idx);
             });
         }
+        setTimeout(() => {
+            const againBtn = flashcard.querySelector('.sr-again-btn');
+            const hardBtn = flashcard.querySelector('.sr-hard-btn');
+            const goodBtn = flashcard.querySelector('.sr-good-btn');
+            const easyBtn = flashcard.querySelector('.sr-easy-btn');
+
+            if (againBtn) {
+                console.log('Setting up SR Again button in setupFlashcardEventListeners');
+                againBtn.addEventListener('click', (e) => {
+                    console.log('SR Again button clicked from setupFlashcardEventListeners');
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const idx = parseInt(flashcard.dataset.index);
+                    const currentCard = this.spacedRepetitionMode ?
+                        this.spacedRepetitionCards[idx] :
+                        this.flashcards[idx];
+                    this.handleSRRating(currentCard, 1);
+                });
+            }
+
+            // Add similar handlers for other buttons...
+            if (hardBtn) {
+                hardBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const idx = parseInt(flashcard.dataset.index);
+                    const currentCard = this.spacedRepetitionMode ?
+                        this.spacedRepetitionCards[idx] :
+                        this.flashcards[idx];
+                    this.handleSRRating(currentCard, 10);
+                });
+            }
+
+            if (goodBtn) {
+                goodBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const idx = parseInt(flashcard.dataset.index);
+                    const currentCard = this.spacedRepetitionMode ?
+                        this.spacedRepetitionCards[idx] :
+                        this.flashcards[idx];
+                    this.handleSRRating(currentCard, 1440);
+                });
+            }
+
+            if (easyBtn) {
+                easyBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const idx = parseInt(flashcard.dataset.index);
+                    const currentCard = this.spacedRepetitionMode ?
+                        this.spacedRepetitionCards[idx] :
+                        this.flashcards[idx];
+                    this.handleSRRating(currentCard, 5760);
+                });
+            }
+        }, 100);
     }
 
     shuffleArray(array) {
