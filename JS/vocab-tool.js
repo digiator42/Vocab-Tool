@@ -1733,7 +1733,7 @@ export class VocabularyTool {
         const addToFlashBtn = document.createElement('button');
         addToFlashBtn.id = "addToFlashBtn";
         addToFlashBtn.className = "px-4 py-2 bg-yellow-500 text-white rounded-lg shadow w-1/2 hover:bg-yellow-600";
-        addToFlashBtn.textContent = "Add";
+        addToFlashBtn.textContent = "Add to Flashcards";
         const extraToolsContainer = document.getElementById('extra-tools-container');
         if (extraToolsContainer) {
             // extraToolsContainer.insertAdjacentElement('beforeend', addToFlashBtn);
