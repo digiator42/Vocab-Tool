@@ -629,10 +629,10 @@ export class FlashcardsTool {
         }
 
         const cardIndex = parseInt(cardIndexInput.value);
-        const germanWord = germanWordInput.value.trim();
-        const germanSentence = document.getElementById('edit-german-sentence')?.value.trim() || '';
-        const englishWord = englishWordInput.value.trim();
-        const englishTranslation = document.getElementById('edit-english-translation')?.value.trim() || '';
+        const germanWord = this.sanitizeInput(germanWordInput.value.trim());
+        const germanSentence = this.sanitizeInput(document.getElementById('edit-german-sentence')?.value.trim()) || '';
+        const englishWord = this.sanitizeInput(englishWordInput.value.trim());
+        const englishTranslation = this.sanitizeInput(document.getElementById('edit-english-translation')?.value.trim()) || '';
 
         if (!germanWord || !englishWord) {
             this.showNotification('Failed to update flashcard. Missing required fields.');
