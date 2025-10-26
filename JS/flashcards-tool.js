@@ -904,18 +904,76 @@ export class FlashcardsTool {
     setupFlashcardEventListeners(flashcard) {
         if (!window.hasAttachedFlashcardListener) {
             document.addEventListener('keydown', (e) => {
+                // Prevent default only for our specific keys
+                const srKeys = ['a', 'h', 'g', 'e', 'm'];
+                if (srKeys.includes(e.key.toLowerCase()) && this.singleCardMode && document.activeElement === document.body) {
+                    e.preventDefault();
+                }
+
+                // Space to flip card
                 if (e.code === 'Space' && this.singleCardMode && document.activeElement === document.body) {
                     const currentFlashcard = document.querySelector('.flashcard');
                     e.preventDefault();
                     currentFlashcard?.classList.toggle('flipped');
                 }
 
+                // Spaced Repetition keyboard shortcuts
+                if (this.spacedRepetitionMode && this.singleCardMode && document.activeElement === document.body) {
+                    const currentCard = this.spacedRepetitionCards[this.currentSRCardIndex];
+                    if (currentCard) {
+                        switch (e.key.toLowerCase()) {
+                            case 'a': // Again
+                                console.log('Keyboard shortcut: Again');
+                                this.handleSRRating(currentCard, 1);
+                                break;
+                            case 'h': // Hard
+                                console.log('Keyboard shortcut: Hard');
+                                this.handleSRRating(currentCard, 10);
+                                break;
+                            case 'g': // Good
+                                console.log('Keyboard shortcut: Good');
+                                this.handleSRRating(currentCard, 1440);
+                                break;
+                            case 'e': // Easy
+                                console.log('Keyboard shortcut: Easy');
+                                this.handleSRRating(currentCard, 5760);
+                                break;
+                        }
+                    }
+                }
+
+                // Mastered shortcut (works in both normal and SR mode)
+                if (e.key.toLowerCase() === 'm' && this.singleCardMode && document.activeElement === document.body) {
+                    console.log('Keyboard shortcut: Mastered');
+                    const currentFlashcard = document.querySelector('.flashcard');
+                    if (currentFlashcard) {
+                        const idx = parseInt(currentFlashcard.dataset.index);
+                        let currentCard;
+
+                        if (this.spacedRepetitionMode) {
+                            currentCard = this.spacedRepetitionCards[idx];
+                        } else {
+                            currentCard = this.flashcards[idx];
+                        }
+
+                        if (currentCard) {
+                            currentCard.mastered = !currentCard.mastered;
+                            this.saveFlashcards();
+                            this.updateProgress();
+                            this.renderFlashcards();
+
+                            const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
+                            this.showNotification(`Card ${action}!`);
+                        }
+                    }
+                }
+
+                // Left/Right arrows for navigation
                 if (e.code === 'ArrowRight') {
                     e.preventDefault();
                     if (this.spacedRepetitionMode) {
                         if (this.currentSRCardIndex < this.spacedRepetitionCards.length - 1) {
                             this.currentSRCardIndex++;
-                            // Process rescheduled cards when manually navigating
                             this.processRescheduledCardsIfNeeded();
                             this.renderFlashcards();
                         }
