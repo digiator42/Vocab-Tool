@@ -2031,7 +2031,7 @@ export class VocabularyTool {
     createBatchAddModal() {
         const modal = document.createElement('div');
         modal.id = "batch-add-to-flash-modal";
-        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden";
+        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-40 hidden";
         modal.innerHTML = `
         <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
             <button id="close-batch-add-modal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">&times;</button>
@@ -2160,8 +2160,8 @@ export class VocabularyTool {
                     const word = btn.dataset.word;
                     const index = parseInt(btn.dataset.index);
 
-                    // Check if this is a "show more" click for multiple articles
-                    if (btn.textContent.includes('show more') && btn.dataset.allArticles) {
+                    // Check if this is a "Make Sure" click for multiple articles
+                    if (btn.textContent.includes('⚠️ Make Sure') && btn.dataset.allArticles) {
                         this.showArticleDetails(word, JSON.parse(btn.dataset.allArticles), btn);
                     } else {
                         this.handleGetArticle(word, index, btn);
@@ -2184,42 +2184,46 @@ export class VocabularyTool {
         const baseWord = button.dataset.baseWord || word;
         const originalWord = button.dataset.originalWord || word;
 
+        // ALSO open dictionary when showing details
+        const currentArticle = articles[0]; // Use first article for dictionary
+        window.open(`https://der-artikel.de/${currentArticle.toLowerCase()}/${baseWord.charAt(0).toUpperCase() + baseWord.slice(1)}.html`);
+
         // Create a modal or tooltip to show all possible articles
         const detailModal = document.createElement('div');
-        detailModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        detailModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]';
         detailModal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 class="text-lg font-bold mb-4">Word Information</h3>
-            ${originalWord !== baseWord ? `
-                <div class="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
-                    <p class="text-sm text-blue-800">
-                        <strong>Note:</strong> "${originalWord}" is the plural form.<br>
-                        The base (singular) form is "<strong>${baseWord}</strong>".
-                    </p>
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 z-50">
+        <h3 class="text-lg font-bold mb-4">Word Information</h3>
+        ${originalWord !== baseWord ? `
+            <div class="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+                <p class="text-sm text-blue-800">
+                    <strong>Note:</strong> "${originalWord}" is the plural form.<br>
+                    The base (singular) form is "<strong>${baseWord}</strong>".
+                </p>
+            </div>
+        ` : ''}
+        <p class="mb-4">The word "<strong>${baseWord}</strong>" can have multiple articles:</p>
+        <div class="space-y-2 mb-4">
+            ${articles.map(article => `
+                <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <span class="font-medium text-black">${article} ${baseWord}</span>
+                    <button class="use-article-btn px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                            data-article="${article}">
+                        Use This
+                    </button>
                 </div>
-            ` : ''}
-            <p class="mb-4">The word "<strong>${baseWord}</strong>" can have multiple articles:</p>
-            <div class="space-y-2 mb-4">
-                ${articles.map(article => `
-                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <span class="font-medium">${article} ${baseWord}</span>
-                        <button class="use-article-btn px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
-                                data-article="${article}">
-                            Use This
-                        </button>
-                    </div>
-                `).join('')}
-            </div>
-            <p class="text-sm text-gray-600 mb-4">
-                Each article represents a different meaning or usage of the word.
-            </p>
-            <div class="flex justify-end">
-                <button class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" id="close-article-modal">
-                    Close
-                </button>
-            </div>
+            `).join('')}
         </div>
-    `;
+        <p class="text-sm text-gray-600 mb-4">
+            Each article represents a different meaning or usage of the word.
+        </p>
+        <div class="flex justify-end">
+            <button class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" id="close-article-modal">
+                Close
+            </button>
+        </div>
+    </div>
+`;
 
         document.body.appendChild(detailModal);
 
@@ -2232,10 +2236,17 @@ export class VocabularyTool {
             btn.addEventListener('click', (e) => {
                 const selectedArticle = e.target.dataset.article;
                 this.updateWordWithArticle(baseWord, selectedArticle, button);
+
+                // Remove the hint notification if it exists
+                const notification = button.closest('.p-3').querySelector('.bg-yellow-100');
+                if (notification) {
+                    notification.remove();
+                }
+
                 detailModal.remove();
             });
         });
-
+        
         // Close modal when clicking outside
         detailModal.addEventListener('click', (e) => {
             if (e.target === detailModal) {
@@ -2264,9 +2275,9 @@ export class VocabularyTool {
     // Helper method to check if a word is likely a noun
     async isLikelyNoun(word) {
         // Simple heuristic: German nouns are capitalized
-        if (word.charAt(0) !== word.charAt(0).toUpperCase()) {
-            return false;
-        }
+        // if (word.charAt(0) !== word.charAt(0).toUpperCase()) {
+        //     return false;
+        // }
 
         try {
             // Use the translation API to get part of speech info
@@ -2300,9 +2311,13 @@ export class VocabularyTool {
         const matchedArticle = articles.find(a => germanWordSpan.textContent.startsWith(a + ' '));
 
         if (matchedArticle) {
-            console.log('Article already fetched, opening dictionary...');
-            window.open(`https://der-artikel.de/${matchedArticle.toLowerCase()}/${this.OriginalWord.charAt(0).toUpperCase() + this.OriginalWord.slice(1)}.html`);
-            button.textContent = '✓ show more';
+            console.log('Article already fetched, opening dictionary>>>> ');
+
+            const originalWord = button.dataset.originalWord || word;
+            const baseWord = button.dataset.baseWord || originalWord;
+
+            window.open(`https://der-artikel.de/${matchedArticle.toLowerCase()}/${baseWord.charAt(0).toUpperCase() + baseWord.slice(1)}.html`);
+            button.textContent = '✓ Make Sure';
             button.disabled = false;
             return;
         }
@@ -2314,10 +2329,14 @@ export class VocabularyTool {
 
             console.log('Article API response:', data);
 
+            // FIX: Store the base word in the button's dataset instead of class property
+            const baseWord = data.title;
+            button.dataset.originalWord = word;  // Store original word
+            button.dataset.baseWord = baseWord;  // Store base word
+
             if (data.responseType === 900) {
                 // Single article case - handle lemmatization
                 const article = this.getArticleFromGender(data.gender);
-                const baseWord = data.title; // Use the base form returned by API
                 const articleWord = `${article} ${baseWord.charAt(0).toUpperCase() + baseWord.slice(1)}`;
 
                 // Update the German word display with the article and base form
@@ -2330,10 +2349,11 @@ export class VocabularyTool {
                 if (word !== baseWord) {
                     germanWordSpan.title = `Base form of "${word}"`;
                     germanWordSpan.classList.add('cursor-help', 'border-b', 'border-dotted', 'border-gray-400');
+                    germanWordSpan.textContent += ` / ${word}`;
                 }
 
                 // Update the button to show completion
-                button.textContent = '✓ show more';
+                button.textContent = '✓ Make Sure';
                 button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
                 button.classList.add('bg-green-500', 'hover:bg-green-600');
                 button.disabled = false;
@@ -2343,7 +2363,6 @@ export class VocabularyTool {
             } else if (data.responseType === 901) {
                 // Multiple articles case (homonym)
                 this.handleMultipleArticles(word, data, germanWordSpan, button, selectionIndex);
-                this.OriginalWord = data.title;
                 germanWordSpan.textContent += ` / ${word}`;
             } else {
                 throw new Error('No article data found');
@@ -2353,7 +2372,7 @@ export class VocabularyTool {
             console.error('Error getting article:', error);
             button.textContent = 'Error';
 
-            // FIXED: Remove and add classes individually
+            // Remove and add classes individually
             button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
             button.classList.add('bg-red-500', 'hover:bg-red-600');
 
@@ -2381,26 +2400,26 @@ export class VocabularyTool {
         if (data.gender.die) articles.push('Die');
         if (data.gender.das) articles.push('Das');
 
-        const baseWord = data.title; // Use the base form from API
+        const baseWord = data.title;
 
-        // if (articles.length > 1) {
-        //     // Notify user about multiple articles
-        //     const notification = document.createElement('div');
-        //     notification.className = 'mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded text-sm';
-        //     notification.innerHTML = `
-        //     <strong>Multiple articles found for "${baseWord}":</strong> ${articles.join(', ')}. 
-        //     <br>Using "${articles[0]}" by default. Click "show more" for details.
-        // `;
+        // FIX: Store words in button dataset
+        button.dataset.originalWord = word;
+        button.dataset.baseWord = baseWord;
+        button.dataset.allArticles = JSON.stringify(articles); // Store articles here
 
-        //     germanWordSpan.parentNode.insertBefore(notification, germanWordSpan.nextSibling);
+        if (articles.length > 1) {
+            // Notify user about multiple articles
+            const notification = document.createElement('div');
+            notification.className = 'mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded text-sm';
+            notification.innerHTML = `
+            <strong>Multiple articles found for "${baseWord}":</strong> ${articles.join(', ')}. 
+            <br>Using "${articles[0]}" by default. Click "Make Sure" for details.
+        `;
 
-        //     // Store all possible articles and base word for the "show more" functionality
-        //     button.dataset.allArticles = JSON.stringify(articles);
-        //     button.dataset.originalWord = word;
-        //     button.dataset.baseWord = baseWord;
-        // }
+            germanWordSpan.parentNode.insertBefore(notification, germanWordSpan.nextSibling);
+        }
 
-        // Use the first article by default with the base form
+        // FIX: Actually set the article in the German word span so matchedArticle check works
         const articleWord = `${articles[0]} ${baseWord.charAt(0).toUpperCase() + baseWord.slice(1)}`;
         germanWordSpan.textContent = articleWord;
 
@@ -2408,13 +2427,10 @@ export class VocabularyTool {
         germanWordSpan.dataset.originalWord = word;
         germanWordSpan.dataset.baseWord = baseWord;
 
-        // Update button for multiple articles case - FIXED: Add classes individually
-        button.textContent = articles.length > 1 ? '⚠️ show more' : '✓ show more';
-
-        // Remove old classes first
+        // Update button for multiple articles case
+        button.textContent = articles.length > 1 ? '⚠️ Make Sure' : '✓ Make Sure';
         button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
 
-        // Add new classes individually
         if (articles.length > 1) {
             button.classList.add('bg-orange-500', 'hover:bg-orange-600');
         } else {

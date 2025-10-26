@@ -750,3 +750,8 @@ span.multi-highlighted {
         box-shadow: 0 0 5px rgba(234, 179, 8, 0.3);
     }
 }
+
+/* Force detail modal on top */
+.fixed.inset-0.z-\[60\] {
+    z-index: 1000 !important;
+}
