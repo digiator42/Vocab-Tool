@@ -9,6 +9,11 @@ export class FlashcardsTool {
         this.singleCardMode = false;
         this.useSlowSpeak = false;
         this.isFlipped = false; // New state to track if list is flipped
+        this.spacedRepetitionMode = false;
+        this.spacedRepetitionCards = []; // Cards for current SR session
+        this.currentSRCardIndex = 0; // Current card in SR session
+        this.srSessionData = JSON.parse(localStorage.getItem('srSessionData')) || {}; // SR progress
+
 
         this.init();
     }
@@ -18,10 +23,481 @@ export class FlashcardsTool {
         this.renderFlashcards();
         this.renderCustomListButtons();
         this.updatePaginationControls();
+        this.updateSRButton();
         feather.replace();
         AOS.init();
     }
 
+    updateSRButton() {
+        const srBtn = document.getElementById('spaced-repetition-btn');
+        if (srBtn) {
+            const stats = this.getSRStatistics();
+            srBtn.textContent = `Spaced Repetition (${stats.due} due)`;
+            srBtn.title = `${stats.due} cards due for review out of ${stats.total} total cards`;
+        }
+    }
+
+    exitSpacedRepetitionMode() {
+        this.spacedRepetitionMode = false;
+        this.currentSRCardIndex = 0;
+        this.spacedRepetitionCards = [];
+        this.rescheduledCards = [];
+        this.currentPage = 1;
+        this.renderFlashcards();
+    }
+
+    // Add this method to setup spaced repetition
+    setupSpacedRepetition() {
+        if (this.flashcards.length === 0) {
+            this.showNotification('No flashcards available for spaced repetition!');
+            return;
+        }
+
+        // Get cards that are due for review
+        const now = Date.now();
+        const dueCards = this.flashcards.filter(card => {
+            const cardKey = `${card.german}|${card.english}`;
+            const cardData = this.srSessionData[cardKey];
+
+            if (!cardData) {
+                // New card - include it
+                return true;
+            }
+
+            // Card is due if nextReview time has passed
+            return cardData.nextReview <= now;
+        });
+
+        if (dueCards.length === 0) {
+            this.showNotification('No cards due for review right now! Great job!');
+            return;
+        }
+
+        // Limit to 500 cards per session
+        this.spacedRepetitionCards = dueCards.slice(0, 500);
+        this.spacedRepetitionMode = true;
+        this.currentSRCardIndex = 0;
+
+        // Initialize rescheduled cards array
+        this.rescheduledCards = [];
+
+        // Reset currentPage when entering SR mode
+        this.currentPage = 1;
+
+        // Switch to single card mode for better SR experience
+        this.singleCardMode = true;
+        this.renderFlashcards();
+
+        this.showNotification(`Starting spaced repetition with ${this.spacedRepetitionCards.length} cards due for review!`);
+    }
+
+    // Add SR controls to flashcard back
+    renderSpacedRepetitionControls(flashcard, card) {
+        console.log('renderSpacedRepetitionControls called for card:', card.german);
+
+        const srControls = document.createElement('div');
+        srControls.className = 'mt-4 flex flex-wrap gap-2 justify-center';
+        srControls.innerHTML = `
+        <button class="sr-again-btn px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600">
+            Again (1 min)
+        </button>
+        <button class="sr-hard-btn px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600">
+            Hard (10 min)
+        </button>
+        <button class="sr-good-btn px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600">
+            Good (1 day)
+        </button>
+        <button class="sr-easy-btn px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600">
+            Easy (4 days)
+        </button>
+    `;
+
+        // Test if buttons are created properly
+        console.log('SR buttons created:', {
+            againBtn: srControls.querySelector('.sr-again-btn'),
+            hardBtn: srControls.querySelector('.sr-hard-btn'),
+            goodBtn: srControls.querySelector('.sr-good-btn'),
+            easyBtn: srControls.querySelector('.sr-easy-btn')
+        });
+
+        // Add event listeners for SR buttons
+        const againBtn = srControls.querySelector('.sr-again-btn');
+        if (againBtn) {
+            console.log('Adding event listener to Again button');
+            againBtn.addEventListener('click', (e) => {
+                console.log('SR Again button clicked - EVENT FIRED');
+                e.stopPropagation();
+                this.handleSRRating(card, 1); // 1 minute
+            });
+        } else {
+            console.error('Again button not found!');
+        }
+
+        const hardBtn = srControls.querySelector('.sr-hard-btn');
+        if (hardBtn) {
+            hardBtn.addEventListener('click', (e) => {
+                console.log('SR Hard button clicked');
+                e.stopPropagation();
+                this.handleSRRating(card, 10); // 10 minutes
+            });
+        }
+
+        const goodBtn = srControls.querySelector('.sr-good-btn');
+        if (goodBtn) {
+            goodBtn.addEventListener('click', (e) => {
+                console.log('SR Good button clicked');
+                e.stopPropagation();
+                this.handleSRRating(card, 1440); // 1 day in minutes
+            });
+        }
+
+        const easyBtn = srControls.querySelector('.sr-easy-btn');
+        if (easyBtn) {
+            easyBtn.addEventListener('click', (e) => {
+                console.log('SR Easy button clicked');
+                e.stopPropagation();
+                this.handleSRRating(card, 5760); // 4 days in minutes
+            });
+        }
+
+        return srControls;
+    }
+
+    handleSRRating(card, minutesUntilNext) {
+        console.log('SR Rating called:', {
+            currentSRCardIndex: this.currentSRCardIndex,
+            totalSRCards: this.spacedRepetitionCards.length,
+            minutesUntilNext
+        });
+
+        const cardKey = `${card.german}|${card.english}`;
+        const now = Date.now();
+
+        // Update or create SR data for this card
+        if (!this.srSessionData[cardKey]) {
+            this.srSessionData[cardKey] = {
+                easeFactor: 2.5,
+                interval: 0,
+                repetitions: 0
+            };
+        }
+
+        const cardData = this.srSessionData[cardKey];
+
+        if (minutesUntilNext === 1) { // Again
+            cardData.repetitions = 0;
+            cardData.interval = 1; // 1 minute in minutes
+
+            // For "Again" cards, add them back to the current session queue
+            // so they appear again soon in the same session
+            this.rescheduleCardForCurrentSession(card);
+        } else if (minutesUntilNext === 10) { // Hard
+            cardData.repetitions += 1;
+            cardData.interval = Math.max(1, cardData.interval * 1.2);
+        } else { // Good or Easy
+            cardData.repetitions += 1;
+
+            if (cardData.repetitions === 1) {
+                cardData.interval = 1; // 1 day
+            } else if (cardData.repetitions === 2) {
+                cardData.interval = 6; // 6 days
+            } else {
+                cardData.interval = Math.round(cardData.interval * cardData.easeFactor);
+            }
+
+            // Adjust ease factor based on rating
+            if (minutesUntilNext === 1440) { // Good
+                cardData.easeFactor = Math.max(1.3, cardData.easeFactor - 0.15);
+            } else { // Easy
+                cardData.easeFactor = Math.min(2.5, cardData.easeFactor + 0.1);
+            }
+        }
+
+        // Convert interval from days to minutes for calculation
+        const intervalInMinutes = minutesUntilNext;
+        cardData.nextReview = now + (intervalInMinutes * 60 * 1000);
+        cardData.lastReviewed = now;
+
+        // Save SR data
+        localStorage.setItem('srSessionData', JSON.stringify(this.srSessionData));
+
+        // Move to next card
+        this.currentSRCardIndex++;
+        console.log('Moved to next card:', {
+            newSRCardIndex: this.currentSRCardIndex,
+            totalSRCards: this.spacedRepetitionCards.length
+        });
+
+        if (this.currentSRCardIndex >= this.spacedRepetitionCards.length) {
+            // Check if we have any rescheduled "Again" cards
+            if (this.hasRescheduledCards()) {
+                this.processRescheduledCards();
+            } else {
+                // Session completed - properly reset SR mode
+                console.log('SR session completed');
+                this.spacedRepetitionMode = false;
+                this.currentSRCardIndex = 0;
+                this.spacedRepetitionCards = [];
+                this.clearRescheduledCards();
+                this.showNotification('Spaced repetition session completed! Great job!');
+            }
+        }
+
+        // Re-render to show the next card (or exit SR mode)
+        console.log('Calling renderFlashcards');
+        this.renderFlashcards();
+    }
+
+    rescheduleCardForCurrentSession(card) {
+        console.log('Rescheduling card for current session:', card.german);
+        if (!this.rescheduledCards) {
+            this.rescheduledCards = [];
+        }
+
+        // Add the card to rescheduled queue
+        this.rescheduledCards.push({
+            card: card,
+            rescheduledAt: Date.now()
+        });
+
+        console.log('Card rescheduled for current session:', card.german);
+    }
+
+    hasRescheduledCards() {
+        return this.rescheduledCards && this.rescheduledCards.length > 0;
+    }
+
+    clearRescheduledCards() {
+        this.rescheduledCards = [];
+    }
+
+    processRescheduledCards() {
+        if (!this.hasRescheduledCards()) return;
+
+        // Add rescheduled cards back to the current session
+        this.rescheduledCards.forEach(rescheduled => {
+            // Only add if not already in the current session
+            const alreadyInSession = this.spacedRepetitionCards.some(
+                c => c.german === rescheduled.card.german && c.english === rescheduled.card.english
+            );
+
+            if (!alreadyInSession) {
+                this.spacedRepetitionCards.push(rescheduled.card);
+            }
+        });
+
+        console.log('Processed rescheduled cards. New total:', this.spacedRepetitionCards.length);
+        this.clearRescheduledCards();
+
+        // Continue from current position
+        this.showNotification(`Added ${this.rescheduledCards.length} rescheduled cards back to session`);
+    }
+
+    // Update setupEventListeners to include SR button
+    setupEventListeners() {
+        // View toggle
+        document.getElementById("toggle-view-btn").addEventListener("click", () => {
+            this.singleCardMode = !this.singleCardMode;
+            document.getElementById("toggle-view-btn").textContent = this.singleCardMode
+                ? "Switch to Grid Mode"
+                : "Switch to Focus Mode";
+            this.currentPage = 1;
+            this.renderFlashcards();
+        });
+
+        // Flip list toggle
+        document.getElementById("flip-list-btn").addEventListener("click", () => {
+            this.isFlipped = !this.isFlipped;
+            document.getElementById("flip-list-btn").textContent = this.isFlipped
+                ? "Switch to German → English"
+                : "Switch to English → German";
+            this.currentPage = 1;
+            this.renderFlashcards();
+        });
+
+        // === FIXED: Single Spaced Repetition button listener (toggle mode) ===
+        document.getElementById("spaced-repetition-btn").addEventListener("click", () => {
+            if (this.spacedRepetitionMode) {
+                // If already in SR mode, exit it
+                this.exitSpacedRepetitionMode();
+                this.showNotification('Exited spaced repetition mode');
+            } else {
+                // Start SR mode
+                this.setupSpacedRepetition();
+            }
+        });
+
+        document.getElementById('slow-speak').addEventListener('change', (e) => {
+            this.useSlowSpeak = e.target.checked;
+            console.log("On Off set to:", !this.useSlowSpeak ? "Normal" : "Slow");
+        });
+
+        this.setupEditModal();
+
+        // Control buttons
+        document.getElementById('shuffle-btn').addEventListener('click', () => {
+            this.flashcards = this.shuffleArray(this.flashcards);
+            this.saveFlashcards();
+            this.renderFlashcards();
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            if (confirm('Reset progress for this list?')) {
+                const listName = this.getCurrentListName();
+                if (listName && this.customLists[listName]) {
+                    this.customLists[listName] = this.customLists[listName].map(c => ({ ...c, mastered: false }));
+                    localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+                    this.flashcards = [...this.customLists[listName]];
+                    this.saveFlashcards();
+                    this.renderFlashcards();
+                }
+            }
+        });
+
+        document.getElementById('show-original-btn').addEventListener('click', () => {
+            const names = Object.keys(this.customLists);
+            console.log('original -> ', this.originalListName);
+            if (names.length > 0) {
+                this.flashcards = [...this.customLists[this.originalListName || names[0]]];
+                this.currentPage = 1;
+                this.renderFlashcards();
+            } else {
+                this.showNotification('No custom lists available.');
+            }
+        });
+
+        document.getElementById('show-not-mastered-btn').addEventListener('click', () => {
+            const listName = this.getCurrentListName();
+
+            if (listName && this.customLists[listName]) {
+                this.flashcards = [...this.customLists[listName]];
+            }
+            const notMastered = this.flashcards.filter(c => !c.mastered);
+            if (notMastered.length === 0) {
+                this.showNotification('All words mastered!');
+                return;
+            }
+            this.flashcards = notMastered;
+            this.currentPage = 1;
+            this.renderFlashcards();
+        });
+
+        // Speak functionality - updated to handle flipped state
+        document.addEventListener('click', e => {
+            if (e.target.closest('.speak-btn') || e.target.closest('.speak-btn i')) {
+                const card = e.target.closest('.flashcard');
+                const idx = card.dataset.index;
+                const text = this.isFlipped ? this.flashcards[idx].english : this.flashcards[idx].german;
+                const lang = this.isFlipped ? 'en-US' : 'de-DE';
+                this.speakWord(text, 0.8, lang);
+            }
+        });
+
+        // Pagination - work differently in SR mode vs normal mode
+        document.getElementById('next-page-btn').addEventListener('click', () => {
+            if (this.spacedRepetitionMode) {
+                // In SR mode, manually advance for testing
+                if (this.currentSRCardIndex < this.spacedRepetitionCards.length - 1) {
+                    this.currentSRCardIndex++;
+                    this.renderFlashcards();
+                }
+            } else {
+                // Normal mode pagination
+                const totalPages = this.singleCardMode
+                    ? this.flashcards.length
+                    : Math.ceil(this.flashcards.length / this.cardsPerPage);
+
+                if (this.currentPage < totalPages) {
+                    this.currentPage++;
+                    this.renderFlashcards();
+                }
+            }
+        });
+
+        document.getElementById('prev-page-btn').addEventListener('click', () => {
+            if (this.spacedRepetitionMode) {
+                // In SR mode, go back for testing
+                if (this.currentSRCardIndex > 0) {
+                    this.currentSRCardIndex--;
+                    this.renderFlashcards();
+                }
+            } else {
+                // Normal mode pagination
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    this.renderFlashcards();
+                }
+            }
+        });
+
+        // Add flashcards modal
+        document.getElementById('add-flashcards-btn').addEventListener('click', () => {
+            this.handleAddFlashcards();
+        });
+
+        // Enhanced drag and drop for the container
+        const container = document.getElementById('custom-lists-container');
+        if (container) {
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                container.classList.add('drag-over-zone');
+            });
+
+            container.addEventListener('dragleave', (e) => {
+                if (!container.contains(e.relatedTarget)) {
+                    container.classList.remove('drag-over-zone');
+                }
+            });
+
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                container.classList.remove('drag-over-zone');
+            });
+        }
+
+        // Playing audio event listener with v keyword for speak-btn
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'v' && document.activeElement === document.body) {
+                const activeCard = document.querySelector('.flashcard');
+                if (activeCard) {
+                    const idx = activeCard.dataset.index;
+                    const sentence = this.flashcards[idx]?.sentence ? `, ${this.flashcards[idx].sentence}` : '';
+                    const text = this.flashcards[idx].german + ',' + sentence;
+                    // adding word and sentence together
+                    const lang = 'de-DE';
+                    this.speakWord(text, 0.8, lang);
+                }
+            }
+        });
+
+        // View toggle - handle SR mode properly (duplicate removed - keeping the one at the top)
+        // This duplicate was removed since we already have a view toggle at the top
+
+        this.setupAddFlashcardsModal();
+    }
+
+    // Add method to get SR statistics
+    getSRStatistics() {
+        const now = Date.now();
+        let dueCount = 0;
+        let totalCards = 0;
+
+        this.flashcards.forEach(card => {
+            const cardKey = `${card.german}|${card.english}`;
+            totalCards++;
+
+            const cardData = this.srSessionData[cardKey];
+            if (!cardData || cardData.nextReview <= now) {
+                dueCount++;
+            }
+        });
+
+        return {
+            due: dueCount,
+            total: totalCards,
+            percentage: totalCards > 0 ? Math.round(((totalCards - dueCount) / totalCards) * 100) : 0
+        };
+    }
 
     sanitizeInput(input) {
         const substitutions = {
@@ -174,14 +650,65 @@ export class FlashcardsTool {
     }
 
     renderSingleCardMode(container) {
+
+        console.log('renderSingleCardMode called:', {
+            spacedRepetitionMode: this.spacedRepetitionMode,
+            currentSRCardIndex: this.currentSRCardIndex,
+            currentPage: this.currentPage,
+            totalFlashcards: this.flashcards.length,
+            totalSRCards: this.spacedRepetitionCards.length
+        });
+
         container.className = "flex items-center justify-center mx-auto max-w-3xl";
-        const card = this.flashcards[this.currentPage - 1];
-        if (!card) return;
+
+        let card;
+        let cardInfo = '';
+        let actualIndex;
+
+        if (this.spacedRepetitionMode) {
+            // In SR mode, use SR cards and index
+            card = this.spacedRepetitionCards[this.currentSRCardIndex];
+            if (!card) {
+                // If no card found, exit SR mode and re-render
+                this.spacedRepetitionMode = false;
+                this.currentSRCardIndex = 0;
+                this.spacedRepetitionCards = [];
+                this.renderFlashcards();
+                return;
+            }
+            actualIndex = this.currentSRCardIndex;
+            // Add progress indicator for SR mode
+            cardInfo = `<div class="absolute top-4 left-4 bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
+            ${this.currentSRCardIndex + 1} / ${this.spacedRepetitionCards.length}
+        </div>`;
+        } else {
+            // In normal single card mode, use flashcards and currentPage
+            card = this.flashcards[this.currentPage - 1];
+            if (!card) {
+                // If no card at current page, reset to page 1
+                this.currentPage = 1;
+                card = this.flashcards[0];
+                if (!card) return; // No cards at all
+            }
+            actualIndex = this.currentPage - 1;
+
+            // Add progress indicator for normal single card mode
+            cardInfo = `<div class="absolute top-4 left-4 bg-gray-500 text-white px-3 py-1 rounded-full text-sm">
+            ${this.currentPage} / ${this.flashcards.length}
+        </div>`;
+        }
 
         const flashcard = document.createElement('div');
-        flashcard.className = `flashcard w-full h-96 flex items-center justify-center`;
-        flashcard.dataset.index = this.currentPage - 1;
+        flashcard.className = `flashcard w-full h-96 flex items-center justify-center relative`;
+        flashcard.dataset.index = actualIndex;
 
+        flashcard.addEventListener('click', (e) => {
+            console.log('Flashcard clicked:', {
+                target: e.target,
+                classList: e.target.classList,
+                currentSRCardIndex: this.currentSRCardIndex
+            });
+        });
         // Determine front and back content based on flip state
         let frontContent, backContent;
 
@@ -189,51 +716,79 @@ export class FlashcardsTool {
             // Flipped: English on front, German on back
             frontContent = card.sentenceTranslation ?
                 `<h3 class="text-2xl font-bold text-center text-indigo-700 mb-2">${card.english}</h3>
-                 <p class="text-sm text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
+             <p class="text-sm text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
                 `<h3 class="text-2xl font-bold text-center text-indigo-700">${card.english}</h3>`;
 
             backContent = card.sentence ?
                 `<h3 class="text-xl font-semibold text-center text-gray-800 mb-2">${card.german}</h3>
-                 <p class="text-sm text-gray-600 text-center italic">${card.sentence}</p>` :
+             <p class="text-sm text-gray-600 text-center italic">${card.sentence}</p>` :
                 `<h3 class="text-xl font-semibold text-center text-gray-800">${card.german}</h3>`;
         } else {
             // Normal: German on front, English on back
             frontContent = card.sentence ?
                 `<h3 class="text-2xl font-bold text-center text-indigo-700 mb-2">${card.german}</h3>
-                 <p class="text-sm text-gray-600 text-center italic">${card.sentence}</p>` :
+             <p class="text-sm text-gray-600 text-center italic">${card.sentence}</p>` :
                 `<h3 class="text-2xl font-bold text-center text-indigo-700">${card.german}</h3>`;
 
             backContent = card.sentenceTranslation ?
                 `<h3 class="text-xl font-semibold text-center text-gray-800 mb-2">${card.english}</h3>
-                 <p class="text-sm text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
+             <p class="text-sm text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
                 `<h3 class="text-xl font-semibold text-center text-gray-800">${card.english}</h3>`;
         }
 
+        // Create back content div
+        const backContentDiv = document.createElement('div');
+        backContentDiv.className = 'flex flex-col items-center justify-center';
+        backContentDiv.innerHTML = backContent;
+
+        console.log('Calling renderSpacedRepetitionControls with card:', {
+            german: card.german,
+            english: card.english,
+            index: actualIndex
+        });
+
+        // Add SR controls if in SR mode
+        if (this.spacedRepetitionMode) {
+            const srControls = this.renderSpacedRepetitionControls(flashcard, card);
+            backContentDiv.appendChild(srControls);
+            // Test if the controls were properly added
+            console.log('SR controls added to backContentDiv:', {
+                backContentDiv: backContentDiv,
+                hasSRControls: backContentDiv.querySelector('.sr-again-btn') !== null
+            });
+        } else {
+            // Regular controls for non-SR mode
+            const regularControls = document.createElement('div');
+            regularControls.className = 'mt-4 flex space-x-2';
+            regularControls.innerHTML = `
+            <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm">
+                ${card.mastered ? 'Not Mastered' : 'Mastered'}
+            </button>
+            <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
+                Edit
+            </button>
+            <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
+                Remove
+            </button>
+        `;
+            backContentDiv.appendChild(regularControls);
+        }
+
         flashcard.innerHTML = `
-            <div class="flashcard-inner h-full w-full ${card.mastered ? 'border-2 border-solid border-green-200 rounded-2xl' : ''}">
-                <div class="flashcard-front bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
-                    ${frontContent}
-                    <button class="speak-btn mt-4 p-3 bg-indigo-100 rounded-full hover:bg-indigo-200">
-                        <i data-feather="volume-2" class="text-indigo-700 w-6 h-6"></i>
-                    </button>
-                    <p class="text-xs text-gray-500 mt-8">Click to flip</p>
-                    ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-12 h-12 mt-4"></i>' : ''}
-                </div>
-                <div class="flashcard-back bg-indigo-100 rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
-                    ${backContent}
-                    <div class="mt-4 flex space-x-2">
-                        <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm">
-                            ${card.mastered ? 'Not Mastered' : 'Mastered'}
-                        </button>
-                        <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
-                            Edit
-                        </button>
-                        <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
-                            Remove
-                        </button>
-                    </div>
-                </div>
-            </div>`;
+        <div class="flashcard-inner h-full w-full ${card.mastered ? 'border-2 border-solid border-green-200 rounded-2xl' : ''}">
+            ${cardInfo}
+            <div class="flashcard-front bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
+                ${frontContent}
+                <button class="speak-btn mt-4 p-3 bg-indigo-100 rounded-full hover:bg-indigo-200">
+                    <i data-feather="volume-2" class="text-indigo-700 w-6 h-6"></i>
+                </button>
+                <p class="text-xs text-gray-500 mt-8">Click to flip</p>
+                ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-12 h-12 mt-4"></i>' : ''}
+            </div>
+            <div class="flashcard-back bg-indigo-100 rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
+                ${backContentDiv.innerHTML}
+            </div>
+        </div>`;
         container.appendChild(flashcard);
 
         this.setupFlashcardEventListeners(flashcard);
@@ -313,18 +868,38 @@ export class FlashcardsTool {
     setupFlashcardEventListeners(flashcard) {
         if (!window.hasAttachedFlashcardListener) {
             document.addEventListener('keydown', (e) => {
-                // Space to flip card only if not on singleCardMode
+                // Space to flip card in singleCardMode (both normal and SR)
                 if (e.code === 'Space' && this.singleCardMode && document.activeElement === document.body) {
                     const currentFlashcard = document.querySelector('.flashcard');
                     e.preventDefault();
                     currentFlashcard?.classList.toggle('flipped');
                 }
 
-                // Left/Right arrows for pagination in singleCardMode
+                // Left/Right arrows for navigation
                 if (e.code === 'ArrowRight') {
-                    document.getElementById('next-page-btn')?.click();
+                    e.preventDefault();
+                    if (this.spacedRepetitionMode) {
+                        // In SR mode, manually advance to next card for testing
+                        if (this.currentSRCardIndex < this.spacedRepetitionCards.length - 1) {
+                            this.currentSRCardIndex++;
+                            this.renderFlashcards();
+                        }
+                    } else {
+                        // In normal mode, use pagination
+                        document.getElementById('next-page-btn')?.click();
+                    }
                 } else if (e.code === 'ArrowLeft') {
-                    document.getElementById('prev-page-btn')?.click();
+                    e.preventDefault();
+                    if (this.spacedRepetitionMode) {
+                        // In SR mode, go back to previous card
+                        if (this.currentSRCardIndex > 0) {
+                            this.currentSRCardIndex--;
+                            this.renderFlashcards();
+                        }
+                    } else {
+                        // In normal mode, use pagination
+                        document.getElementById('prev-page-btn')?.click();
+                    }
                 }
             });
 
@@ -392,17 +967,31 @@ export class FlashcardsTool {
     }
 
     updatePaginationControls() {
-        const totalPages = this.singleCardMode
-            ? this.flashcards.length
-            : Math.ceil(this.flashcards.length / this.cardsPerPage);
+        if (this.spacedRepetitionMode) {
+            // In SR mode, show SR-specific controls
+            const totalPages = this.spacedRepetitionCards.length;
+            document.getElementById('page-info').textContent = `Card ${this.currentSRCardIndex + 1} of ${totalPages} (SR Mode)`;
 
-        document.getElementById('page-info').textContent = `Page ${this.currentPage} of ${totalPages}`;
+            const controls = document.getElementById('pagination-controls');
+            controls.classList.toggle('hidden', totalPages <= 1);
 
-        const controls = document.getElementById('pagination-controls');
-        controls.classList.toggle('hidden', totalPages <= 1);
+            // Disable pagination buttons in SR mode but keep them visible for visual consistency
+            document.getElementById('prev-page-btn').disabled = this.currentSRCardIndex === 0;
+            document.getElementById('next-page-btn').disabled = this.currentSRCardIndex >= totalPages - 1;
+        } else {
+            // Normal mode
+            const totalPages = this.singleCardMode
+                ? this.flashcards.length
+                : Math.ceil(this.flashcards.length / this.cardsPerPage);
 
-        document.getElementById('prev-page-btn').disabled = this.currentPage === 1;
-        document.getElementById('next-page-btn').disabled = this.currentPage === totalPages;
+            document.getElementById('page-info').textContent = `Page ${this.currentPage} of ${totalPages}`;
+
+            const controls = document.getElementById('pagination-controls');
+            controls.classList.toggle('hidden', totalPages <= 1);
+
+            document.getElementById('prev-page-btn').disabled = this.currentPage === 1;
+            document.getElementById('next-page-btn').disabled = this.currentPage === totalPages;
+        }
     }
 
     // Update speakWord to handle language
@@ -562,155 +1151,6 @@ export class FlashcardsTool {
         this.renderCustomListButtons();
 
         this.showNotification(`Moved "${draggedListName}" before "${targetListName}"`);
-    }
-
-    setupEventListeners() {
-        // View toggle
-        document.getElementById("toggle-view-btn").addEventListener("click", () => {
-            this.singleCardMode = !this.singleCardMode;
-            document.getElementById("toggle-view-btn").textContent = this.singleCardMode
-                ? "Switch to Grid Mode"
-                : "Switch to Focus Mode";
-            this.currentPage = 1;
-            this.renderFlashcards();
-        });
-
-        // Flip list toggle
-        document.getElementById("flip-list-btn").addEventListener("click", () => {
-            this.isFlipped = !this.isFlipped;
-            document.getElementById("flip-list-btn").textContent = this.isFlipped
-                ? "Switch to German → English"
-                : "Switch to English → German";
-            this.currentPage = 1;
-            this.renderFlashcards();
-        });
-
-        document.getElementById('slow-speak').addEventListener('change', (e) => {
-            this.useSlowSpeak = e.target.checked;
-            console.log("On Off set to:", !this.useSlowSpeak ? "Normal" : "Slow");
-        });
-
-        this.setupEditModal();
-
-        // Control buttons
-        document.getElementById('shuffle-btn').addEventListener('click', () => {
-            this.flashcards = this.shuffleArray(this.flashcards);
-            this.saveFlashcards();
-            this.renderFlashcards();
-        });
-
-        document.getElementById('reset-btn').addEventListener('click', () => {
-            if (confirm('Reset progress for this list?')) {
-                const listName = this.getCurrentListName();
-                if (listName && this.customLists[listName]) {
-                    this.customLists[listName] = this.customLists[listName].map(c => ({ ...c, mastered: false }));
-                    localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
-                    this.flashcards = [...this.customLists[listName]];
-                    this.saveFlashcards();
-                    this.renderFlashcards();
-                }
-            }
-        });
-
-        document.getElementById('show-original-btn').addEventListener('click', () => {
-            const names = Object.keys(this.customLists);
-            console.log('original -> ', this.originalListName);
-            if (names.length > 0) {
-                this.flashcards = [...this.customLists[this.originalListName || names[0]]];
-                this.currentPage = 1;
-                this.renderFlashcards();
-            } else {
-                this.showNotification('No custom lists available.');
-            }
-        });
-
-        document.getElementById('show-not-mastered-btn').addEventListener('click', () => {
-            const listName = this.getCurrentListName();
-
-            if (listName && this.customLists[listName]) {
-                this.flashcards = [...this.customLists[listName]];
-            }
-            const notMastered = this.flashcards.filter(c => !c.mastered);
-            if (notMastered.length === 0) {
-                this.showNotification('All words mastered!');
-                return;
-            }
-            this.flashcards = notMastered;
-            this.currentPage = 1;
-            this.renderFlashcards();
-        });
-
-        // Speak functionality - updated to handle flipped state
-        document.addEventListener('click', e => {
-            if (e.target.closest('.speak-btn') || e.target.closest('.speak-btn i')) {
-                const card = e.target.closest('.flashcard');
-                const idx = card.dataset.index;
-                const text = this.isFlipped ? this.flashcards[idx].english : this.flashcards[idx].german;
-                const lang = this.isFlipped ? 'en-US' : 'de-DE';
-                this.speakWord(text, 0.8, lang);
-            }
-        });
-
-        // Pagination
-        document.getElementById('next-page-btn').addEventListener('click', () => {
-            const totalPages = this.singleCardMode
-                ? this.flashcards.length
-                : Math.ceil(this.flashcards.length / this.cardsPerPage);
-
-            if (this.currentPage < totalPages) {
-                this.currentPage++;
-                this.renderFlashcards();
-            }
-        });
-
-        document.getElementById('prev-page-btn').addEventListener('click', () => {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.renderFlashcards();
-            }
-        });
-
-        // Add flashcards modal
-        document.getElementById('add-flashcards-btn').addEventListener('click', () => {
-            this.handleAddFlashcards();
-        });
-
-        // Enhanced drag and drop for the container
-        const container = document.getElementById('custom-lists-container');
-        if (container) {
-            container.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                container.classList.add('drag-over-zone');
-            });
-
-            container.addEventListener('dragleave', (e) => {
-                if (!container.contains(e.relatedTarget)) {
-                    container.classList.remove('drag-over-zone');
-                }
-            });
-
-            container.addEventListener('drop', (e) => {
-                e.preventDefault();
-                container.classList.remove('drag-over-zone');
-            });
-        }
-
-        // Playing audio event listener with v keyword for speak-btn
-        document.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'v' && document.activeElement === document.body) {
-                const activeCard = document.querySelector('.flashcard');
-                if (activeCard) {
-                    const idx = activeCard.dataset.index;
-                    const sentence = this.flashcards[idx]?.sentence ? `, ${this.flashcards[idx].sentence}` : '';
-                    const text = this.flashcards[idx].german + ',' + sentence;
-                    // adding word and sentence together
-                    const lang = 'de-DE';
-                    this.speakWord(text, 0.8, lang);
-                }
-            }
-        });
-
-        this.setupAddFlashcardsModal();
     }
 
     setupAddFlashcardsModal() {
