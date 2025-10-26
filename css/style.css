@@ -114,11 +114,31 @@ body.dark-mode {
 .dark-mode #input,
 .dark-mode input,
 .dark-mode #output,
+.dark-mode #flashcard-list-selector,
+.dark-mode #flashcard-list-selector div,
 .dark-mode #focus-controls,
 .dark-mode #focus-controls span {
     background-color: rgb(12, 12, 23) !important;
     color: white !important;
     border-color: #444 !important;
+}
+
+.dark-mode #flashcard-list-selector button {
+    background-color: #0e4868 !important;
+    color: white !important;
+    border-color: #444 !important;
+}
+
+.dark-mode #flashcard-list-selector #load-flashcards-btn {
+    background-color: #1d5902 !important;
+    color: white !important;
+    border-color: #444 !important;
+}
+
+.dark-mode #flashcard-list-selector button:hover {
+    background-color: #2e2e3e !important;
+    color: white !important;
+    border-color: #666 !important;
 }
 
 .dark-mode #focus-controls label {

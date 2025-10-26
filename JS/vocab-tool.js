@@ -3699,7 +3699,7 @@ export class VocabularyTool {
             return content;
         }).join('. ');
 
-        console.log(textContent);
+        // console.log(textContent);
         // Set the text in the input area
         this.input.value = textContent;
 
@@ -3718,7 +3718,7 @@ export class VocabularyTool {
             if (activeRecallBtn && activeRecallBtn.textContent.includes('Active Recall')) {
                 activeRecallBtn.click();
             }
-        }, 1000);
+        }, 100);
     }
 
     // Also add this method to handle list updates
