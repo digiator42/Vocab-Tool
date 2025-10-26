@@ -112,14 +112,6 @@ export class FlashcardsTool {
         </button>
     `;
 
-        // Test if buttons are created properly
-        console.log('SR buttons created:', {
-            againBtn: srControls.querySelector('.sr-again-btn'),
-            hardBtn: srControls.querySelector('.sr-hard-btn'),
-            goodBtn: srControls.querySelector('.sr-good-btn'),
-            easyBtn: srControls.querySelector('.sr-easy-btn')
-        });
-
         // Add event listeners for SR buttons
         const againBtn = srControls.querySelector('.sr-again-btn');
         if (againBtn) {
@@ -186,26 +178,27 @@ export class FlashcardsTool {
 
         if (minutesUntilNext === 1) { // Again
             cardData.repetitions = 0;
-            cardData.interval = 1; // 1 minute in minutes
+            cardData.interval = 1;
+            console.log('Rescheduling card for current session (Again):', card.german);
+            this.rescheduleCardForCurrentSession(card, 3);
 
-            // For "Again" cards, add them back to the current session queue
-            // so they appear again soon in the same session
-            this.rescheduleCardForCurrentSession(card);
         } else if (minutesUntilNext === 10) { // Hard
             cardData.repetitions += 1;
             cardData.interval = Math.max(1, cardData.interval * 1.2);
+            console.log('Rescheduling card for current session (Hard):', card.german);
+            this.rescheduleCardForCurrentSession(card, 8);
+
         } else { // Good or Easy
             cardData.repetitions += 1;
 
             if (cardData.repetitions === 1) {
-                cardData.interval = 1; // 1 day
+                cardData.interval = 1;
             } else if (cardData.repetitions === 2) {
-                cardData.interval = 6; // 6 days
+                cardData.interval = 6;
             } else {
                 cardData.interval = Math.round(cardData.interval * cardData.easeFactor);
             }
 
-            // Adjust ease factor based on rating
             if (minutesUntilNext === 1440) { // Good
                 cardData.easeFactor = Math.max(1.3, cardData.easeFactor - 0.15);
             } else { // Easy
@@ -213,27 +206,27 @@ export class FlashcardsTool {
             }
         }
 
-        // Convert interval from days to minutes for calculation
-        const intervalInMinutes = minutesUntilNext;
-        cardData.nextReview = now + (intervalInMinutes * 60 * 1000);
+        cardData.nextReview = now + (minutesUntilNext * 60 * 1000);
         cardData.lastReviewed = now;
 
-        // Save SR data
         localStorage.setItem('srSessionData', JSON.stringify(this.srSessionData));
 
-        // Move to next card
+        // Move to next card FIRST
         this.currentSRCardIndex++;
         console.log('Moved to next card:', {
             newSRCardIndex: this.currentSRCardIndex,
             totalSRCards: this.spacedRepetitionCards.length
         });
 
+        // THEN process rescheduled cards - this is crucial!
+        this.processRescheduledCardsIfNeeded();
+
+        // Check if session is completed AFTER processing rescheduled cards
         if (this.currentSRCardIndex >= this.spacedRepetitionCards.length) {
-            // Check if we have any rescheduled "Again" cards
             if (this.hasRescheduledCards()) {
+                console.log('Main session completed, processing rescheduled cards');
                 this.processRescheduledCards();
             } else {
-                // Session completed - properly reset SR mode
                 console.log('SR session completed');
                 this.spacedRepetitionMode = false;
                 this.currentSRCardIndex = 0;
@@ -243,24 +236,64 @@ export class FlashcardsTool {
             }
         }
 
-        // Re-render to show the next card (or exit SR mode)
         console.log('Calling renderFlashcards');
         this.renderFlashcards();
     }
 
-    rescheduleCardForCurrentSession(card) {
-        console.log('Rescheduling card for current session:', card.german);
+    rescheduleCardForCurrentSession(card, insertAfterCards = 3) {
         if (!this.rescheduledCards) {
             this.rescheduledCards = [];
         }
 
-        // Add the card to rescheduled queue
+        // Add the card to rescheduled queue with position info
         this.rescheduledCards.push({
             card: card,
-            rescheduledAt: Date.now()
+            rescheduledAt: Date.now(),
+            insertAfter: this.currentSRCardIndex + insertAfterCards
         });
 
-        console.log('Card rescheduled for current session:', card.german);
+        console.log('Card rescheduled for current session:', card.german, 'will insert after card', this.currentSRCardIndex + insertAfterCards);
+    }
+
+    // New method to check if we need to insert rescheduled cards
+    processRescheduledCardsIfNeeded() {
+        console.log('processRescheduledCardsIfNeeded called - current index:', this.currentSRCardIndex);
+
+        if (!this.hasRescheduledCards()) {
+            console.log('No rescheduled cards to process');
+            return;
+        }
+
+        console.log('Rescheduled cards available:', this.rescheduledCards.length);
+        const cardsToInsert = [];
+
+        // Find cards that should be inserted at or before current position
+        for (let i = this.rescheduledCards.length - 1; i >= 0; i--) {
+            const rescheduled = this.rescheduledCards[i];
+            console.log('Checking rescheduled card:', rescheduled.card.german, 'insertAfter:', rescheduled.insertAfter, 'current index:', this.currentSRCardIndex);
+
+            if (rescheduled.insertAfter <= this.currentSRCardIndex) {
+                console.log('Inserting rescheduled card now:', rescheduled.card.german);
+                cardsToInsert.push(rescheduled);
+                this.rescheduledCards.splice(i, 1);
+            }
+        }
+
+        // Insert the cards at current position
+        if (cardsToInsert.length > 0) {
+            console.log('Inserting', cardsToInsert.length, 'rescheduled cards');
+            cardsToInsert.reverse().forEach(rescheduled => {
+                const insertPosition = this.currentSRCardIndex;
+                this.spacedRepetitionCards.splice(insertPosition, 0, rescheduled.card);
+                console.log('Inserted card at position:', insertPosition, 'New total cards:', this.spacedRepetitionCards.length);
+            });
+
+            // Since we inserted cards, we need to adjust the current index
+            this.currentSRCardIndex += cardsToInsert.length - 1;
+            console.log('Adjusted current index to:', this.currentSRCardIndex);
+        } else {
+            console.log('No cards to insert at this position');
+        }
     }
 
     hasRescheduledCards() {
@@ -274,7 +307,9 @@ export class FlashcardsTool {
     processRescheduledCards() {
         if (!this.hasRescheduledCards()) return;
 
-        // Add rescheduled cards back to the current session
+        console.log('Processing all remaining rescheduled cards:', this.rescheduledCards.length);
+
+        // Add all rescheduled cards back to the end of the session
         this.rescheduledCards.forEach(rescheduled => {
             // Only add if not already in the current session
             const alreadyInSession = this.spacedRepetitionCards.some(
@@ -283,13 +318,16 @@ export class FlashcardsTool {
 
             if (!alreadyInSession) {
                 this.spacedRepetitionCards.push(rescheduled.card);
+                console.log('Added rescheduled card to end of session:', rescheduled.card.german);
             }
         });
 
         console.log('Processed rescheduled cards. New total:', this.spacedRepetitionCards.length);
         this.clearRescheduledCards();
 
-        // Continue from current position
+        // Reset to continue from current position
+        this.currentSRCardIndex = this.currentSRCardIndex; // Stay at current position
+
         this.showNotification(`Added ${this.rescheduledCards.length} rescheduled cards back to session`);
     }
 
@@ -394,15 +432,16 @@ export class FlashcardsTool {
         });
 
         // Pagination - work differently in SR mode vs normal mode
+        // Pagination - work differently in SR mode vs normal mode
         document.getElementById('next-page-btn').addEventListener('click', () => {
             if (this.spacedRepetitionMode) {
-                // In SR mode, manually advance for testing
                 if (this.currentSRCardIndex < this.spacedRepetitionCards.length - 1) {
                     this.currentSRCardIndex++;
+                    // Process rescheduled cards when manually navigating
+                    this.processRescheduledCardsIfNeeded();
                     this.renderFlashcards();
                 }
             } else {
-                // Normal mode pagination
                 const totalPages = this.singleCardMode
                     ? this.flashcards.length
                     : Math.ceil(this.flashcards.length / this.cardsPerPage);
@@ -469,9 +508,6 @@ export class FlashcardsTool {
                 }
             }
         });
-
-        // View toggle - handle SR mode properly (duplicate removed - keeping the one at the top)
-        // This duplicate was removed since we already have a view toggle at the top
 
         this.setupAddFlashcardsModal();
     }
@@ -796,7 +832,7 @@ export class FlashcardsTool {
     }
 
     renderGridMode(container) {
-        container.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 mx-auto max-w-3xl";
+        container.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 mx-auto max-w-5xl";
         const startIndex = (this.currentPage - 1) * this.cardsPerPage;
         const endIndex = Math.min(startIndex + this.cardsPerPage, this.flashcards.length);
 
@@ -834,8 +870,8 @@ export class FlashcardsTool {
             }
 
             flashcard.innerHTML = `
-                <div class="flashcard-inner min-h-36 ${card.mastered ? 'border-2 border-solid border-green-200 rounded-lg' : ''}">
-                    <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col items-center justify-center cursor-pointer h-full">
+                <div class="flashcard-inner min-h-64 ${card.mastered ? 'border-2 border-solid border-green-200 rounded-lg' : ''}">
+                    <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col gap-5 items-center justify-center cursor-pointer h-full">
                         ${frontContent}
                         <button class="speak-btn mt-3 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200">
                             <i data-feather="volume-2" class="text-indigo-700 w-3 h-3"></i>
@@ -843,7 +879,7 @@ export class FlashcardsTool {
                         <p class="text-xs text-gray-500 mt-5">Click to flip</p>
                         ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-6 h-6"></i>' : ''}
                     </div>
-                    <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col items-center justify-center cursor-pointer h-full">
+                    <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col gap-6 items-center justify-center cursor-pointer h-full">
                         ${backContent}
                         <div class="mt-1 flex space-x-1">
                             <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
@@ -868,36 +904,32 @@ export class FlashcardsTool {
     setupFlashcardEventListeners(flashcard) {
         if (!window.hasAttachedFlashcardListener) {
             document.addEventListener('keydown', (e) => {
-                // Space to flip card in singleCardMode (both normal and SR)
                 if (e.code === 'Space' && this.singleCardMode && document.activeElement === document.body) {
                     const currentFlashcard = document.querySelector('.flashcard');
                     e.preventDefault();
                     currentFlashcard?.classList.toggle('flipped');
                 }
 
-                // Left/Right arrows for navigation
                 if (e.code === 'ArrowRight') {
                     e.preventDefault();
                     if (this.spacedRepetitionMode) {
-                        // In SR mode, manually advance to next card for testing
                         if (this.currentSRCardIndex < this.spacedRepetitionCards.length - 1) {
                             this.currentSRCardIndex++;
+                            // Process rescheduled cards when manually navigating
+                            this.processRescheduledCardsIfNeeded();
                             this.renderFlashcards();
                         }
                     } else {
-                        // In normal mode, use pagination
                         document.getElementById('next-page-btn')?.click();
                     }
                 } else if (e.code === 'ArrowLeft') {
                     e.preventDefault();
                     if (this.spacedRepetitionMode) {
-                        // In SR mode, go back to previous card
                         if (this.currentSRCardIndex > 0) {
                             this.currentSRCardIndex--;
                             this.renderFlashcards();
                         }
                     } else {
-                        // In normal mode, use pagination
                         document.getElementById('prev-page-btn')?.click();
                     }
                 }
@@ -1111,6 +1143,7 @@ export class FlashcardsTool {
                 this.saveFlashcards();
                 this.originalListName = listName;
                 this.currentPage = 1;
+                this.updateSRButton();
                 this.renderFlashcards();
             });
 
