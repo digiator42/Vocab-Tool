@@ -13,6 +13,7 @@ export class VocabularyTool {
         this.voiceSelect = document.getElementById("voiceSelect");
 
         this.vocabInfoPanel = null;
+        this.OriginalWord = null;
         this.currentVocabData = null;
         this.germanVoices = [];
         this.rate = 1;
@@ -1896,8 +1897,8 @@ export class VocabularyTool {
             const selection = allSelections[0];
             this.showAddToFlashModal(selection.text, selection.translation);
         } else {
-            // Multiple selections - show batch modal
-            this.showBatchAddToFlashModal(allSelections);
+            // Multiple selections - show batch modal (now async)
+            await this.showBatchAddToFlashModal(allSelections);
         }
 
         // Reset button state
@@ -2080,7 +2081,7 @@ export class VocabularyTool {
         });
     }
 
-    showBatchAddToFlashModal(selections) {
+    async showBatchAddToFlashModal(selections) {
         const modal = document.getElementById('batch-add-to-flash-modal');
         if (!modal) {
             this.createBatchAddModal();
@@ -2089,13 +2090,33 @@ export class VocabularyTool {
         const selectionsList = document.getElementById('batch-selections-list');
         selectionsList.innerHTML = '';
 
+        // First, determine which selections are nouns
+        const nounChecks = await Promise.all(
+            selections.map(async (selection, index) => {
+                const isSingleWord = !selection.isGroup && selection.words.length === 1;
+                if (!isSingleWord) return { index, isNoun: false };
+
+                const isNoun = await this.isLikelyNoun(selection.words[0]);
+                return { index, isNoun };
+            })
+        );
+
+        // Create a map for quick lookup
+        const nounMap = new Map();
+        nounChecks.forEach(check => {
+            nounMap.set(check.index, check.isNoun);
+        });
+
         // Populate selections list
         selections.forEach((selection, index) => {
             const selectionDiv = document.createElement('div');
             selectionDiv.className = 'p-3 border rounded-lg bg-gray-50';
 
-            // Add article button only for single words - moved to right side
-            const articleButton = !selection.isGroup && selection.words.length === 1 ? `
+            const isSingleWord = !selection.isGroup && selection.words.length === 1;
+            const isNoun = nounMap.get(index);
+            const showArticleButton = isSingleWord && isNoun;
+
+            const articleButton = showArticleButton ? `
             <div class="ml-4 flex flex-col items-center space-y-2">
                 <input type="checkbox" class="batch-selection-checkbox" data-index="${index}" checked>
                 <button class="get-article-btn px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors whitespace-nowrap"
@@ -2117,6 +2138,7 @@ export class VocabularyTool {
                     <div class="text-sm text-gray-600">${selection.translation}</div>
                     <div class="text-xs text-gray-500 mt-1">
                         ${selection.isGroup ? '📚 Word Group' : '🔤 Single Word'} • ${selection.words.length} word(s)
+                        ${isSingleWord && !showArticleButton ? '• (Not a noun)' : ''}
                     </div>
                 </div>
                 ${articleButton}
@@ -2132,7 +2154,13 @@ export class VocabularyTool {
                     e.stopPropagation();
                     const word = btn.dataset.word;
                     const index = parseInt(btn.dataset.index);
-                    this.handleGetArticle(word, index, btn);
+
+                    // Check if this is a "show more" click for multiple articles
+                    if (btn.textContent.includes('show more') && btn.dataset.allArticles) {
+                        this.showArticleDetails(word, JSON.parse(btn.dataset.allArticles), btn);
+                    } else {
+                        this.handleGetArticle(word, index, btn);
+                    }
                 });
             });
         }, 100);
@@ -2146,64 +2174,251 @@ export class VocabularyTool {
         modal.classList.remove('hidden');
     }
 
+    // Show detailed article information for multiple articles
+    showArticleDetails(word, articles, button) {
+        const baseWord = button.dataset.baseWord || word;
+        const originalWord = button.dataset.originalWord || word;
+
+        // Create a modal or tooltip to show all possible articles
+        const detailModal = document.createElement('div');
+        detailModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        detailModal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-lg font-bold mb-4">Word Information</h3>
+            ${originalWord !== baseWord ? `
+                <div class="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+                    <p class="text-sm text-blue-800">
+                        <strong>Note:</strong> "${originalWord}" is the plural form.<br>
+                        The base (singular) form is "<strong>${baseWord}</strong>".
+                    </p>
+                </div>
+            ` : ''}
+            <p class="mb-4">The word "<strong>${baseWord}</strong>" can have multiple articles:</p>
+            <div class="space-y-2 mb-4">
+                ${articles.map(article => `
+                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span class="font-medium">${article} ${baseWord}</span>
+                        <button class="use-article-btn px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                                data-article="${article}">
+                            Use This
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+            <p class="text-sm text-gray-600 mb-4">
+                Each article represents a different meaning or usage of the word.
+            </p>
+            <div class="flex justify-end">
+                <button class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" id="close-article-modal">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+
+        document.body.appendChild(detailModal);
+
+        // Add event listeners
+        detailModal.querySelector('#close-article-modal').addEventListener('click', () => {
+            detailModal.remove();
+        });
+
+        detailModal.querySelectorAll('.use-article-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const selectedArticle = e.target.dataset.article;
+                this.updateWordWithArticle(baseWord, selectedArticle, button);
+                detailModal.remove();
+            });
+        });
+
+        // Close modal when clicking outside
+        detailModal.addEventListener('click', (e) => {
+            if (e.target === detailModal) {
+                detailModal.remove();
+            }
+        });
+    }
+
+    // Update word with selected article
+    updateWordWithArticle(baseWord, article, button) {
+        const selectionIndex = parseInt(button.dataset.index);
+        const selectionsList = document.getElementById('batch-selections-list');
+        const selectionDiv = selectionsList.children[selectionIndex];
+        const germanWordSpan = selectionDiv.querySelector('.german-word');
+
+        const articleWord = `${article} ${baseWord.charAt(0).toUpperCase() + baseWord.slice(1)}`;
+        germanWordSpan.textContent = articleWord;
+
+        // FIXED: Update button classes individually
+        button.textContent = '✓ Done';
+        button.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+        button.classList.add('bg-green-500', 'hover:bg-green-600');
+        button.disabled = true;
+    }
+
+    // Helper method to check if a word is likely a noun
+    async isLikelyNoun(word) {
+        // Simple heuristic: German nouns are capitalized
+        if (word.charAt(0) !== word.charAt(0).toUpperCase()) {
+            return false;
+        }
+
+        try {
+            // Use the translation API to get part of speech info
+            const extendedData = await this.translate(word, false, true);
+            if (extendedData && extendedData.dict && extendedData.dict.length > 0) {
+                const pos = extendedData.dict[0].pos;
+                return pos === 'noun' || pos === 'substantiv';
+            }
+        } catch (error) {
+            console.log('Could not determine part of speech for:', word);
+        }
+
+        // Fallback: assume capitalized German words are nouns
+        return /^[A-ZÄÖÜ]/.test(word);
+    }
+
     async handleGetArticle(word, selectionIndex, button) {
         // Show loading state
         const originalText = button.textContent;
         button.textContent = 'Loading...';
-        // button.disabled = true;
+        button.disabled = true;
 
         console.log(`Getting article for "${word}" (selection index ${selectionIndex})`);
-        // Update the selection in the original selections array
+
         const selectionsList = document.getElementById('batch-selections-list');
         const selectionDiv = selectionsList.children[selectionIndex];
-
-        // Update ONLY the German word text (the span with class "german-word")
         const germanWordSpan = selectionDiv.querySelector('.german-word');
-        console.log('Current germanWordSpan text: --> ', germanWordSpan.textContent);
 
-        // check the btn has show in inner text
+        // Check if article already fetched
         const articles = ['Der', 'Die', 'Das'];
         const matchedArticle = articles.find(a => germanWordSpan.textContent.startsWith(a + ' '));
 
         if (matchedArticle) {
             console.log('Article already fetched, opening dictionary...');
-            window.open(`https://der-artikel.de/${matchedArticle.toLowerCase()}/${word.charAt(0).toUpperCase() + word.slice(1)}.html`);
+            window.open(`https://der-artikel.de/${matchedArticle.toLowerCase()}/${this.OriginalWord.charAt(0).toUpperCase() + this.OriginalWord.slice(1)}.html`);
             button.textContent = '✓ show more';
+            button.disabled = false;
             return;
         }
 
         try {
-            // First, get the English translation of the German word
-            const englishTranslation = await this.translate(word);
-            console.log(`English translation: "${englishTranslation}"`);
+            // Use the new API to get article
+            const response = await fetch(`https://german-genders.vercel.app/api/search/${encodeURIComponent(word.toLowerCase())}`);
+            const data = await response.json();
 
-            // Now translate "the + english_word" back to German to get the article
-            // const articleWord = await this.translate('the ' + englishTranslation, true);
-            const articleWord = await this.translate('the ' + englishTranslation, true);
-            console.log(`German with article: "${articleWord}"`);
+            console.log('Article API response:', data);
 
-            // Update the German word display with the article
-            germanWordSpan.textContent = articleWord.charAt(0).toUpperCase() + articleWord.slice(1);
+            if (data.responseType === 900) {
+                // Single article case - handle lemmatization
+                const article = this.getArticleFromGender(data.gender);
+                const baseWord = data.title; // Use the base form returned by API
+                const articleWord = `${article} ${baseWord.charAt(0).toUpperCase() + baseWord.slice(1)}`;
 
-            // Update the button to show completion
-            button.textContent = '✓ show more';
-            button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-            button.classList.add('bg-green-500', 'hover:bg-green-600');
+                // Update the German word display with the article and base form
+                germanWordSpan.textContent = articleWord;
 
-            // Update the translation display (show the original English translation)
-            const translationDisplay = selectionDiv.querySelector('.text-sm');
-            translationDisplay.textContent = englishTranslation;
+                // Store the original word for reference
+                germanWordSpan.dataset.originalWord = word;
+                germanWordSpan.dataset.baseWord = baseWord;
 
-            console.log(`Updated "${word}" -> "${articleWord}" (English: "${englishTranslation}")`);
+                if (word !== baseWord) {
+                    germanWordSpan.title = `Base form of "${word}"`;
+                    germanWordSpan.classList.add('cursor-help', 'border-b', 'border-dotted', 'border-gray-400');
+                }
+
+                // Update the button to show completion
+                button.textContent = '✓ show more';
+                button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                button.classList.add('bg-green-500', 'hover:bg-green-600');
+                button.disabled = false;
+
+                console.log(`Updated "${word}" (base: ${baseWord}) -> "${articleWord}"`);
+
+            } else if (data.responseType === 901) {
+                // Multiple articles case (homonym)
+                this.handleMultipleArticles(word, data, germanWordSpan, button, selectionIndex);
+                this.OriginalWord = data.title;
+                germanWordSpan.textContent += ` / ${word}`;
+            } else {
+                throw new Error('No article data found');
+            }
 
         } catch (error) {
             console.error('Error getting article:', error);
             button.textContent = 'Error';
+
+            // FIXED: Remove and add classes individually
+            button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            button.classList.add('bg-red-500', 'hover:bg-red-600');
+
             setTimeout(() => {
                 button.textContent = 'Get Article';
+                button.classList.remove('bg-red-500', 'hover:bg-red-600');
+                button.classList.add('bg-blue-500', 'hover:bg-blue-600');
                 button.disabled = false;
-            }, 2000);
+            }, 1000);
         }
+    }
+
+    // Helper method to extract article from gender data
+    getArticleFromGender(gender) {
+        if (gender.der) return 'Der';
+        if (gender.die) return 'Die';
+        if (gender.das) return 'Das';
+        return ''; // Fallback
+    }
+
+    // Handle multiple articles case
+    handleMultipleArticles(word, data, germanWordSpan, button, selectionIndex) {
+        const articles = [];
+        if (data.gender.der) articles.push('Der');
+        if (data.gender.die) articles.push('Die');
+        if (data.gender.das) articles.push('Das');
+
+        const baseWord = data.title; // Use the base form from API
+
+        // if (articles.length > 1) {
+        //     // Notify user about multiple articles
+        //     const notification = document.createElement('div');
+        //     notification.className = 'mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded text-sm';
+        //     notification.innerHTML = `
+        //     <strong>Multiple articles found for "${baseWord}":</strong> ${articles.join(', ')}. 
+        //     <br>Using "${articles[0]}" by default. Click "show more" for details.
+        // `;
+
+        //     germanWordSpan.parentNode.insertBefore(notification, germanWordSpan.nextSibling);
+
+        //     // Store all possible articles and base word for the "show more" functionality
+        //     button.dataset.allArticles = JSON.stringify(articles);
+        //     button.dataset.originalWord = word;
+        //     button.dataset.baseWord = baseWord;
+        // }
+
+        // Use the first article by default with the base form
+        const articleWord = `${articles[0]} ${baseWord.charAt(0).toUpperCase() + baseWord.slice(1)}`;
+        germanWordSpan.textContent = articleWord;
+
+        // Store the original and base words
+        germanWordSpan.dataset.originalWord = word;
+        germanWordSpan.dataset.baseWord = baseWord;
+
+        // Update button for multiple articles case - FIXED: Add classes individually
+        button.textContent = articles.length > 1 ? '⚠️ show more' : '✓ show more';
+
+        // Remove old classes first
+        button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+
+        // Add new classes individually
+        if (articles.length > 1) {
+            button.classList.add('bg-orange-500', 'hover:bg-orange-600');
+        } else {
+            button.classList.add('bg-green-500', 'hover:bg-green-600');
+        }
+
+        button.disabled = false;
+
+        console.log(`Multiple articles found for "${word}" (base: ${baseWord}): ${articles.join(', ')}. Using "${articles[0]}"`);
     }
 
     setupAddToFlashcardModal() {
