@@ -25,7 +25,7 @@
     </div>
 
     <!-- Vocabulary Tool -->
-    <section id="vocab-tool" class="max-w-7xl mx-auto">
+    <section id="vocab-tool" class="max-w-6xl mx-auto" style="margin-right: calc(50% - 425px);">
         <div class="flex flex-wrap justify-between items-start">
             <div class="flex flex-col gap-4">
                 <h1 class="text-2xl font-bold text-blue-800">German Vocabulary Tool</h1>
@@ -58,7 +58,9 @@
                 <div class="flex justify-between items-center gap-2 w-full
                 border-2 border-gray-300 rounded-lg p-3 md:border-none">
                     <button id="processBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow">Process</button>
-                    <button id="playBtn" class="px-4 py-2 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700">Play Audio</button>
+                    <button id="playBtn"
+                        class="px-4 py-2 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700">Play
+                        Audio</button>
                     <div class="flex flex-row items-center space-x-1">
                         <input type="checkbox" id="offline-speak" class="rounded">
                         <label for="offline-speak" class="text-sm font-medium">Offline Mode</label>
@@ -78,14 +80,15 @@
             </div>
         </div>
         <!-- Active Recall Buttons -->
-        <div id="extra-tools-container" class="flex justify-center space-x-2 w-full border-2 border-gray-300 rounded-lg p-3">
+        <div id="extra-tools-container"
+            class="flex justify-center space-x-2 w-full border-2 border-gray-300 rounded-lg p-3">
         </div>
 
         <div class="flex justify-center">
-            <span id="status" class="text-sm text-gray-600">Ready</span>
+            <p id="status" class="text-sm text-gray-600 my-4">Ready</p>
         </div>
         <div id="output"
-            class="w-full p-6 md:p-14 bg-white border rounded-lg shadow-sm leading-8 min-h-[200px] whitespace-nowrap">
+            class="w-full p-6 md:p-14 bg-white border rounded-lg shadow-sm leading-8 min-h-[200px] whitespace-nowrap text-xl">
         </div>
         <div id="selectionTooltip" style="z-index: 12;"></div>
     </section>

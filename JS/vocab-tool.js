@@ -268,7 +268,7 @@ export class VocabularyTool {
 
         // ALWAYS position at the right side of screen - SIMPLE FIXED POSITION
         this.vocabInfoPanel.style.top = '100px';
-        this.vocabInfoPanel.style.right = '20px';
+        this.vocabInfoPanel.style.right = '2px';
         this.vocabInfoPanel.style.left = 'auto';
 
         // Populate main word and translation
@@ -473,7 +473,7 @@ export class VocabularyTool {
     async speak(text, lang = "de", slow = this.useSlowVoice) {
         console.log('Loading speech for:', text, 'in', lang);
         if (lang === null || text === '' || this.isStopSpeechRequested) return;
-        this.showNotification("Loading audio...");
+        this.setStatus("Loading audio...");
 
         try {
             // If offline mode is on
@@ -489,11 +489,11 @@ export class VocabularyTool {
             const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
             const audio = new Audio(url);
             audio.play();
-            audio.onplaying = () => this.showNotification("Speaking...");
-            audio.onended = () => this.showNotification("Ready");
-            audio.onerror = () => this.showNotification("Speech error");
+            audio.onplaying = () => this.setStatus("Speaking...");
+            audio.onended = () => this.setStatus("Ready");
+            audio.onerror = () => this.setStatus("Speech error");
         } catch {
-            this.showNotification("Speech error, System voice");
+            this.setStatus("Speech error, System voice");
             const selectedVoiceName = this.voiceSelect.value;
             this.speakText(text, selectedVoiceName, this.rate);
         }
@@ -1676,7 +1676,7 @@ export class VocabularyTool {
                     this.output.appendChild(document.createTextNode(tok));
                 }
             });
-            this.showNotification("Text processed");
+            this.setStatus("Text processed");
             this.clearAllSelections();
         });
 
