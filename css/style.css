@@ -53,7 +53,8 @@ html {
 }
 
 .dark-mode ::-webkit-scrollbar-thumb {
-    background: #dc2626; /* Hot red */
+    background: #dc2626;
+    /* Hot red */
     border: 2px solid #1f2937;
 }
 
@@ -66,7 +67,8 @@ html {
 }
 
 .dark-mode textarea::-webkit-scrollbar-thumb {
-    background: #ea580c; /* Hot orange */
+    background: #ea580c;
+    /* Hot orange */
     border: 1px solid #374151;
 }
 
@@ -93,6 +95,8 @@ body.dark-mode {
 .dark-mode #vocab-tool-container,
 .dark-mode #add-to-flash-modal div,
 .dark-mode #edit-flashcard-modal div,
+.dark-mode #article-detail-modal div,
+.dark-mode #vocab-info-panel,
 .dark-mode #flashcard-tool-container,
 .dark-mode #active-recall-tool,
 .dark-mode #ar-current-sentence,
@@ -123,6 +127,31 @@ body.dark-mode {
     border-color: #444 !important;
 }
 
+.dark-mode label,
+nav>a,
+.dark-mode #vocab-info-panel *:not(span) {
+    color: rgb(226, 223, 223) !important;
+}
+
+.dark-mode #vocab-info-panel div:not(.bg-gradient-to-r):not(.bg-gradient-to-r div) {
+    border-color: #610303 !important;
+    background-color: rgb(18, 18, 30) !important;
+}
+
+.dark-mode #vocab-examples>div {
+    background-color: rgb(30, 30, 45) !important;
+    color: rgb(220, 220, 220) !important;
+    border: 1px solid #444;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+}
+
+.dark-mode #vocab-examples strong {
+    font-weight: bold !important;
+    color: rgb(255, 180, 80) !important;
+    /* warm amber tone for contrast */
+}
+
 .dark-mode #flashcard-list-selector button {
     background-color: #0e4868 !important;
     color: white !important;
@@ -141,7 +170,8 @@ body.dark-mode {
     border-color: #666 !important;
 }
 
-.dark-mode #focus-controls label {
+.dark-mode #focus-controls label,
+.dark-mode #article-detail-modal span {
     color: white !important;
 }
 
@@ -438,10 +468,6 @@ body.dark-mode {
 /* Tooltip styles for wrong words */
 .relative group:hover>span {
     z-index: 100;
-}
-
-#batch-add-to-flash-modal {
-    z-index: 1000;
 }
 
 #batch-selections-list {

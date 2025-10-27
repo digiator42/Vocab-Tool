@@ -67,6 +67,16 @@ export class VocabularyTool {
         // this.forceShowVocabPanel();
     }
 
+    showNotification(message, time = 3500) {
+        // check if focus mode is on
+        if (document.getElementById('focus-controls')) return;
+        const notif = document.createElement('div');
+        notif.innerHTML = message;
+        notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
+        document.body.appendChild(notif);
+        setTimeout(() => notif.remove(), time);
+    }
+
     forceShowVocabPanel() {
         if (this.vocabInfoPanel) {
             this.vocabInfoPanel.style.display = 'block';
@@ -93,72 +103,83 @@ export class VocabularyTool {
         this.vocabInfoPanel.id = 'vocab-info-panel';
         this.vocabInfoPanel.className = 'fixed top-20 right-4 w-80 max-h-[80vh] bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden hidden';
 
-        // Set initial content
+        // Set initial content - ADD GERMAN ALTERNATIVES SECTION
         this.vocabInfoPanel.innerHTML = `
-        <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
-            <div class="flex justify-between items-center">
-                <h3 class="text-lg font-bold">Vocabulary Details</h3>
-                <button id="close-vocab-panel" class="text-white hover:text-gray-200 text-xl">&times;</button>
-            </div>
-            <div id="vocab-main-word" class="text-xl font-bold mt-2">Click a word to see details</div>
-            <div id="vocab-pos" class="text-sm opacity-90">Part of speech will appear here</div>
-        </div>
-        
-        <div class="overflow-y-auto max-h-[calc(80vh-80px)]">
-            <!-- Translation Section -->
-            <div id="vocab-translation-section" class="p-4 border-b border-gray-100">
-                <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    Translation
-                </h4>
-                <div id="vocab-translation" class="text-lg font-medium text-gray-800">Translation will appear here</div>
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-bold">Vocabulary Details</h3>
+                    <button id="close-vocab-panel" class="text-white hover:text-gray-200 text-xl">&times;</button>
+                </div>
+                <div id="vocab-main-word" class="text-xl font-bold mt-2">Click a word to see details</div>
+                <div id="vocab-pos" class="text-sm opacity-90">Part of speech will appear here</div>
             </div>
             
-            <!-- Alternative Terms Section -->
-            <div id="vocab-alternatives-section" class="p-4 border-b border-gray-100">
-                <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                    Alternative Terms
-                </h4>
-                <div id="vocab-alternatives" class="flex flex-wrap gap-2">
-                    <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Click a word</span>
+            <div class="overflow-y-auto max-h-[calc(80vh-80px)]">
+                <!-- Translation Section -->
+                <div id="vocab-translation-section" class="p-4 border-b border-gray-100">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                        Translation
+                    </h4>
+                    <div id="vocab-translation" class="text-lg font-medium text-gray-800">Translation will appear here</div>
+                </div>
+                
+                <!-- German Alternatives Section -->
+                <div id="vocab-german-alternatives-section" class="p-4 border-b border-gray-100 hidden">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                        German Alternatives
+                    </h4>
+                    <div id="vocab-german-alternatives" class="flex flex-wrap gap-2">
+                        <!-- German alternative words will appear here -->
+                    </div>
+                </div>
+                
+                <!-- Alternative Terms Section -->
+                <div id="vocab-alternatives-section" class="p-4 border-b border-gray-100">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                        English Alternatives
+                    </h4>
+                    <div id="vocab-alternatives" class="flex flex-wrap gap-2">
+                        <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Click a word</span>
+                    </div>
+                </div>
+                
+                <!-- Examples Section -->
+                <div id="vocab-examples-section" class="p-4 border-b border-gray-100">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                        Example Sentences
+                    </h4>
+                    <div id="vocab-examples" class="space-y-3">
+                        <div class="text-sm text-gray-500">Examples will appear here</div>
+                    </div>
+                </div>
+                
+                <!-- Extended Info Section -->
+                <div id="vocab-extended-section" class="p-4">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+                        Extended Information
+                    </h4>
+                    <div id="vocab-extended-info" class="text-sm text-gray-600 space-y-1">
+                        <div class="text-gray-400">Extended info will appear here</div>
+                    </div>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="vocab-loading" class="p-8 text-center hidden">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="text-gray-500 mt-2">Loading vocabulary data...</p>
+                </div>
+                
+                <!-- Error State -->
+                <div id="vocab-error" class="p-8 text-center hidden">
+                    <p class="text-gray-500">No detailed vocabulary data available</p>
                 </div>
             </div>
-            
-            <!-- Examples Section -->
-            <div id="vocab-examples-section" class="p-4 border-b border-gray-100">
-                <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                    <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                    Example Sentences
-                </h4>
-                <div id="vocab-examples" class="space-y-3">
-                    <div class="text-sm text-gray-500">Examples will appear here</div>
-                </div>
-            </div>
-            
-            <!-- Extended Info Section -->
-            <div id="vocab-extended-section" class="p-4">
-                <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                    <span class="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
-                    Extended Information
-                </h4>
-                <div id="vocab-extended-info" class="text-sm text-gray-600 space-y-1">
-                    <div class="text-gray-400">Extended info will appear here</div>
-                </div>
-            </div>
-            
-            <!-- Loading State -->
-            <div id="vocab-loading" class="p-8 text-center hidden">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p class="text-gray-500 mt-2">Loading vocabulary data...</p>
-            </div>
-            
-            <!-- Error State -->
-            <div id="vocab-error" class="p-8 text-center hidden">
-                <p class="text-gray-500">No detailed vocabulary data available</p>
-            </div>
-        </div>
-    `;
+        `;
 
         document.body.appendChild(this.vocabInfoPanel);
         console.log('✅ Vocab panel created and added to DOM');
@@ -181,63 +202,6 @@ export class VocabularyTool {
         if (translationData && translationData.dict) {
             this.populateVocabInfoPanel(word, translationData, null);
         }
-    }
-
-    // Add this method for testing
-    testVocabPanel() {
-        console.log('🧪 Testing vocab panel...');
-
-        if (!this.vocabInfoPanel) {
-            console.log('📦 Creating vocab info panel...');
-            this.createVocabInfoPanel();
-        }
-
-        // Verify elements exist
-        const elementsExist = this.verifyVocabPanelElements();
-        if (!elementsExist) {
-            console.error('❌ Some panel elements are missing!');
-            return;
-        }
-
-        // Test with a sample word
-        const testWord = "Wohnung";
-        const mockData = {
-            sentences: [
-                {
-                    trans: "Apartment",
-                    orig: "Wohnung",
-                    backend: 10
-                }
-            ],
-            dict: [
-                {
-                    pos: "noun",
-                    terms: ["apartment", "flat", "accommodation"],
-                    base_form: "Wohnung",
-                    pos_enum: 1,
-                    entry: [
-                        {
-                            word: "apartment",
-                            score: 0.38553435
-                        },
-                        {
-                            word: "flat",
-                            score: 0.11219689
-                        }
-                    ]
-                }
-            ],
-            examples: {
-                example: [
-                    { text: "eine <b>Wohnung</b> mit Bad und Balkon" },
-                    { text: "eine große <b>Wohnung</b> kaufen" }
-                ]
-            }
-        };
-
-        console.log('📝 Populating panel with test data...');
-        this.populateVocabInfoPanel(testWord, mockData, null);
-        console.log('✅ Test completed');
     }
 
     setupVocabPanelListeners() {
@@ -332,12 +296,41 @@ export class VocabularyTool {
             console.log('🏷️ Part of speech set to:', dictEntry.pos);
         }
 
-        // Alternative Terms
+        // GERMAN ALTERNATIVES - Get from the highest scored English word
+        const germanAlternativesSection = document.getElementById('vocab-german-alternatives-section');
+        const germanAlternativesContainer = document.getElementById('vocab-german-alternatives');
+
+        if (germanAlternativesSection && germanAlternativesContainer && dictEntry?.entry?.length > 0) {
+            // Get the highest scored entry (first one is usually highest)
+            const highestScoredEntry = dictEntry.entry[0];
+
+            if (highestScoredEntry?.reverse_translation && highestScoredEntry.reverse_translation.length > 0) {
+                console.log('🇩🇪 Populating German alternatives:', highestScoredEntry.reverse_translation);
+                germanAlternativesContainer.innerHTML = '';
+
+                highestScoredEntry.reverse_translation.forEach(germanWord => {
+                    const badge = document.createElement('span');
+                    badge.className = 'px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full border border-red-200';
+                    badge.textContent = germanWord;
+                    germanAlternativesContainer.appendChild(badge);
+                });
+
+                germanAlternativesSection.classList.remove('hidden');
+                console.log('✅ German alternatives section shown');
+            } else {
+                germanAlternativesSection.classList.add('hidden');
+                console.log('❌ No German reverse translations found');
+            }
+        } else {
+            germanAlternativesSection.classList.add('hidden');
+        }
+
+        // ENGLISH ALTERNATIVE TERMS (existing code)
         const alternativesSection = document.getElementById('vocab-alternatives-section');
         const alternativesContainer = document.getElementById('vocab-alternatives');
 
         if (alternativesSection && alternativesContainer && dictEntry?.terms && dictEntry.terms.length > 1) {
-            console.log('🔄 Populating alternative terms:', dictEntry.terms);
+            console.log('🔄 Populating English alternative terms:', dictEntry.terms);
             alternativesContainer.innerHTML = '';
             dictEntry.terms.forEach(term => {
                 const badge = document.createElement('span');
@@ -350,7 +343,7 @@ export class VocabularyTool {
             alternativesSection.classList.add('hidden');
         }
 
-        // Example Sentences
+        // Example Sentences (existing code)
         const examplesSection = document.getElementById('vocab-examples-section');
         const examplesContainer = document.getElementById('vocab-examples');
 
@@ -372,7 +365,7 @@ export class VocabularyTool {
             examplesSection.classList.add('hidden');
         }
 
-        // Extended Information
+        // Extended Information (existing code)
         const extendedSection = document.getElementById('vocab-extended-section');
         const extendedInfo = document.getElementById('vocab-extended-info');
 
@@ -408,6 +401,8 @@ export class VocabularyTool {
             'vocab-main-word': document.getElementById('vocab-main-word'),
             'vocab-pos': document.getElementById('vocab-pos'),
             'vocab-translation': document.getElementById('vocab-translation'),
+            'vocab-german-alternatives-section': document.getElementById('vocab-german-alternatives-section'),
+            'vocab-german-alternatives': document.getElementById('vocab-german-alternatives'),
             'vocab-alternatives-section': document.getElementById('vocab-alternatives-section'),
             'vocab-alternatives': document.getElementById('vocab-alternatives'),
             'vocab-examples-section': document.getElementById('vocab-examples-section'),
@@ -429,6 +424,7 @@ export class VocabularyTool {
     showVocabLoading() {
         document.getElementById('vocab-loading').classList.remove('hidden');
         document.getElementById('vocab-translation-section').classList.add('hidden');
+        document.getElementById('vocab-german-alternatives-section').classList.add('hidden');
         document.getElementById('vocab-alternatives-section').classList.add('hidden');
         document.getElementById('vocab-examples-section').classList.add('hidden');
         document.getElementById('vocab-extended-section').classList.add('hidden');
@@ -476,9 +472,9 @@ export class VocabularyTool {
 
     async speak(text, lang = "de", slow = this.useSlowVoice) {
         console.log('Loading speech for:', text, 'in', lang);
-        console.log('----------------');
-        this.setStatus("Loading audio...");
         if (lang === null || text === '' || this.isStopSpeechRequested) return;
+        this.showNotification("Loading audio...");
+
         try {
             // If offline mode is on
             if (this.useOfflineSpeak) {
@@ -493,11 +489,11 @@ export class VocabularyTool {
             const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
             const audio = new Audio(url);
             audio.play();
-            audio.onplaying = () => this.setStatus("Speaking...");
-            audio.onended = () => this.setStatus("Ready");
-            audio.onerror = () => this.setStatus("Speech error");
+            audio.onplaying = () => this.showNotification("Speaking...");
+            audio.onended = () => this.showNotification("Ready");
+            audio.onerror = () => this.showNotification("Speech error");
         } catch {
-            this.setStatus("Speech error, System voice");
+            this.showNotification("Speech error, System voice");
             const selectedVoiceName = this.voiceSelect.value;
             this.speakText(text, selectedVoiceName, this.rate);
         }
@@ -611,12 +607,12 @@ export class VocabularyTool {
         if (this.isStopSpeechRequested) {
             stopSpeecBtn.innerHTML = 'Activate Speech';
             if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
-            this.setStatus("Speech Stopped");
+            this.showNotification("Speech Stopped");
         }
         else {
             stopSpeecBtn.innerHTML = 'Stop Speech';
             if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
-            this.setStatus("Speech Activated");
+            this.showNotification("Speech Activated");
         }
     }
 
@@ -1680,7 +1676,7 @@ export class VocabularyTool {
                     this.output.appendChild(document.createTextNode(tok));
                 }
             });
-            this.setStatus("Text processed");
+            this.showNotification("Text processed");
             this.clearAllSelections();
         });
 
@@ -1746,7 +1742,7 @@ export class VocabularyTool {
     createModal() {
         const modal = document.createElement('div');
         modal.id = "add-to-flash-modal";
-        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden";
+        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-45 hidden";
         modal.innerHTML = `
             <div id="single-add-model" class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
                 <button id="close-add-to-flash-modal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">&times;</button>
@@ -1885,7 +1881,7 @@ export class VocabularyTool {
         const allSelections = this.getAllSelections();
 
         if (allSelections.length === 0) {
-            this.setStatus("Select words first! Tap individual words or drag to create groups.");
+            this.showNotification("Select words first! Tap individual words or drag to create groups.");
             addToFlashBtn.disabled = false;
             addToFlashBtn.style.opacity = '1';
             addToFlashBtn.textContent = originalText;
@@ -2190,40 +2186,41 @@ export class VocabularyTool {
 
         // Create a modal or tooltip to show all possible articles
         const detailModal = document.createElement('div');
-        detailModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]';
+        detailModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        detailModal.id = 'article-detail-modal';
         detailModal.innerHTML = `
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 z-50">
-        <h3 class="text-lg font-bold mb-4">Word Information</h3>
-        ${originalWord !== baseWord ? `
-            <div class="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
-                <p class="text-sm text-blue-800">
-                    <strong>Note:</strong> "${originalWord}" is the plural form.<br>
-                    The base (singular) form is "<strong>${baseWord}</strong>".
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 class="text-lg font-bold mb-4">Word Information</h3>
+                ${originalWord !== baseWord ? `
+                    <div class="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+                        <p class="text-sm text-blue-800">
+                            <strong>Note:</strong> "${originalWord}" is the plural form.<br>
+                            The base (singular) form is "<strong>${baseWord}</strong>".
+                        </p>
+                    </div>
+                ` : ''}
+                <p class="mb-4">The word "<strong>${baseWord}</strong>" can have multiple articles:</p>
+                <div class="space-y-2 mb-4">
+                    ${articles.map(article => `
+                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            <span class="font-medium text-black">${article} ${baseWord}</span>
+                            <button class="use-article-btn px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                                    data-article="${article}">
+                                Use This
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+                <p class="text-sm text-gray-600 mb-4">
+                    Each article represents a different meaning or usage of the word.
                 </p>
-            </div>
-        ` : ''}
-        <p class="mb-4">The word "<strong>${baseWord}</strong>" can have multiple articles:</p>
-        <div class="space-y-2 mb-4">
-            ${articles.map(article => `
-                <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span class="font-medium text-black">${article} ${baseWord}</span>
-                    <button class="use-article-btn px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
-                            data-article="${article}">
-                        Use This
+                <div class="flex justify-end">
+                    <button class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" id="close-article-modal">
+                        Close
                     </button>
                 </div>
-            `).join('')}
-        </div>
-        <p class="text-sm text-gray-600 mb-4">
-            Each article represents a different meaning or usage of the word.
-        </p>
-        <div class="flex justify-end">
-            <button class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" id="close-article-modal">
-                Close
-            </button>
-        </div>
-    </div>
-`;
+            </div>
+        `;
 
         document.body.appendChild(detailModal);
 
@@ -2246,7 +2243,7 @@ export class VocabularyTool {
                 detailModal.remove();
             });
         });
-        
+
         // Close modal when clicking outside
         detailModal.addEventListener('click', (e) => {
             if (e.target === detailModal) {
@@ -2409,14 +2406,17 @@ export class VocabularyTool {
 
         if (articles.length > 1) {
             // Notify user about multiple articles
-            const notification = document.createElement('div');
-            notification.className = 'mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded text-sm';
-            notification.innerHTML = `
-            <strong>Multiple articles found for "${baseWord}":</strong> ${articles.join(', ')}. 
-            <br>Using "${articles[0]}" by default. Click "Make Sure" for details.
-        `;
+            const message = `
+                <strong>Multiple articles found for "${baseWord}":</strong> ${articles.join(', ')}. 
+                <br>Using "${articles[0]}" by default. Click "Make Sure" for details.
+            `;
+            this.showNotification(message, 10000);
+            // const notification = document.createElement('div');
+            // notification.className = 'mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded text-sm';
+            // notification.innerHTML = message;
 
-            germanWordSpan.parentNode.insertBefore(notification, germanWordSpan.nextSibling);
+            // germanWordSpan.parentNode.insertBefore(notification, germanWordSpan.nextSibling);
+
         }
 
         // FIX: Actually set the article in the German word span so matchedArticle check works
@@ -2942,7 +2942,7 @@ export class VocabularyTool {
         // Create focus controls container using innerHTML
         const focusControls = document.createElement('div');
         focusControls.id = 'focus-controls';
-        focusControls.className = 'fixed top-10 left-1/2 transform -translate-x-1/2 z-[10002] bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg flex gap-3 items-center min-w-[320px] justify-center';
+        focusControls.className = 'fixed top-10 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg flex gap-3 items-center min-w-[320px] justify-center z-45';
 
         focusControls.innerHTML = `
         <button id="focus-go-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
@@ -4387,7 +4387,7 @@ export class VocabularyTool {
         // this.processBtn.click();
 
         // Show success message
-        this.setStatus(`Loaded ${list.length} flashcards from "${this.selectedFlashcardList}"`);
+        this.showNotification(`Loaded ${list.length} flashcards from "${this.selectedFlashcardList}"`);
 
         // Scroll to the top to see the processed text
         this.input.scrollIntoView({ behavior: 'smooth' });
