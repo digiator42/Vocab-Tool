@@ -108,6 +108,7 @@ body.dark-mode {
 .dark-mode #exercise-tool div,
 .dark-mode #exercise-tool section,
 .dark-mode #ar-mode-dropdown-btn,
+.dark-mode #progress-bar-container>div,
 .dark-mode #ar-mode-dropdown-menu,
 .dark-mode #ar-summary,
 .dark-mode #ar-hint-display,
@@ -140,7 +141,17 @@ body.dark-mode {
     background-color: rgb(18, 18, 30) !important;
 }
 
-.dark-mode #vocab-examples>div {
+.dark-mode #progress-bar-container>div {
+    background-color: rgb(18, 18, 30) !important;
+    border: 1px solid #444 !important;
+    color: white !important;
+}
+
+.dark-mode #progress-bar-container span {
+    color: rgb(176, 169, 169) !important;
+}
+
+.dark-mode #progress-bar-container span .dark-mode #vocab-examples>div {
     background-color: rgb(30, 30, 45) !important;
     color: rgb(220, 220, 220) !important;
     border: 1px solid #444;
