@@ -11,6 +11,7 @@ export class VocabularyTool {
         this.offlineSpeak = document.getElementById("offline-speak");
         this.storySelect = document.getElementById("storySelect");
         this.voiceSelect = document.getElementById("voiceSelect");
+        this.vocabSection = document.getElementById("vocab-tool");
 
         this.vocabInfoPanel = null;
         this.OriginalWord = null;
@@ -65,6 +66,9 @@ export class VocabularyTool {
         this.loadVoices();
         window.vocabTool = this; // For debugging
         // this.forceShowVocabPanel();
+        if (!this.isTouchDevice) {
+            this.vocabSection.style.marginRight = 'calc(50% - 425px)';
+        }
     }
 
     showNotification(message, time = 3500) {
