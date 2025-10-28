@@ -794,3 +794,26 @@ span.multi-highlighted {
 .fixed.inset-0.z-\[60\] {
     z-index: 1000 !important;
 }
+
+/* Heading badge animation */
+.heading-badge {
+    animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Gradient background for heading */
+.heading-gradient {
+    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}

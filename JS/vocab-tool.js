@@ -2751,11 +2751,16 @@ export class VocabularyTool {
             let currentValue = Number(rateSliderActiveRecall.value);
             const step = Number(rateSliderActiveRecall.step) || 1;
 
-            if (e.ctrlKey && e.shiftKey && e.key === 'ArrowRight') {
+            // Only process keys if body is focused
+            if (document.activeElement !== document.getElementById('ar-user-input')) {
+                return;
+            }
+
+            if (e.altKey && e.shiftKey && e.key === 'ArrowRight') {
                 currentValue = Math.min(Number(rateSliderActiveRecall.max), currentValue + step);
                 rateSliderActiveRecall.value = currentValue;
                 e.preventDefault();
-            } else if (e.ctrlKey && e.shiftKey && e.key === 'ArrowLeft') {
+            } else if (e.altKey && e.shiftKey && e.key === 'ArrowLeft') {
                 currentValue = Math.max(Number(rateSliderActiveRecall.min), currentValue - step);
                 rateSliderActiveRecall.value = currentValue;
                 e.preventDefault();
@@ -3253,11 +3258,12 @@ export class VocabularyTool {
             <div>ALT+SHIFT+F</div>
             <div class="text-green-600">Toggle Fuzzy Mode</div>
 
+            <div>ALT+SHIFT+Left/Right</div>
+            <div class="text-green-600">Arrows Change Offline Range</div>
+            
             <div>CTRL+SHIFT+Space</div>
             <div class="text-green-600">Toggle Online Slow Voice</div>
 
-            <div>CTRL+SHIFT+Left/Right</div>
-            <div class="text-green-600">Arrows Change Offline Range</div>
             </div>
             <textarea id="ar-user-input" 
                 placeholder="Type what you hear..." 

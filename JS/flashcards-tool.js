@@ -686,7 +686,6 @@ export class FlashcardsTool {
     }
 
     renderSingleCardMode(container) {
-
         console.log('renderSingleCardMode called:', {
             spacedRepetitionMode: this.spacedRepetitionMode,
             currentSRCardIndex: this.currentSRCardIndex,
@@ -700,6 +699,7 @@ export class FlashcardsTool {
         let card;
         let cardInfo = '';
         let actualIndex;
+        let currentHeading = '';
 
         if (this.spacedRepetitionMode) {
             // In SR mode, use SR cards and index
@@ -734,6 +734,9 @@ export class FlashcardsTool {
         </div>`;
         }
 
+        // Get current card's heading
+        currentHeading = card.heading || '';
+
         const flashcard = document.createElement('div');
         flashcard.className = `flashcard w-full h-96 flex items-center justify-center relative`;
         flashcard.dataset.index = actualIndex;
@@ -745,6 +748,7 @@ export class FlashcardsTool {
                 currentSRCardIndex: this.currentSRCardIndex
             });
         });
+
         // Determine front and back content based on flip state
         let frontContent, backContent;
 
@@ -797,22 +801,32 @@ export class FlashcardsTool {
             const regularControls = document.createElement('div');
             regularControls.className = 'mt-4 flex space-x-2';
             regularControls.innerHTML = `
-                <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
-                    ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
-                </button>
-                <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
-                    Edit
-                </button>
-                <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
-                    Remove
-                </button>
-            `;
+            <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
+                ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
+            </button>
+            <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
+                Edit
+            </button>
+            <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
+                Remove
+            </button>
+        `;
             backContentDiv.appendChild(regularControls);
         }
+
+        // Create heading display (only show if heading exists)
+        const headingDisplay = currentHeading ?
+            `<div class="absolute top-4 right-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full shadow-lg">
+                <div class="flex items-center space-x-2">
+                    <i data-feather="folder" class="w-4 h-4"></i>
+                    <span class="text-sm font-medium">${currentHeading}</span>
+                </div>
+            </div>` : '';
 
         flashcard.innerHTML = `
         <div class="flashcard-inner h-full w-full ${card.mastered ? 'border-2 border-solid border-green-200 rounded-2xl' : ''}">
             ${cardInfo}
+            ${headingDisplay}
             <div class="flashcard-front bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer h-full">
                 ${frontContent}
                 <button class="speak-btn mt-4 p-3 bg-indigo-100 rounded-full hover:bg-indigo-200">
@@ -836,8 +850,25 @@ export class FlashcardsTool {
         const startIndex = (this.currentPage - 1) * this.cardsPerPage;
         const endIndex = Math.min(startIndex + this.cardsPerPage, this.flashcards.length);
 
+        let lastHeading = '';
+
         this.flashcards.slice(startIndex, endIndex).forEach((card, idx) => {
             const actualIndex = startIndex + idx;
+
+            // Add heading if it exists and is different from previous
+            if (card.heading && card.heading !== lastHeading) {
+                const headingElement = document.createElement('div');
+                headingElement.className = 'col-span-full bg-gray-100 p-3 rounded-lg border-l-4 border-blue-500 mb-2';
+                headingElement.innerHTML = `
+                <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                    <i data-feather="folder" class="mr-2 w-4 h-4"></i>
+                    ${card.heading}
+                </h3>
+            `;
+                container.appendChild(headingElement);
+                lastHeading = card.heading;
+            }
+
             const flashcard = document.createElement('div');
             flashcard.className = `flashcard`;
             flashcard.dataset.index = actualIndex;
@@ -849,76 +880,87 @@ export class FlashcardsTool {
                 // Flipped: English on front, German on back
                 frontContent = card.sentenceTranslation ?
                     `<h3 class="text-sm font-bold text-center text-indigo-700 mb-1">${card.english}</h3>
-                     <p class="text-xs text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
+                 <p class="text-xs text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
                     `<h3 class="text-sm font-bold text-center text-indigo-700">${card.english}</h3>`;
 
                 backContent = card.sentence ?
                     `<h3 class="text-xs font-semibold text-center text-gray-800 mb-1">${card.german}</h3>
-                     <p class="text-xs text-gray-600 text-center italic">${card.sentence}</p>` :
+                 <p class="text-xs text-gray-600 text-center italic">${card.sentence}</p>` :
                     `<h3 class="text-xs font-semibold text-center text-gray-800">${card.german}</h3>`;
             } else {
                 // Normal: German on front, English on back
                 frontContent = card.sentence ?
                     `<h3 class="text-sm font-bold text-center text-indigo-700 mb-1">${card.german}</h3>
-                     <p class="text-xs text-gray-600 text-center italic">${card.sentence}</p>` :
+                 <p class="text-xs text-gray-600 text-center italic">${card.sentence}</p>` :
                     `<h3 class="text-sm font-bold text-center text-indigo-700">${card.german}</h3>`;
 
                 backContent = card.sentenceTranslation ?
                     `<h3 class="text-xs font-semibold text-center text-gray-800 mb-1">${card.english}</h3>
-                     <p class="text-xs text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
+                 <p class="text-xs text-gray-600 text-center italic">${card.sentenceTranslation}</p>` :
                     `<h3 class="text-xs font-semibold text-center text-gray-800">${card.english}</h3>`;
             }
 
             flashcard.innerHTML = `
-                <div class="flashcard-inner min-h-64 ${card.mastered ? 'border-2 border-solid border-green-200 rounded-lg' : ''}">
-                    <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col gap-5 items-center justify-center cursor-pointer h-full">
-                        ${frontContent}
-                        <button class="speak-btn mt-3 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200">
-                            <i data-feather="volume-2" class="text-indigo-700 w-3 h-3"></i>
+            <div class="flashcard-inner min-h-64 ${card.mastered ? 'border-2 border-solid border-green-200 rounded-lg' : ''}">
+                <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col gap-5 items-center justify-center cursor-pointer h-full">
+                    ${frontContent}
+                    <button class="speak-btn mt-3 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200">
+                        <i data-feather="volume-2" class="text-indigo-700 w-3 h-3"></i>
+                    </button>
+                    <p class="text-xs text-gray-500 mt-5">Click to flip</p>
+                    ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-6 h-6"></i>' : ''}
+                </div>
+                <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col gap-6 items-center justify-center cursor-pointer h-full">
+                    ${backContent}
+                    <div class="mt-1 flex space-x-1">
+                        <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
+                            ${card.mastered ? 'Not Mastered' : 'Mastered'}
                         </button>
-                        <p class="text-xs text-gray-500 mt-5">Click to flip</p>
-                        ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-6 h-6"></i>' : ''}
+                        <button class="edit-btn px-2 py-0.5 bg-blue-500 text-white rounded text-xs">
+                            Edit
+                        </button>
+                        <button class="remove-btn px-2 py-0.5 bg-red-500 text-white rounded text-xs">
+                            Remove
+                        </button>
                     </div>
-                    <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col gap-6 items-center justify-center cursor-pointer h-full">
-                        ${backContent}
-                        <div class="mt-1 flex space-x-1">
-                            <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
-                                ${card.mastered ? 'Not Mastered' : 'Mastered'}
-                            </button>
-                            <button class="edit-btn px-2 py-0.5 bg-blue-500 text-white rounded text-xs">
-                                Edit
-                            </button>
-                            <button class="remove-btn px-2 py-0.5 bg-red-500 text-white rounded text-xs">
-                                Remove
-                            </button>
-                        </div>
-                    </div>
-                </div>`;
+                </div>
+            </div>`;
             container.appendChild(flashcard);
             this.setupFlashcardEventListeners(flashcard);
         });
 
         this.updatePaginationControls();
+        feather.replace();
     }
 
     setupFlashcardEventListeners(flashcard) {
+        // In the setupFlashcardEventListeners method, replace the document keydown event listener with:
         if (!window.hasAttachedFlashcardListener) {
             document.addEventListener('keydown', (e) => {
+                // Get the flashcards container to check visibility
+                const flashcardsContainer = document.getElementById('flashcards-container');
+                const isContainerVisible = flashcardsContainer && !flashcardsContainer.classList.contains('hidden');
+
+                // Only process keys if body is focused AND container is visible
+                if (document.activeElement !== document.body || !isContainerVisible) {
+                    return;
+                }
+
                 // Prevent default only for our specific keys
                 const srKeys = ['a', 'h', 'g', 'e', 'm'];
-                if (srKeys.includes(e.key.toLowerCase()) && this.singleCardMode && document.activeElement === document.body) {
+                if (srKeys.includes(e.key.toLowerCase()) && this.singleCardMode) {
                     e.preventDefault();
                 }
 
                 // Space to flip card
-                if (e.code === 'Space' && this.singleCardMode && document.activeElement === document.body) {
+                if (e.code === 'Space' && this.singleCardMode) {
                     const currentFlashcard = document.querySelector('.flashcard');
                     e.preventDefault();
                     currentFlashcard?.classList.toggle('flipped');
                 }
 
                 // Spaced Repetition keyboard shortcuts
-                if (this.spacedRepetitionMode && this.singleCardMode && document.activeElement === document.body) {
+                if (this.spacedRepetitionMode && this.singleCardMode) {
                     const currentCard = this.spacedRepetitionCards[this.currentSRCardIndex];
                     if (currentCard) {
                         switch (e.key.toLowerCase()) {
@@ -943,7 +985,7 @@ export class FlashcardsTool {
                 }
 
                 // Mastered shortcut (works in both normal and SR mode)
-                if (e.key.toLowerCase() === 'm' && this.singleCardMode && document.activeElement === document.body) {
+                if (e.key.toLowerCase() === 'm' && this.singleCardMode) {
                     console.log('Keyboard shortcut: Mastered');
                     const currentFlashcard = document.querySelector('.flashcard');
                     if (currentFlashcard) {
@@ -968,7 +1010,7 @@ export class FlashcardsTool {
                     }
                 }
 
-                // Left/Right arrows for navigation
+                // Left/Right arrows for navigation - only when container is visible
                 if (e.code === 'ArrowRight') {
                     e.preventDefault();
                     if (this.spacedRepetitionMode) {
@@ -1181,21 +1223,48 @@ export class FlashcardsTool {
             wrapper.draggable = true;
             wrapper.dataset.listName = listName;
 
-            // Add drag handle as the first element (invisible but draggable)
+            // Calculate mastery statistics for this list
+            const listCards = this.customLists[listName];
+            const masteredCount = listCards.filter(card => card.mastered).length;
+            const totalCount = listCards.length;
+            const masteryPercentage = totalCount > 0 ? Math.round((masteredCount / totalCount) * 100) : 0;
+
+            // Determine list color and icon based on mastery
+            let listColor, listIcon, listTitle;
+
+            if (masteryPercentage === 100 && totalCount > 0) {
+                // Fully mastered - Green with target icon
+                listColor = 'bg-green-600 hover:bg-green-700';
+                listIcon = 'target';
+                listTitle = 'Fully mastered! 🎯';
+            } else if (masteryPercentage > 0) {
+                // Partially mastered - Yellow with percentage
+                listColor = 'bg-yellow-600 hover:bg-yellow-700';
+                listIcon = 'bar-chart-2';
+                listTitle = `${masteryPercentage}% mastered`;
+            } else {
+                // No mastery - Blue with list icon
+                listColor = 'bg-purple-600 hover:bg-purple-700';
+                listIcon = 'list';
+                listTitle = 'No cards mastered yet';
+            }
+
+            // Add drag handle
             const dragHandle = document.createElement('div');
             dragHandle.className = 'absolute -left-6 top-1/2 transform -translate-y-1/2 cursor-grab text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity';
-            // dragHandle.innerHTML = '<i data-feather="move" class="w-4 h-4"></i>';
-            dragHandle.addEventListener('mousedown', () => {
-                dragHandle.classList.replace('cursor-grab', 'cursor-grabbing');
-            });
-            dragHandle.addEventListener('mouseup', () => {
-                dragHandle.classList.replace('cursor-grabbing', 'cursor-grab');
-            });
 
-            // List button
+            // List button with dynamic color and icon
             const btn = document.createElement('button');
-            btn.className = 'px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center';
-            btn.innerHTML = `<i data-feather="list" class="mr-2"></i> ${listName} (${this.customLists[listName].length})`;
+            btn.className = `px-4 py-2 ${listColor} text-white rounded-lg flex items-center transition-colors duration-200`;
+            btn.title = listTitle;
+
+            // Create icon and text content
+            btn.innerHTML = `
+            <i data-feather="${listIcon}" class="mr-2 w-4 h-4"></i>
+            ${listName} (${totalCount})
+            ${masteryPercentage > 0 && masteryPercentage < 100 ? `<span class="ml-2 text-xs bg-yellow-500 px-2 py-1 rounded-full">${masteryPercentage}%</span>` : ''}
+        `;
+
             btn.addEventListener('click', () => {
                 this.flashcards = [...this.customLists[listName]];
                 this.saveFlashcards();
@@ -1207,8 +1276,9 @@ export class FlashcardsTool {
 
             // Remove button
             const removeBtn = document.createElement('button');
-            removeBtn.className = 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100';
+            removeBtn.className = 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600';
             removeBtn.innerHTML = '×';
+            removeBtn.title = `Delete "${listName}" list`;
             removeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (confirm(`Delete the "${listName}" list?`)) {
@@ -1232,7 +1302,6 @@ export class FlashcardsTool {
             wrapper.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('text/plain', listName);
                 wrapper.classList.add('opacity-50');
-                // Make the entire wrapper draggable, not just the handle
                 if (e.target === dragHandle) {
                     e.dataTransfer.setData('text/plain', listName);
                 }
@@ -1323,32 +1392,57 @@ export class FlashcardsTool {
         }
 
         const newCards = [];
+        let currentHeading = ''; // Track current heading for grouping
+
         this.sanitizeInput(raw).split('\n').forEach(line => {
             line = line.trim();
             if (!line) return;
 
-            // Parse the format: German word (german sentence) - English word (english translation)
-            const match = line.match(/^(.+?)\s*\((.*?)\)\s*[-–:]+?\s*(.+?)\s*\((.*?)\)$/);
+            // Check if this line is a heading [[heading text]]
+            const headingMatch = line.match(/^\[\[(.+)\]\]$/);
+            if (headingMatch) {
+                currentHeading = headingMatch[1].trim();
+                return; // Skip processing as a flashcard
+            }
 
-            if (match) {
-                // Format with sentences: German word (sentence) - English word (translation)
-                const [, german, sentence, english, sentenceTranslation] = match;
+            // NEW FORMAT: German word ((german sentence)) :: English word ((english translation))
+            const newFormatMatch = line.match(/^(.+?)\s*\(\((.*?)\)\)\s*::\s*(.+?)\s*\(\((.*?)\)\)$/);
+
+            if (newFormatMatch) {
+                const [, german, sentence, english, sentenceTranslation] = newFormatMatch;
                 newCards.push({
                     german: german.trim(),
                     sentence: sentence.trim(),
                     english: english.trim(),
                     sentenceTranslation: sentenceTranslation.trim(),
-                    mastered: false
+                    mastered: false,
+                    heading: currentHeading // Add current heading to card
                 });
-            } else {
-                // Fallback to original format for backward compatibility
-                const parts = line.split(/\s*(–|--|:|-|::)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
+            }
+            // OLD FORMAT with :: separator (backward compatibility)
+            else if (line.includes('::')) {
+                const parts = line.split('::').map(p => p.trim());
                 if (parts.length === 2 && parts[0] && parts[1]) {
                     newCards.push({
                         german: parts[0],
                         english: parts[1],
-                        mastered: false
+                        mastered: false,
+                        heading: currentHeading // Add current heading to card
                     });
+                }
+            }
+            // LEGACY FALLBACK: Try to parse with various separators (original behavior)
+            else {
+                const parts = line.split(/\s*(–|--|:|-)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
+                if (parts.length === 2 && parts[0] && parts[1]) {
+                    newCards.push({
+                        german: parts[0],
+                        english: parts[1],
+                        mastered: false,
+                        heading: currentHeading // Add current heading to card
+                    });
+                } else {
+                    console.warn('Skipping invalid flashcard format:', line);
                 }
             }
         });
@@ -1364,6 +1458,8 @@ export class FlashcardsTool {
             this.renderCustomListButtons();
 
             this.showNotification(`Added ${newCards.length} flashcards to "${listName}"`);
+        } else {
+            this.showNotification('No valid flashcards found! Check your format.');
         }
     }
 
