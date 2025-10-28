@@ -80,6 +80,9 @@ export class VocabularyTool {
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), time);
     }
+    decodeSanitizedInput(input) {
+        return input.replace(/(&amp;)?#x2F;/g, ',');
+    }
 
     forceShowVocabPanel() {
         if (this.vocabInfoPanel) {
@@ -3260,7 +3263,7 @@ export class VocabularyTool {
 
             <div>ALT+SHIFT+Left/Right</div>
             <div class="text-green-600">Arrows Change Offline Range</div>
-            
+
             <div>CTRL+SHIFT+Space</div>
             <div class="text-green-600">Toggle Online Slow Voice</div>
 
@@ -4379,6 +4382,8 @@ export class VocabularyTool {
         this.selectedFlashcardList = listName;
     }
 
+
+    // Update loadFlashcardsIntoActiveRecall to use it:
     loadFlashcardsIntoActiveRecall() {
         if (!this.selectedFlashcardList) {
             alert('Please select a flashcard list first!');
@@ -4393,29 +4398,51 @@ export class VocabularyTool {
             return;
         }
 
-        // Combine German words and sentences
+        // DEBUG: Check what's actually stored
+        console.log('=== DEBUG: Raw flashcard data ===');
+        console.log('Selected list:', this.selectedFlashcardList);
+
+        // Combine German words and sentences, decode sanitized input and replace slashes
         const textContent = list.map(card => {
-            let content = card.german;
+            let content = this.decodeSanitizedInput(card.german);
+
+            // Replace slashes with commas in German text
+            content = content.replace(/\//g, ',');
+
             if (card.sentence) {
-                content += `, ${card.sentence}`;
+                let sentence = this.decodeSanitizedInput(card.sentence);
+                sentence = sentence.replace(/\//g, ',');
+                content += `, ${sentence}`;
             }
             return content;
         }).join('. ');
+        list.forEach((card, index) => {
+            console.log(`Card ${index}:`, {
+                german: card.german,
+                english: card.english,
+                germanRaw: JSON.stringify(card.german),
+                sentence: card.sentence,
+                sentenceRaw: card.sentence ? JSON.stringify(card.sentence) : 'No sentence'
+            });
+        });
 
-        // console.log(textContent);
+        console.log('=== END DEBUG ===');
+
+        console.log('Processed text content:', textContent);
+
         // Set the text in the input area
         this.input.value = textContent;
 
         // Process the text
-        // this.processBtn.click();
+        this.isFlashCardLoadRequested = true;
 
         // Show success message
-        this.showNotification(`Loaded ${list.length} flashcards from "${this.selectedFlashcardList}"`);
+        this.setStatus(`Loaded ${list.length} flashcards from "${this.selectedFlashcardList}"`);
 
         // Scroll to the top to see the processed text
         this.input.scrollIntoView({ behavior: 'smooth' });
 
-        // Optional: Auto-open Active Recall tool
+        // Auto-open Active Recall tool
         setTimeout(() => {
             const activeRecallBtn = document.getElementById('active-recall-btn');
             if (activeRecallBtn && activeRecallBtn.textContent.includes('Active Recall')) {
