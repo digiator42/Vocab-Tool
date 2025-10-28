@@ -130,6 +130,7 @@ body.dark-mode {
 .dark-mode label,
 .dark-mode nav>a,
 .dark-mode p,
+.dark-mode #rateSliderSpan,
 .dark-mode #vocab-info-panel *:not(span) {
     color: rgb(226, 223, 223) !important;
 }

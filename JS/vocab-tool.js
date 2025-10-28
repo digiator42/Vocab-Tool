@@ -2946,7 +2946,7 @@ export class VocabularyTool {
         // Create focus controls container using innerHTML
         const focusControls = document.createElement('div');
         focusControls.id = 'focus-controls';
-        focusControls.className = 'fixed top-10 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg flex gap-3 items-center min-w-[320px] justify-center z-45';
+        focusControls.className = 'fixed top-10 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg flex gap-3 items-center min-w-[320px] justify-center z-50';
 
         focusControls.innerHTML = `
         <button id="focus-go-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
@@ -3006,9 +3006,22 @@ export class VocabularyTool {
         focusExitBtn.onclick = () => this.exitFocusMode();
 
         focusRateSlider.oninput = (e) => {
-            originalRateSlider.value = e.target.value;
-            focusRateSpan.textContent = e.target.value;
-            originalRateSpan.textContent = e.target.value;
+            const newRate = parseFloat(e.target.value);
+
+            // Update UI
+            originalRateSlider.value = newRate;
+            focusRateSpan.textContent = newRate;
+            originalRateSpan.textContent = newRate;
+
+            // Update the current rate
+            this.rate = newRate;
+
+            // If currently speaking, update the utterance rate
+            if (this.isSpeaking && this.utterance) {
+                this.utterance.rate = newRate;
+            }
+
+            // Dispatch event for other listeners
             originalRateSlider.dispatchEvent(new Event('input'));
         };
 
