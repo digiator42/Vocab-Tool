@@ -3,6 +3,7 @@ export class ActiveRecallModule {
     constructor(main) {
         this.main = main;
         this.activeRecallBtn = null;
+        this.extraToolsContainer = document.getElementById('extra-tools-container');
     }
 
     setupActiveRecall() {
@@ -351,11 +352,10 @@ export class ActiveRecallModule {
         this.activeRecallBtn.innerHTML = '🎯 Active Recall';
         this.activeRecallBtn.addEventListener('click', () => this.toggleActiveRecall());
 
-        const extraToolsContainer = document.getElementById('extra-tools-container');
-        if (extraToolsContainer) {
-            // insert in extraToolsContainer
+        if (this.extraToolsContainer) {
+            // insert in this.extraToolsContainer
 
-            extraToolsContainer.insertAdjacentElement('beforeend', this.activeRecallBtn);
+            this.extraToolsContainer.insertAdjacentElement('beforeend', this.activeRecallBtn);
             return;
         }
 
@@ -386,6 +386,7 @@ export class ActiveRecallModule {
             this.main.input.disabled = true;
             this.main.storySelect.disabled = true;
             this.main.input.value = '';
+            this.extraToolsContainer.classList.remove('border-2', 'border-gray-300');
             activeRecallTool.scrollIntoView({ behavior: 'smooth' });
             if (!this.isFlashCardLoadRequested) {
                 console.log('Processing text for Active Recall');
@@ -416,6 +417,7 @@ export class ActiveRecallModule {
             this.main.input.disabled = false;
             this.main.storySelect.disabled = false;
             this.main.input.value = this.originalText;
+            this.extraToolsContainer.classList.add('border-2', 'border-gray-300');
 
             // Show all hidden elements
             const elementsToShow = Array.from(vocabTool.children).filter(
