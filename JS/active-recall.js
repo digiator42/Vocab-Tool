@@ -2,14 +2,14 @@
 export class ActiveRecallModule {
     constructor(main) {
         this.main = main;
+        this.activeRecallBtn = null;
     }
 
     setupActiveRecall() {
         this.addMobileEnterButton();
         this.setupActiveRecallListeners();
         this.setupCustomDropdown();
-        // Ensure the main page button is present
-        this.main.addActiveRecallButton?.();
+        this.addActiveRecallButton();
     }
 
     setupActiveRecallListeners() {
@@ -344,6 +344,211 @@ export class ActiveRecallModule {
         return matrix[b.length][a.length];
     }
 
+    addActiveRecallButton() {
+        this.activeRecallBtn = document.createElement('button');
+        this.activeRecallBtn.id = 'active-recall-btn';
+        this.activeRecallBtn.className = 'px-4 py-4 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 w-1/2';
+        this.activeRecallBtn.innerHTML = '🎯 Active Recall';
+        this.activeRecallBtn.addEventListener('click', () => this.toggleActiveRecall());
+
+        const extraToolsContainer = document.getElementById('extra-tools-container');
+        if (extraToolsContainer) {
+            // insert in extraToolsContainer
+
+            extraToolsContainer.insertAdjacentElement('beforeend', this.activeRecallBtn);
+            return;
+        }
+
+        // Insert after the Add to Flashcards button
+        const addToFlashBtn = document.getElementById('addToFlashBtn');
+        // this.main.output.insertAdjacentElement('beforeend', this.activeRecallBtn);
+    }
+
+    toggleActiveRecall() {
+        const activeRecallTool = document.getElementById('active-recall-tool');
+        const isVisible = !activeRecallTool.classList.contains('hidden');
+
+        // Store the original value in a class property
+        if (!this.originalText) {
+            this.originalText = this.main.input.value;
+        }
+
+        // Hide all elements in vocab-tool except output, selectionTooltip, and essential controls
+        const vocabTool = document.getElementById('vocab-tool');
+        const vocabToolContainer = document.getElementById('vocab-tool-div');
+
+        console.log('Flashcard load requested:--> ', this.isFlashCardLoadRequested);
+        const addToFlashBtn = document.getElementById('addToFlashBtn');
+
+        if (!isVisible) {
+            this.prepareActiveRecall();
+            activeRecallTool.classList.remove('hidden');
+            this.main.input.disabled = true;
+            this.main.storySelect.disabled = true;
+            this.main.input.value = '';
+            activeRecallTool.scrollIntoView({ behavior: 'smooth' });
+            if (!this.isFlashCardLoadRequested) {
+                console.log('Processing text for Active Recall');
+                this.main.processBtn.click();
+            }
+            this.main.output.innerHTML = '';
+            const elementsToHide = Array.from(vocabTool.children).filter(
+                child => !['active-recall-tool', 'active-recall-btn', 'extra-tools-container'].includes(child.id)
+            );
+
+            elementsToHide.forEach(element => {
+                element.dataset.originalDisplay = element.style.display || '';
+                element.style.display = 'none';
+            });
+            console.log('----------->>> ', elementsToHide);
+            addToFlashBtn.style.display = 'none';
+
+            if (vocabToolContainer) {
+                vocabToolContainer.dataset.originalDisplay = vocabToolContainer.style.display || '';
+                vocabToolContainer.style.display = 'none';
+            }
+            this.activeRecallBtn.innerHTML = '❌ Exit Active Recall';
+            console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
+        } else {
+            console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
+            activeRecallTool.classList.add('hidden');
+            this.resetActiveRecall();
+            this.main.input.disabled = false;
+            this.main.storySelect.disabled = false;
+            this.main.input.value = this.originalText;
+
+            // Show all hidden elements
+            const elementsToShow = Array.from(vocabTool.children).filter(
+                child => child.hasAttribute('data-original-display')
+            );
+
+            elementsToShow.forEach(element => {
+                const originalDisplay = element.dataset.originalDisplay;
+                element.style.display = originalDisplay || '';
+                delete element.dataset.originalDisplay;
+            });
+
+            const vocabToolContainer = document.getElementById('vocab-tool-div');
+            if (vocabToolContainer && vocabToolContainer.hasAttribute('data-original-display')) {
+                const originalDisplay = vocabToolContainer.dataset.originalDisplay;
+                vocabToolContainer.style.display = originalDisplay || '';
+                delete vocabToolContainer.dataset.originalDisplay;
+            }
+            this.activeRecallBtn.innerHTML = '🎯 Active Recall';
+            if (!this.isFlashCardLoadRequested) {
+                console.log('Re-processing text after exiting Active Recall');
+                this.main.processBtn.click();
+            }
+            this.isFlashCardLoadRequested = !this.isFlashCardLoadRequested;
+            addToFlashBtn.style.display = 'inline-block';
+        }
+    }
+
+    createVocabInfoPanel() {
+        console.log('🏗️ Creating vocab info panel...');
+
+        // Remove existing panel if any
+        const existingPanel = document.getElementById('vocab-info-panel');
+        if (existingPanel) {
+            console.log('🗑️ Removing existing panel');
+            existingPanel.remove();
+        }
+
+        // Create the panel with FIXED right positioning
+        this.vocabInfoPanel = document.createElement('div');
+        this.vocabInfoPanel.id = 'vocab-info-panel';
+        this.vocabInfoPanel.className = 'fixed top-20 right-4 w-80 max-h-[80vh] bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden hidden';
+
+        // Set initial content - ADD GERMAN ALTERNATIVES SECTION
+        this.vocabInfoPanel.innerHTML = `
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-bold">Vocabulary Details</h3>
+                    <button id="close-vocab-panel" class="text-white hover:text-gray-200 text-xl">&times;</button>
+                </div>
+                <div id="vocab-main-word" class="text-xl font-bold mt-2">Click a word to see details</div>
+                <div id="vocab-pos" class="text-sm opacity-90">Part of speech will appear here</div>
+            </div>
+            
+            <div class="overflow-y-auto max-h-[calc(80vh-80px)]">
+                <!-- Translation Section -->
+                <div id="vocab-translation-section" class="p-4 border-b border-gray-100">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                        Translation
+                    </h4>
+                    <div id="vocab-translation" class="text-lg font-medium text-gray-800">Translation will appear here</div>
+                </div>
+                
+                <!-- German Alternatives Section -->
+                <div id="vocab-german-alternatives-section" class="p-4 border-b border-gray-100 hidden">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                        German Alternatives
+                    </h4>
+                    <div id="vocab-german-alternatives" class="flex flex-wrap gap-2">
+                        <!-- German alternative words will appear here -->
+                    </div>
+                </div>
+                
+                <!-- Alternative Terms Section -->
+                <div id="vocab-alternatives-section" class="p-4 border-b border-gray-100">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                        English Alternatives
+                    </h4>
+                    <div id="vocab-alternatives" class="flex flex-wrap gap-2">
+                        <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Click a word</span>
+                    </div>
+                </div>
+                
+                <!-- Examples Section -->
+                <div id="vocab-examples-section" class="p-4 border-b border-gray-100">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                        Example Sentences
+                    </h4>
+                    <div id="vocab-examples" class="space-y-3">
+                        <div class="text-sm text-gray-500">Examples will appear here</div>
+                    </div>
+                </div>
+                
+                <!-- Extended Info Section -->
+                <div id="vocab-extended-section" class="p-4">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+                        Extended Information
+                    </h4>
+                    <div id="vocab-extended-info" class="text-sm text-gray-600 space-y-1">
+                        <div class="text-gray-400">Extended info will appear here</div>
+                    </div>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="vocab-loading" class="p-8 text-center hidden">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="text-gray-500 mt-2">Loading vocabulary data...</p>
+                </div>
+                
+                <!-- Error State -->
+                <div id="vocab-error" class="p-8 text-center hidden">
+                    <p class="text-gray-500">No detailed vocabulary data available</p>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(this.vocabInfoPanel);
+        console.log('✅ Vocab panel created and added to DOM');
+
+        // Verify the elements were created
+        setTimeout(() => {
+            this.verifyVocabPanelElements();
+        }, 100);
+
+        // Setup event listeners
+        this.setupVocabPanelListeners();
+    }
+
     createActiveRecallUI() {
         const activeRecallHTML = `
             <div id="active-recall-tool" class="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200 hidden">
@@ -390,58 +595,228 @@ export class ActiveRecallModule {
 
     getActiveRecallUIBody() {
         return `
-            <div id="ar-progress" class="mb-4">
-                <div class="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Progress: <span id="ar-current">0</span>/<span id="ar-total">0</span></span>
-                    <span id="ar-status">Ready to start</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div id="ar-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
+        <div id="ar-progress" class="mb-4">
+            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                <span>Progress: <span id="ar-current">0</span>/<span id="ar-total">0</span></span>
+                <span id="ar-status">Ready to start</span>
             </div>
-
-            <!-- Beginner Mode Display -->
-            <div id="ar-hint-display" class="mb-4 p-4 bg-blue-50 rounded border border-blue-200 hidden">
-                <div class="text-sm text-blue-800 font-medium mb-2">Sentence Hint:</div>
-                <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="ar-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
             </div>
+        </div>
 
-            <div id="ar-current-sentence" class="mb-4 p-4 bg-white rounded border-2 border-blue-200 min-h-20 flex items-center justify-center">
-                <span class="text-gray-500">Sentence will appear here...</span>
+        <!-- Beginner Mode Display -->
+        <div id="ar-hint-display" class="mb-4 p-4 bg-blue-50 rounded border border-blue-200 hidden">
+            <div class="text-sm text-blue-800 font-medium mb-2">Sentence Hint:</div>
+            <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
+        </div>
+
+        <div id="ar-current-sentence" class="mb-4 p-4 bg-white rounded border-2 border-blue-200 min-h-20 flex items-center justify-center">
+            <span class="text-gray-500">Sentence will appear here...</span>
+        </div>
+
+        <div id="ar-input-area" class="mb-4 hidden">
+            <div class="text-xs text-gray-600 italic grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+            <div>ALT+SHIFT+R</div>
+            <div class="text-green-600">Repeat Audio</div>
+
+            <div>ALT+SHIFT+F</div>
+            <div class="text-green-600">Toggle Fuzzy Mode</div>
+
+            <div>ALT+SHIFT+Left/Right</div>
+            <div class="text-green-600">Arrows Change Offline Range</div>
+
+            <div>CTRL+SHIFT+Space</div>
+            <div class="text-green-600">Toggle Online Slow Voice</div>
+
             </div>
-
-            <div id="ar-input-area" class="mb-4 hidden">
-                <div class="text-xs text-gray-600 italic grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-                <div>ALT+SHIFT+R</div>
-                <div class="text-green-600">Repeat Audio</div>
-
-                <div>ALT+SHIFT+F</div>
-                <div class="text-green-600">Toggle Fuzzy Mode</div>
-
-                <div>ALT+SHIFT+Left/Right</div>
-                <div class="text-green-600">Arrows Change Offline Range</div>
-
-                <div>CTRL+SHIFT+Space</div>
-                <div class="text-green-600">Toggle Online Slow Voice</div>
-
-                </div>
-                <textarea id="ar-user-input" class="w-full p-3 border rounded" rows="3" placeholder="Type the sentence here..."></textarea>
+            <textarea id="ar-user-input" 
+                placeholder="Type what you hear..." 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none mt-4"></textarea>
+            <div class="flex justify-between mt-2 text-sm text-gray-600">
+                <span>Press Enter to submit</span>
+                <span id="ar-timer">Time: 0s</span>
             </div>
+            <button id="mobile-enter-btn" class="w-full mt-2 bg-blue-600 text-white py-3 rounded-lg font-semibold hidden">↵ Enter</button>
+        </div>
 
-            <div class="flex items-center gap-2 mb-4">
-                <button id="ar-start-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Start</button>
-                <button id="ar-back-btn" class="px-4 py-2 bg-gray-600 text-white rounded">Back</button>
-                <button id="ar-next-btn" class="px-4 py-2 bg-indigo-600 text-white rounded">Next</button>
-                <button id="ar-repeat-btn" class="px-4 py-2 bg-yellow-600 text-white rounded">Repeat</button>
-                <button id="ar-finish-btn" class="px-4 py-2 bg-green-600 text-white rounded">Finish</button>
-            </div>
+        <div id="ar-controls" class="flex flex-wrap gap-2">
+            <button id="ar-start-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                🎧 Start Practice
+            </button>
+            <button id="ar-next-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors hidden">
+                ➡️ Next
+            </button>
+            <button id="ar-back-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors hidden">
+                ⬅️ Previous
+            </button>
+            <button id="ar-repeat-btn" class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors hidden">
+                🔄 Repeat
+            </button>
+            <button id="ar-finish-btn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors hidden">
+                ✅ Finish
+            </button>
+        </div>
 
-            <div>
-                <h4 class="text-lg font-semibold mb-3">📊 Practice Results</h4>
-                <div id="ar-summary" class="mb-4 p-4 bg-white rounded-lg border"></div>
-                <div id="ar-detailed-results" class="space-y-4"></div>
-            </div>
-        `;
+        <div id="ar-results" class="mt-6 hidden">
+            <h4 class="text-lg font-semibold mb-3">📊 Practice Results</h4>
+            <div id="ar-summary" class="mb-4 p-4 bg-white rounded-lg border"></div>
+            <div id="ar-detailed-results" class="space-y-4"></div>
+        </div>
+    `;
+    }
+    setupActiveRecall() {
+        this.createActiveRecallUI();
+        this.setupActiveRecallListeners();
+    }
+
+    setupActiveRecallListeners() {
+        // Use event delegation for better mobile support
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('#ar-start-btn')) {
+                this.startActiveRecall();
+            } else if (e.target.matches('#ar-next-btn')) {
+                this.nextSentence();
+            } else if (e.target.matches('#ar-back-btn')) {
+                this.previousSentence();
+            } else if (e.target.matches('#ar-repeat-btn')) {
+                this.repeatAudio();
+            } else if (e.target.matches('#ar-finish-btn')) {
+                this.finishActiveRecall();
+            } else if (e.target.matches('#mobile-enter-btn')) {
+                this.checkAnswer();
+            }
+        });
+
+        const userInput = document.getElementById('ar-user-input');
+        // Input handling (unchanged)
+
+        if (userInput) {
+            userInput.addEventListener('input', (e) => {
+                this.handleUserInput();
+            });
+
+            userInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.checkAnswer();
+                    // this.updateProgress();
+                }
+            });
+
+            if (this.isTouchDevice) {
+                userInput.addEventListener('touchend', (e) => {
+                    setTimeout(() => this.handleUserInput(), 100);
+                });
+            }
+        }
+
+        const fuzzyMatch = document.getElementById('ar-fuzzy-match');
+
+        if (fuzzyMatch) {
+            fuzzyMatch.addEventListener('change', (e) => {
+                this.useFuzzyMatching = e.target.checked;
+                console.log("Fuzzy matching set to:", this.useFuzzyMatching);
+            });
+
+            // Mobile touch support for checkbox
+            if (this.isTouchDevice) {
+                fuzzyMatch.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    fuzzyMatch.checked = !fuzzyMatch.checked;
+                    fuzzyMatch.dispatchEvent(new Event('change'));
+                });
+            }
+        }
+
+        const slowVoice = document.getElementById('ar-slow-voice');
+        console.log("Slow voice checkbox:", slowVoice);
+        // check if slowVoice is checked
+        if (slowVoice) {
+            slowVoice.addEventListener('change', (e) => {
+                this.useSlowVoice = e.target.checked;
+                console.log("Slow voice set to:", this.useSlowVoice)
+            });
+        }
+        if (slowVoice && this.isTouchDevice) {
+            slowVoice.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                slowVoice.checked = !slowVoice.checked;
+                slowVoice.dispatchEvent(new Event('change'));
+            });
+        }
+
+        const offlineSpeakRecall = document.getElementById('offline-speak-recall');
+
+        offlineSpeakRecall.addEventListener('change', (e) => {
+            this.main.useOfflineSpeak = e.target.checked;
+            console.log("On Off set to:", !this.useOfflineSpeak ? "online" : "offline");
+        });
+
+        const rateSliderActiveRecall = document.getElementById('rateSliderActiveRecall');
+        const rateSliderSpanActiveRecall = document.getElementById('rateSliderSpanActiveRecall');
+        const activeRecallContainer = document.getElementById('active-recall-tool');
+
+        rateSliderActiveRecall.addEventListener('change', (e) => {
+            this.rate = e.target.value;
+            rateSliderSpanActiveRecall.innerHTML = this.rate;
+            console.log('rate value - ', this.rate);
+        })
+
+        document.addEventListener('keydown', (e) => {
+            console.log('activated keydown active recall slider');
+
+            let currentValue = Number(rateSliderActiveRecall.value);
+            const step = Number(rateSliderActiveRecall.step) || 1;
+
+            // Only process keys if body is focused
+            if (document.activeElement !== document.getElementById('ar-user-input')) {
+                return;
+            }
+
+            if (e.altKey && e.shiftKey && e.key === 'ArrowRight') {
+                currentValue = Math.min(Number(rateSliderActiveRecall.max), currentValue + step);
+                rateSliderActiveRecall.value = currentValue;
+                e.preventDefault();
+            } else if (e.altKey && e.shiftKey && e.key === 'ArrowLeft') {
+                currentValue = Math.max(Number(rateSliderActiveRecall.min), currentValue - step);
+                rateSliderActiveRecall.value = currentValue;
+                e.preventDefault();
+            } else if (e.ctrlKey && e.shiftKey && e.key === ' ') {
+                slowVoice.checked = !slowVoice.checked;
+                this.useSlowVoice = slowVoice.checked;
+                e.preventDefault();
+                console.log("Slow voice set to:", this.useSlowVoice)
+            }
+            // fuzzy match art+shift+f
+            else if (e.altKey && e.shiftKey && e.key === 'F') {
+                fuzzyMatch.checked = !fuzzyMatch.checked;
+                this.useFuzzyMatching = fuzzyMatch.checked;
+                e.preventDefault();
+                console.log("Fuzzy matching set to:", this.useFuzzyMatching);
+            }
+            // Alt+Shift+F for repeat
+            else if (e.altKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                this.repeatAudio();
+            }
+            // // keyboard shortcut for focus mode
+            // if (e.altKey && e.shiftKey && e.key === 'G') {
+            //     e.preventDefault();
+            //     this.toggleFocusMode();
+            // }
+
+            // // Escape to exit focus mode
+            // if (this.isFocusMode && e.key === 'Escape') {
+            //     e.preventDefault();
+            //     this.toggleFocusMode();
+            // }
+
+            rateSliderSpanActiveRecall.textContent = rateSliderActiveRecall.value;
+            this.rate = rateSliderActiveRecall.value;
+        });
+
+        this.addActiveRecallButton();
     }
 
     // ====== MOVED LOGIC (operates on this.main) ======
@@ -511,7 +886,7 @@ export class ActiveRecallModule {
         this.updateTimer();
         this.main.timerInterval = setInterval(() => this.updateTimer(), 1000);
 
-        this.main.speak(sentence).then(() => {
+        this.main.speech.speak(sentence).then(() => {
             displayArea.textContent = '🎧 Listen carefully...';
             if (this.main.isTouchDevice) {
                 setTimeout(() => {
@@ -550,7 +925,9 @@ export class ActiveRecallModule {
     updateTimer() {
         if (this.main.startTimes[this.main.currentSentenceIndex]) {
             const elapsed = Math.floor((Date.now() - this.main.startTimes[this.main.currentSentenceIndex]) / 1000);
-            document.getElementById('ar-timer').textContent = `Time: ${elapsed}s`;
+            if (document.getElementById('ar-timer')) {
+                document.getElementById('ar-timer').textContent = `Time: ${elapsed}s`;
+            }
         }
     }
 
@@ -676,7 +1053,7 @@ export class ActiveRecallModule {
         if (typeof raw !== 'string') return;
         const sentence = raw.trim();
         if (!sentence) return;
-        this.main.speak(sentence);
+        this.main.speech.speak(sentence);
     }
 
     finishActiveRecall() {

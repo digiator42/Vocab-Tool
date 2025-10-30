@@ -5,31 +5,41 @@ export class SpeechService {
     }
 
     speak(text, lang = "de", slow = this.main.useSlowVoice) {
-        console.log('Loading speech for:', text, 'in', lang);
-        if (lang === null || text === '' || this.main.isStopSpeechRequested) return;
-        this.main.setStatus("Loading audio...");
-
-        try {
-            if (this.main.useOfflineSpeak) {
-                console.log('========Offline Speaking Mode=========', this.main)
-                if (slow) {
-                    this
-                }
-                const selectedVoiceName = this.main.voiceSelect.value;
-                this.speakText(text, selectedVoiceName, this.main.rate);
+        return new Promise((resolve) => {
+            console.log('Loading speech for:', text, 'in', lang);
+            if (lang === null || text === '' || this.main.isStopSpeechRequested) {
+                resolve();
                 return;
             }
-            const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
-            const audio = new Audio(url);
-            audio.play();
-            audio.onplaying = () => this.main.setStatus("Speaking...");
-            audio.onended = () => this.main.setStatus("Ready");
-            audio.onerror = () => this.main.setStatus("Speech error");
-        } catch {
-            this.main.setStatus("Speech error, System voice");
-            const selectedVoiceName = this.main.voiceSelect.value;
-            this.speakText(text, selectedVoiceName, this.main.rate);
-        }
+            this.main.setStatus("Loading audio...");
+
+            try {
+                if (this.main.useOfflineSpeak) {
+                    console.log('========Offline Speaking Mode=========', this.main)
+                    const selectedVoiceName = this.main.voiceSelect.value;
+                    this.speakText(text, selectedVoiceName, this.main.rate);
+                    resolve(); //
+                    return;
+                }
+                const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
+                const audio = new Audio(url);
+                audio.play();
+                audio.onplaying = () => this.main.setStatus("Speaking...");
+                audio.onended = () => {
+                    this.main.setStatus("Ready");
+                    resolve();
+                };
+                audio.onerror = () => {
+                    this.main.setStatus("Speech error");
+                    resolve();
+                };
+            } catch {
+                this.main.setStatus("Speech error, System voice");
+                const selectedVoiceName = this.main.voiceSelect.value;
+                this.speakText(text, selectedVoiceName, this.main.rate);
+                resolve();
+            }
+        });
     }
 
     findGermanVoices() {
