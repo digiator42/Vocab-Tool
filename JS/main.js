@@ -1,5 +1,5 @@
 // Main Application Entry Point
-import { VocabularyTool } from './vocab-tool.js';
+import { VocabularyTool } from './vocab-tool/vocab-tool.js';
 import { FlashcardsTool } from './flashcards-tool.js';
 import { ImportExportManager } from './import-export.js';
 import { TabManager } from './tab-manager.js';
