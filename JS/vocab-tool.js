@@ -1,3 +1,8 @@
+import { SpeechService } from './speech.js';
+import { TranslationService } from './translation.js';
+import { VocabPanelManager } from './vocab-panel.js';
+import { ActiveRecallModule } from './active-recall.js';
+
 // Vocabulary Tool Module
 export class VocabularyTool {
     constructor() {
@@ -48,6 +53,10 @@ export class VocabularyTool {
         this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 
+        this.speech = new SpeechService(this);
+        this.translation = new TranslationService(this);
+        this.vocabPanel = new VocabPanelManager(this);
+        this.activeRecall = new ActiveRecallModule(this);
         this.init();
     }
 
@@ -84,6 +93,7 @@ export class VocabularyTool {
         return input.replace(/(&amp;)?#x2F;/g, ',');
     }
 
+    // Testing
     forceShowVocabPanel() {
         if (this.vocabInfoPanel) {
             this.vocabInfoPanel.style.display = 'block';
@@ -95,111 +105,6 @@ export class VocabularyTool {
         }
     }
 
-    createVocabInfoPanel() {
-        console.log('🏗️ Creating vocab info panel...');
-
-        // Remove existing panel if any
-        const existingPanel = document.getElementById('vocab-info-panel');
-        if (existingPanel) {
-            console.log('🗑️ Removing existing panel');
-            existingPanel.remove();
-        }
-
-        // Create the panel with FIXED right positioning
-        this.vocabInfoPanel = document.createElement('div');
-        this.vocabInfoPanel.id = 'vocab-info-panel';
-        this.vocabInfoPanel.className = 'fixed top-20 right-4 w-80 max-h-[80vh] bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden hidden';
-
-        // Set initial content - ADD GERMAN ALTERNATIVES SECTION
-        this.vocabInfoPanel.innerHTML = `
-            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-lg font-bold">Vocabulary Details</h3>
-                    <button id="close-vocab-panel" class="text-white hover:text-gray-200 text-xl">&times;</button>
-                </div>
-                <div id="vocab-main-word" class="text-xl font-bold mt-2">Click a word to see details</div>
-                <div id="vocab-pos" class="text-sm opacity-90">Part of speech will appear here</div>
-            </div>
-            
-            <div class="overflow-y-auto max-h-[calc(80vh-80px)]">
-                <!-- Translation Section -->
-                <div id="vocab-translation-section" class="p-4 border-b border-gray-100">
-                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                        <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                        Translation
-                    </h4>
-                    <div id="vocab-translation" class="text-lg font-medium text-gray-800">Translation will appear here</div>
-                </div>
-                
-                <!-- German Alternatives Section -->
-                <div id="vocab-german-alternatives-section" class="p-4 border-b border-gray-100 hidden">
-                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                        <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-                        German Alternatives
-                    </h4>
-                    <div id="vocab-german-alternatives" class="flex flex-wrap gap-2">
-                        <!-- German alternative words will appear here -->
-                    </div>
-                </div>
-                
-                <!-- Alternative Terms Section -->
-                <div id="vocab-alternatives-section" class="p-4 border-b border-gray-100">
-                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                        <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                        English Alternatives
-                    </h4>
-                    <div id="vocab-alternatives" class="flex flex-wrap gap-2">
-                        <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Click a word</span>
-                    </div>
-                </div>
-                
-                <!-- Examples Section -->
-                <div id="vocab-examples-section" class="p-4 border-b border-gray-100">
-                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                        <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                        Example Sentences
-                    </h4>
-                    <div id="vocab-examples" class="space-y-3">
-                        <div class="text-sm text-gray-500">Examples will appear here</div>
-                    </div>
-                </div>
-                
-                <!-- Extended Info Section -->
-                <div id="vocab-extended-section" class="p-4">
-                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
-                        <span class="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
-                        Extended Information
-                    </h4>
-                    <div id="vocab-extended-info" class="text-sm text-gray-600 space-y-1">
-                        <div class="text-gray-400">Extended info will appear here</div>
-                    </div>
-                </div>
-                
-                <!-- Loading State -->
-                <div id="vocab-loading" class="p-8 text-center hidden">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p class="text-gray-500 mt-2">Loading vocabulary data...</p>
-                </div>
-                
-                <!-- Error State -->
-                <div id="vocab-error" class="p-8 text-center hidden">
-                    <p class="text-gray-500">No detailed vocabulary data available</p>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(this.vocabInfoPanel);
-        console.log('✅ Vocab panel created and added to DOM');
-
-        // Verify the elements were created
-        setTimeout(() => {
-            this.verifyVocabPanelElements();
-        }, 100);
-
-        // Setup event listeners
-        this.setupVocabPanelListeners();
-    }
-
     // Add this simple method to update the panel directly
     updateVocabPanel(word, translationData) {
         if (!this.vocabInfoPanel) {
@@ -209,31 +114,6 @@ export class VocabularyTool {
         if (translationData && translationData.dict) {
             this.populateVocabInfoPanel(word, translationData, null);
         }
-    }
-
-    setupVocabPanelListeners() {
-        const closeBtn = document.getElementById('close-vocab-panel');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                this.hideVocabInfoPanel();
-            });
-        }
-
-        // Close panel when clicking outside
-        document.addEventListener('click', (e) => {
-            if (this.vocabInfoPanel &&
-                !this.vocabInfoPanel.contains(e.target) &&
-                !e.target.closest('.cursor-pointer')) {
-                this.hideVocabInfoPanel();
-            }
-        });
-
-        // Close on escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.vocabInfoPanel && !this.vocabInfoPanel.classList.contains('hidden')) {
-                this.hideVocabInfoPanel();
-            }
-        });
     }
 
     async showVocabInfoForWord(word, spanElement) {
@@ -403,59 +283,17 @@ export class VocabularyTool {
         }
     }
 
-    verifyVocabPanelElements() {
-        const elements = {
-            'vocab-main-word': document.getElementById('vocab-main-word'),
-            'vocab-pos': document.getElementById('vocab-pos'),
-            'vocab-translation': document.getElementById('vocab-translation'),
-            'vocab-german-alternatives-section': document.getElementById('vocab-german-alternatives-section'),
-            'vocab-german-alternatives': document.getElementById('vocab-german-alternatives'),
-            'vocab-alternatives-section': document.getElementById('vocab-alternatives-section'),
-            'vocab-alternatives': document.getElementById('vocab-alternatives'),
-            'vocab-examples-section': document.getElementById('vocab-examples-section'),
-            'vocab-examples': document.getElementById('vocab-examples'),
-            'vocab-extended-section': document.getElementById('vocab-extended-section'),
-            'vocab-extended-info': document.getElementById('vocab-extended-info'),
-            'vocab-loading': document.getElementById('vocab-loading'),
-            'vocab-error': document.getElementById('vocab-error')
-        };
+    createVocabInfoPanel() { return this.vocabPanel.createVocabInfoPanel(); }
 
-        console.log('🔍 Verifying vocab panel elements:');
-        Object.keys(elements).forEach(key => {
-            console.log(`  ${key}:`, elements[key] ? '✅ Found' : '❌ Missing');
-        });
+    showVocabLoading() { return this.vocabPanel.showVocabLoading(); }
 
-        return Object.values(elements).every(el => el !== null);
-    }
+    hideVocabLoading() { return this.vocabPanel.hideVocabLoading(); }
 
-    showVocabLoading() {
-        document.getElementById('vocab-loading').classList.remove('hidden');
-        document.getElementById('vocab-translation-section').classList.add('hidden');
-        document.getElementById('vocab-german-alternatives-section').classList.add('hidden');
-        document.getElementById('vocab-alternatives-section').classList.add('hidden');
-        document.getElementById('vocab-examples-section').classList.add('hidden');
-        document.getElementById('vocab-extended-section').classList.add('hidden');
-    }
+    showVocabError() { return this.vocabPanel.showVocabError(); }
 
-    hideVocabLoading() {
-        document.getElementById('vocab-loading').classList.add('hidden');
-        document.getElementById('vocab-translation-section').classList.remove('hidden');
-    }
+    hideVocabError() { return this.vocabPanel.hideVocabError(); }
 
-    showVocabError() {
-        document.getElementById('vocab-error').classList.remove('hidden');
-        document.getElementById('vocab-loading').classList.add('hidden');
-    }
-
-    hideVocabError() {
-        document.getElementById('vocab-error').classList.add('hidden');
-    }
-
-    hideVocabInfoPanel() {
-        if (this.vocabInfoPanel) {
-            this.vocabInfoPanel.classList.add('hidden');
-        }
-    }
+    hideVocabInfoPanel() { return this.vocabPanel.hideVocabInfoPanel(); }
 
     setupSelectionSystem() {
         if (this.isTouchDevice) {
@@ -477,113 +315,15 @@ export class VocabularyTool {
         return text.split(/(\s+|[^A-Za-zÄÖÜäöüß]+)/).filter(Boolean);
     }
 
-    async speak(text, lang = "de", slow = this.useSlowVoice) {
-        console.log('Loading speech for:', text, 'in', lang);
-        if (lang === null || text === '' || this.isStopSpeechRequested) return;
-        this.setStatus("Loading audio...");
+    findGermanVoices() { return this.speech.findGermanVoices(); }
 
-        try {
-            // If offline mode is on
-            if (this.useOfflineSpeak) {
-                console.log('========Offline Speaking Mode=========', this)
-                if (slow) {
-                    this
-                }
-                const selectedVoiceName = this.voiceSelect.value;
-                this.speakText(text, selectedVoiceName, this.rate);
-                return;
-            }
-            const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
-            const audio = new Audio(url);
-            audio.play();
-            audio.onplaying = () => this.setStatus("Speaking...");
-            audio.onended = () => this.setStatus("Ready");
-            audio.onerror = () => this.setStatus("Speech error");
-        } catch {
-            this.setStatus("Speech error, System voice");
-            const selectedVoiceName = this.voiceSelect.value;
-            this.speakText(text, selectedVoiceName, this.rate);
-        }
-    }
+    loadVoices() { return this.speech.loadVoices(); }
 
-    findGermanVoices() {
-        const voices = this.speechSynth.getVoices();
-        this.germanVoices = voices.filter(voice => voice.lang.startsWith('de-'));
-        console.log('Available German voices:', this.germanVoices.map(v => v.name));
-    }
+    getAvailableVoices() { return this.speech.getAvailableVoices(); }
 
-    loadVoices() {
-        console.log('Loading voices...');
+    speakText(text, voiceName, rate = 1) { return this.speech.speakText(text, voiceName, rate); }
 
-        const voiceChangeHandler = () => {
-            this.findGermanVoices();
-            this.populateVoiceDropdown(); // Call after voices are found
-        };
-
-        window.speechSynthesis.onvoiceschanged = voiceChangeHandler;
-
-        if (this.speechSynth.getVoices().length > 0) {
-            voiceChangeHandler(); // Initial call
-        }
-    }
-
-    getAvailableVoices() {
-        return this.germanVoices;
-    }
-
-    speakText(text, voiceName, rate = 1) {
-        if (!text.trim()) return;
-        this.speechSynth.cancel();
-        this.utterance = new SpeechSynthesisUtterance(text);
-        this.utterance.lang = 'de-DE';
-        this.utterance.rate = rate;
-
-        console.log('Selected voice name:', voiceName);
-
-        const selectedVoice = this.germanVoices.find(voice => voice.name === voiceName);
-        if (selectedVoice) {
-            this.utterance.voice = selectedVoice;
-        } else {
-            console.warn(`Voice "${voiceName}" not found. Falling back to default German voice.`);
-        }
-
-        this.utterance.onend = () => {
-            this.isSpeaking = false;
-            this.isPaused = false;
-            this.utterance = null;
-            if (this.playBtn) this.playBtn.textContent = 'Play';
-            const focusModePlayBTN = document.getElementById("focus-play-btn");
-            if (focusModePlayBTN) focusModePlayBTN.textContent = 'Play';
-        };
-
-        this.speechSynth.speak(this.utterance);
-        this.isSpeaking = true;
-        if (this.playBtn) this.playBtn.textContent = 'Pause';
-        const focusModePlayBTN = document.getElementById("focus-play-btn");
-        if (focusModePlayBTN) focusModePlayBTN.textContent = 'Pause';
-    }
-
-    populateVoiceDropdown() {
-        if (!this.voiceSelect) return; // Exit if dropdown element isn't found
-
-        // Check if voices are loaded before populating
-        if (this.getAvailableVoices().length === 0) {
-            console.warn('Voices not yet loaded. Cannot populate dropdown.');
-            return;
-        }
-
-        this.voiceSelect.innerHTML = ''; // Clear previous options
-
-        this.getAvailableVoices().forEach(voice => {
-            const option = document.createElement('option');
-            option.textContent = voice.name;
-            option.value = voice.name; // <--- This is the key change
-            if (voice.name.includes('Killian')) {
-                option.selected = true; // Select Killian by default if available
-            }
-            this.voiceSelect.appendChild(option);
-        });
-    }
+    populateVoiceDropdown() { return this.speech.populateVoiceDropdown(); }
 
 
     // speakText(text, rate = 1) {
@@ -606,27 +346,9 @@ export class VocabularyTool {
     //     this.playBtn.textContent = 'Pause';
     // }
 
-    stopSpeech() {
-        this.isStopSpeechRequested = !this.isStopSpeechRequested;
-        const focusModeStopBtn = document.getElementById("focus-stop-btn");
+    stopSpeech() { return this.speech.stopSpeech(); }
 
-        const stopSpeecBtn = document.getElementById("stopSpeechBtn");
-        if (this.isStopSpeechRequested) {
-            stopSpeecBtn.innerHTML = 'Activate Speech';
-            if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
-            this.showNotification("Speech Stopped");
-        }
-        else {
-            stopSpeecBtn.innerHTML = 'Stop Speech';
-            if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
-            this.showNotification("Speech Activated");
-        }
-    }
-
-    joinTranslationChunks(data) {
-        if (!Array.isArray(data?.[0])) return "(error)";
-        return data[0].map(chunk => chunk[0].replace(/\n/g, " ")).join(" ");
-    }
+    joinTranslationChunks(data) { return this.translation.joinTranslationChunks(data); }
 
     setupLanguageSelector() {
         const langSelector = document.createElement('select');
@@ -654,40 +376,7 @@ export class VocabularyTool {
         }
     }
 
-    async translate(text, article = false, extended = false) {
-        try {
-            let res = '';
-            if (article) {
-                // Get the German translation from English words
-                res = await fetch(
-                    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=t&q=" +
-                    encodeURIComponent(text)
-                );
-            } else if (extended) {
-                // Get extended translation data with vocabulary info
-                res = await fetch(
-                    "https://translate.googleapis.com/translate_a/single?dt=t&dt=bd&dt=qc&dt=rm&dt=ex&client=gtx&hl=en&sl=de&tl=" +
-                    encodeURIComponent(this.selectedLang) +
-                    "&q=" + encodeURIComponent(text) + "&dj=1"
-                );
-            } else {
-                res = await fetch(
-                    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=de&tl=" +
-                    encodeURIComponent(this.selectedLang) +
-                    "&dt=t&q=" + encodeURIComponent(text)
-                );
-            }
-            const data = await res.json();
-
-            if (extended) {
-                return data; // Return full extended data
-            } else {
-                return this.joinTranslationChunks(data);
-            }
-        } catch {
-            return extended ? null : "(error)";
-        }
-    }
+    async translate(text, article = false, extended = false) { return this.translation.translate(text, article, extended); }
 
     setupDesktopSelection() {
         console.log("Setting up desktop selection system");
@@ -910,7 +599,7 @@ export class VocabularyTool {
             return;
         }
 
-        this.speak(selectedText);
+        this.speech.speak(selectedText);
 
         // Translate first, then store
         let translation = "";
@@ -988,38 +677,7 @@ export class VocabularyTool {
     }
 
     // Update handleTouchMove to select ranges
-    handleTouchMove(ev) {
-        if (!this.mobile.touchSelecting || !this.mobile.touchStartSpan) return;
 
-        const t = ev.touches[0];
-        const currentSpan = this.spanFromPoint(t.clientX, t.clientY);
-
-        if (currentSpan && this.isWordSpan(currentSpan)) {
-            // Get all spans between start and current position
-            const spansBetween = this.getSpansBetween(this.mobile.touchStartSpan, currentSpan);
-
-            // Clear previous selection
-            this.mobile.touchedSpans.forEach(span => {
-                if (!spansBetween.includes(span)) {
-                    span.classList.remove('touch-feedback');
-                    span.classList.remove('multi-highlighted');
-                }
-            });
-            this.mobile.touchedSpans.clear();
-
-            // Add all spans in between to selection
-            spansBetween.forEach(span => {
-                if (this.isWordSpan(span)) {
-                    this.mobile.touchedSpans.add(span);
-                    span.classList.add('touch-feedback');
-                    span.classList.add('multi-highlighted');
-                    span.style.zIndex = '30';
-                }
-            });
-        }
-
-        ev.preventDefault();
-    }
 
     handleTouchMove(ev) {
         if (!this.mobile.touchSelecting || !this.mobile.touchStartSpan) return;
@@ -1113,7 +771,7 @@ export class VocabularyTool {
         console.log("🎯 Translating:", phrase);
 
         try {
-            this.speak(phrase);
+            this.speech.speak(phrase);
         } catch (e) {
             console.warn("speak failed:", e);
         }
@@ -1348,7 +1006,7 @@ export class VocabularyTool {
         span.classList.add('loading');
 
         // Speak the word
-        this.speak(word);
+        this.speech.speak(word);
 
         // Translate the word
         try {
@@ -1593,7 +1251,7 @@ export class VocabularyTool {
         span.classList.add('loading');
 
         // Speak the word
-        this.speak(word);
+        this.speech.speak(word);
 
         // Translate the word
         try {
@@ -1727,10 +1385,7 @@ export class VocabularyTool {
     }
 
     // Add to Flashcard functionality
-    setupAddToFlashcardModal() {
-        this.createAddToFlashcardButton();
-        this.createModal();
-    }
+
 
     createAddToFlashcardButton() {
         const addToFlashBtn = document.createElement('button');
@@ -3716,540 +3371,26 @@ export class VocabularyTool {
     }
 
 
-    // Update the prepareActiveRecall method
-    prepareActiveRecall() {
-        // Extract sentences from the processed text
-        const text = this.input.value;
-        if (!text.trim()) {
-            alert('Please process some text first!');
-            return;
-        }
+    // Active Recall delegations
+    prepareActiveRecall() { return this.activeRecall.prepareActiveRecall(); }
+    startActiveRecall() { return this.activeRecall.startActiveRecall(); }
+    showCurrentSentence() { return this.activeRecall.showCurrentSentence(); }
+    updateTimer() { return this.activeRecall.updateTimer(); }
+    updateProgress() { return this.activeRecall.updateProgress(); }
+    checkAnswer() { return this.activeRecall.checkAnswer(); }
+    compareSentences(userSentence, correctSentence) { return this.activeRecall.compareSentences(userSentence, correctSentence); }
+    showSentenceFeedback(sentenceIndex) { return this.activeRecall.showSentenceFeedback(sentenceIndex); }
+    nextSentence() { return this.activeRecall.nextSentence(); }
+    previousSentence() { return this.activeRecall.previousSentence(); }
+    repeatAudio() { return this.activeRecall.repeatAudio(); }
+    finishActiveRecall() { return this.activeRecall.finishActiveRecall(); }
+    showFinalResults() { return this.activeRecall.showFinalResults(); }
+    getSequenceDisplay(result, correctWords) { return this.activeRecall.getSequenceDisplay(result, correctWords); }
+    resetActiveRecall() { return this.activeRecall.resetActiveRecall(); }
+    showCurrentSentence() { return this.activeRecall.showCurrentSentence(); }
+    updateTimer() { return this.activeRecall.updateTimer(); }
+    updateProgress() { return this.activeRecall.updateProgress(); }
 
-        // Simple sentence segmentation
-        this.sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
-
-        if (this.sentences.length === 0) {
-            alert('No sentences found in the text!');
-            return;
-        }
-
-        this.currentSentenceIndex = -1;
-        this.userAnswers = [];
-        this.startTimes = [];
-        this.results = [];
-
-        // Initialize mode selector for mobile
-        const modeSelect = document.getElementById('ar-mode-select');
-        if (modeSelect) {
-            this.activeRecallMode = modeSelect.value;
-
-            // Force hint display update if in beginner mode
-            if (this.activeRecallMode === 'beginner') {
-                const hintDisplay = document.getElementById('ar-hint-display');
-                if (hintDisplay) {
-                    hintDisplay.classList.remove('hidden');
-                    hintDisplay.style.display = 'block';
-                }
-            }
-        }
-
-        document.getElementById('ar-total').textContent = this.sentences.length;
-        this.updateProgress();
-    }
-
-    startActiveRecall() {
-        this.currentSentenceIndex = 0;
-        this.showCurrentSentence();
-    }
-
-    showCurrentSentence() {
-        const sentence = this.sentences[this.currentSentenceIndex].trim();
-        const displayArea = document.getElementById('ar-current-sentence');
-        const inputArea = document.getElementById('ar-input-area');
-        const userInput = document.getElementById('ar-user-input');
-        const hintDisplay = document.getElementById('ar-hint-display');
-
-        // console.log(`Showing sentence ${this.currentSentenceIndex + 1}: ${sentence}`);
-        // Mobile: Ensure hint display is properly initialized
-        // if (this.activeRecallMode === 'beginner') {
-        //     hintDisplay.classList.remove('hidden');
-        //     hintDisplay.style.display = 'block';
-        // }
-        // else {
-        //     hintDisplay.classList.add('hidden');
-        //     hintDisplay.style.display = 'none';
-        // }
-
-        // Show loading state with mobile-optimized text
-        displayArea.innerHTML = '<span class="text-gray-500">Loading audio...</span>';
-
-        // Hide input area initially
-        inputArea.classList.add('hidden');
-
-        // Update controls with mobile-friendly classes
-        document.getElementById('ar-start-btn').classList.add('hidden');
-        document.getElementById('ar-next-btn').classList.remove('hidden');
-        document.getElementById('ar-back-btn').classList.remove('hidden');
-        document.getElementById('ar-repeat-btn').classList.remove('hidden');
-        document.getElementById('ar-finish-btn').classList.remove('hidden');
-
-        // Mobile: Make buttons more touch-friendly
-        if (this.isTouchDevice) {
-            ['ar-next-btn', 'ar-back-btn', 'ar-repeat-btn', 'ar-finish-btn'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn) {
-                    btn.classList.add('py-3'); // Larger touch targets
-                    btn.style.minHeight = '44px'; // Apple's recommended minimum touch target
-                }
-            });
-        }
-
-        // Disable back button on first sentence
-        document.getElementById('ar-back-btn').disabled = this.currentSentenceIndex === 0;
-
-        // Start timer
-        this.startTimes[this.currentSentenceIndex] = Date.now();
-        this.updateTimer();
-        this.timerInterval = setInterval(() => this.updateTimer(), 1000);
-
-        // Play audio with mobile compatibility
-        this.speak(sentence).then(() => {
-            displayArea.textContent = '🎧 Listen carefully...';
-
-            // Mobile: Force a layout update
-            if (this.isTouchDevice) {
-                setTimeout(() => {
-                    document.body.style.overflow = 'hidden';
-                    setTimeout(() => {
-                        document.body.style.overflow = 'auto';
-                    }, 50);
-                }, 10);
-            }
-
-            // Show input area after audio finishes
-            setTimeout(() => {
-                inputArea.classList.remove('hidden');
-                userInput.value = '';
-
-                // Mobile: Focus input with delay for better UX
-                if (this.isTouchDevice) {
-                    setTimeout(() => {
-                        userInput.focus();
-                        // Mobile browsers need this to show keyboard properly
-                        // Ensure mobile Enter button is properly set up
-                        this.addMobileEnterButton();
-                        const mobileEnterBtn = document.getElementById('mobile-enter-btn');
-                        if (mobileEnterBtn) {
-                            mobileEnterBtn.classList.add('hidden'); // Start hidden
-                        }
-                    }, 100);
-                } else {
-                    userInput.focus();
-                }
-
-                displayArea.innerHTML = `
-                <div class="text-center">
-                    <div class="text-lg mb-2">✍️ Write what you heard:</div>
-                    <div class="text-sm text-gray-500">Sentence ${this.currentSentenceIndex + 1} of ${this.sentences.length}</div>
-                </div>
-            `;
-
-                // Update hints for beginner mode
-                if (this.activeRecallMode === 'beginner') {
-                    this.updateHintDisplay();
-                }
-                else {
-                    hintDisplay.classList.add('hidden');
-                    hintDisplay.style.display = 'none';
-                }
-            }, 1000);
-        });
-    }
-
-    updateTimer() {
-        if (this.startTimes[this.currentSentenceIndex]) {
-            const elapsed = Math.floor((Date.now() - this.startTimes[this.currentSentenceIndex]) / 1000);
-            document.getElementById('ar-timer').textContent = `Time: ${elapsed}s`;
-        }
-    }
-
-    updateProgress() {
-        console.log('---> ', this.currentSentenceIndex);
-        const progress = this.currentSentenceIndex >= 0 ? this.currentSentenceIndex : 0;
-        const percentage = (progress / this.sentences.length) * 100;
-        console.log(`Progress: ${progress} | ${percentage}`);
-
-        document.getElementById('ar-current').textContent = progress;
-        document.getElementById('ar-progress-bar').style.width = `${percentage}%`;
-
-        const status = document.getElementById('ar-status');
-        if (this.currentSentenceIndex < 0) {
-            status.textContent = 'Ready to start';
-        } else if (this.currentSentenceIndex < this.sentences.length) {
-            status.textContent = `Sentence ${this.currentSentenceIndex + 1} of ${this.sentences.length}`;
-        } else {
-            status.textContent = 'Practice completed!';
-        }
-    }
-
-    checkAnswer() {
-        const userInput = document.getElementById('ar-user-input').value.trim();
-        // removes all Unicode punctuation
-        const correctSentence = this.sentences[this.currentSentenceIndex].replace(/[\p{P}]/gu, '').trim();
-        console.log('--->>> ', `{${correctSentence}}`);
-
-        if (!userInput) {
-            alert('Please type what you heard!');
-            return;
-        }
-
-        // Store the result
-        this.userAnswers[this.currentSentenceIndex] = userInput;
-        this.results[this.currentSentenceIndex] = this.compareSentences(userInput, correctSentence);
-
-        // Show immediate feedback
-        this.showSentenceFeedback(this.currentSentenceIndex);
-
-        // Auto-advance after 3 seconds or wait for next click
-        setTimeout(() => {
-            if (this.currentSentenceIndex < this.sentences.length - 1) {
-                this.nextSentence();
-            } else {
-                // this for updating last sentence progress
-                this.currentSentenceIndex++;
-                this.finishActiveRecall();
-            }
-        }, 3000);
-    }
-
-    compareSentences(userSentence, correctSentence) {
-        const userWords = userSentence.toLowerCase().split(/\s+/).filter(w => w.trim());
-        const correctWords = correctSentence.toLowerCase().split(/\s+/).filter(w => w.trim());
-
-        const result = {
-            userSentence,
-            correctSentence,
-            words: [],
-            correctCount: 0,
-            totalWords: correctWords.length,
-            matchedWords: new Set(),
-            extraWords: []
-        };
-
-        // Match user words to correct words (not sequential)
-        const userWordMatches = new Array(userWords.length).fill(null);
-        const correctWordMatches = new Array(correctWords.length).fill(false);
-
-        // First pass: exact matches
-        userWords.forEach((userWord, userIndex) => {
-            const correctIndex = correctWords.findIndex((correctWord, idx) =>
-                !correctWordMatches[idx] && this.wordsMatch(userWord, correctWord)
-            );
-
-            if (correctIndex !== -1) {
-                userWordMatches[userIndex] = correctIndex;
-                correctWordMatches[correctIndex] = true;
-                result.correctCount++;
-            }
-        });
-
-        // Second pass: fuzzy matches for unmatched words
-        userWords.forEach((userWord, userIndex) => {
-            if (userWordMatches[userIndex] === null) {
-                const correctIndex = correctWords.findIndex((correctWord, idx) =>
-                    !correctWordMatches[idx] && this.wordsMatch(userWord, correctWord, 0.6) // Lower threshold for fuzzy
-                );
-
-                if (correctIndex !== -1) {
-                    userWordMatches[userIndex] = correctIndex;
-                    correctWordMatches[correctIndex] = true;
-                    result.correctCount++;
-                }
-            }
-        });
-
-        // Build the result with proper matching
-        userWords.forEach((userWord, userIndex) => {
-            const correctIndex = userWordMatches[userIndex];
-            const correctWord = correctIndex !== null ? correctWords[correctIndex] : '';
-
-            result.words.push({
-                user: userWord,
-                correct: correctWord,
-                isCorrect: correctIndex !== null,
-                isFuzzyMatch: correctIndex !== null && userWord !== correctWord
-            });
-
-            if (correctIndex !== null) {
-                result.matchedWords.add(correctIndex);
-            }
-        });
-
-        // Find missing words (words in correct sentence but not in user sentence)
-        correctWords.forEach((correctWord, correctIndex) => {
-            if (!correctWordMatches[correctIndex]) {
-                result.words.push({
-                    user: '',
-                    correct: correctWord,
-                    isCorrect: false,
-                    isMissing: true
-                });
-            }
-        });
-
-        // Find extra words (words in user sentence but not in correct sentence)
-        userWords.forEach((userWord, userIndex) => {
-            if (userWordMatches[userIndex] === null) {
-                result.extraWords.push(userWord);
-            }
-        });
-
-        result.accuracy = Math.round((result.correctCount / result.totalWords) * 100);
-        return result;
-    }
-
-    showSentenceFeedback(sentenceIndex) {
-        const result = this.results[sentenceIndex];
-        const displayArea = document.getElementById('ar-current-sentence');
-
-        let feedbackHTML = `<div class="text-left w-full">`;
-        feedbackHTML += `<div class="font-semibold mb-2">Your input vs Correct sentence:</div>`;
-        feedbackHTML += `<div class="mb-3 p-3 bg-gray-100 rounded">`;
-
-        // Group words by type for better display
-        const correctWords = result.words.filter(w => w.isCorrect && !w.isFuzzyMatch);
-        const fuzzyWords = result.words.filter(w => w.isFuzzyMatch);
-        const missingWords = result.words.filter(w => w.isMissing);
-        const wrongWords = result.words.filter(w => !w.isCorrect && !w.isMissing && w.user);
-
-        if (correctWords.length > 0) {
-            feedbackHTML += `<div class="mb-2"><span class="text-green-600 font-semibold">✓ Correct:</span> `;
-            feedbackHTML += correctWords.map(w => w.user).join(' ') + `</div>`;
-        }
-
-        if (fuzzyWords.length > 0) {
-            feedbackHTML += `<div class="mb-2"><span class="text-yellow-600 font-semibold">≈ Close:</span> `;
-            feedbackHTML += fuzzyWords.map(w => `${w.user} (→ ${w.correct})`).join(' ') + `</div>`;
-        }
-
-        if (missingWords.length > 0) {
-            feedbackHTML += `<div class="mb-2"><span class="text-red-600 font-semibold">✗ Missing:</span> `;
-            feedbackHTML += missingWords.map(w => w.correct).join(' ') + `</div>`;
-        }
-
-        if (wrongWords.length > 0) {
-            feedbackHTML += `<div class="mb-2"><span class="text-red-600 font-semibold">✗ Extra:</span> `;
-            feedbackHTML += wrongWords.map(w => w.user).join(' ') + `</div>`;
-        }
-
-        feedbackHTML += `</div>`;
-        feedbackHTML += `<div class="text-sm text-gray-600">Accuracy: ${result.accuracy}% (${result.correctCount}/${result.totalWords} words matched)</div>`;
-        feedbackHTML += `</div>`;
-
-        displayArea.innerHTML = feedbackHTML;
-        document.getElementById('ar-input-area').classList.add('hidden');
-    }
-
-    nextSentence() {
-        if (this.currentSentenceIndex < this.sentences.length - 1) {
-            console.log(`Moving to next sentence: ${this.currentSentenceIndex}`);
-            this.currentSentenceIndex++;
-            this.showCurrentSentence();
-            this.updateProgress();
-        }
-    }
-
-    previousSentence() {
-        if (this.currentSentenceIndex > 0) {
-            this.currentSentenceIndex--;
-            this.showCurrentSentence();
-            this.updateProgress();
-
-            // Show previous answer if available
-            if (this.results[this.currentSentenceIndex]) {
-                this.showSentenceFeedback(this.currentSentenceIndex);
-            }
-        }
-    }
-
-    repeatAudio() {
-        const repeatBtn = document.getElementById('ar-repeat-btn');
-        if (repeatBtn) {
-            // Add multiple effects
-            repeatBtn.classList.add('glow-scale');
-
-            // Add temporary icon change
-            const originalText = repeatBtn.textContent;
-            repeatBtn.textContent = '🔊 Playing...';
-
-            setTimeout(() => {
-                repeatBtn.classList.remove('glow-scale');
-                repeatBtn.textContent = originalText;
-            }, 800);
-        }
-
-        const sentence = this.sentences[this.currentSentenceIndex].trim();
-        this.speak(sentence);
-    }
-
-    finishActiveRecall() {
-        clearInterval(this.timerInterval);
-        this.showFinalResults();
-        this.updateProgress();
-    }
-
-    showFinalResults() {
-        clearInterval(this.timerInterval);
-
-        const totalAccuracy = Math.round(
-            this.results.reduce((sum, result) => sum + result.accuracy, 0) / this.results.length
-        );
-
-        const totalCorrect = this.results.reduce((sum, result) => sum + result.correctCount, 0);
-        const totalWords = this.results.reduce((sum, result) => sum + result.totalWords, 0);
-
-        // Summary (unchanged)
-        document.getElementById('ar-summary').innerHTML = `
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div class="p-3 bg-blue-50 rounded-lg">
-                <div class="text-2xl font-bold text-blue-600">${this.sentences.length}</div>
-                <div class="text-sm text-blue-800">Sentences</div>
-            </div>
-            <div class="p-3 bg-green-50 rounded-lg">
-                <div class="text-2xl font-bold text-green-600">${totalAccuracy}%</div>
-                <div class="text-sm text-green-800">Overall Accuracy</div>
-            </div>
-            <div class="p-3 bg-purple-50 rounded-lg">
-                <div class="text-2xl font-bold text-purple-600">${totalCorrect}/${totalWords}</div>
-                <div class="text-sm text-purple-800">Words Correct</div>
-            </div>
-            <div class="p-3 bg-yellow-50 rounded-lg">
-                <div class="text-2xl font-bold text-yellow-600">${Math.round(totalWords / this.sentences.length)}</div>
-                <div class="text-sm text-yellow-800">Avg. Words/Sentence</div>
-            </div>
-        </div>
-    `;
-
-        // Enhanced detailed results with proper sequence
-        const detailedResults = document.getElementById('ar-detailed-results');
-        detailedResults.innerHTML = this.results.map((result, index) => {
-
-            // Reconstruct the sentence in correct sequence with missing words
-            const correctWords = result.correctSentence.split(/\s+/);
-            const sequenceDisplay = this.getSequenceDisplay(result, correctWords);
-
-            return `
-        <div class="p-4 bg-white rounded-lg border border-gray-200">
-            <div class="flex justify-between items-center mb-3">
-                <span class="font-semibold">Sentence ${index + 1}</span>
-                <span class="px-3 py-1 rounded-full text-sm font-medium ${result.accuracy >= 90 ? 'bg-green-100 text-green-800' :
-                    result.accuracy >= 70 ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                }">
-                    ${result.accuracy}% accuracy
-                </span>
-            </div>
-            
-            <div class="mb-2">
-                <strong>Correct:</strong> <span class="text-gray-700">${result.correctSentence}</span>
-            </div>
-            
-            <div class="mb-2">
-                <strong>Your input:</strong> <span class="text-gray-700">${result.userSentence || "(no input)"}</span>
-            </div>
-            
-            <div class="mb-3">
-                <strong>Sequence comparison:</strong> 
-                <div class="sentence-comparison mt-2 p-3 bg-gray-50 rounded-lg font-mono text-lg">
-                    ${sequenceDisplay}
-                </div>
-            </div>
-            
-            <div class="text-sm text-gray-600 grid grid-cols-2 gap-2 mt-3">
-                <div>Words matched: ${result.correctCount}/${result.totalWords}</div>
-                <div>Fuzzy matches: ${result.words.filter(w => w.isFuzzyMatch).length}</div>
-                <div>Missing words: ${result.words.filter(w => w.isMissing).length}</div>
-                <div>Extra words: ${result.extraWords.length}</div>
-            </div>
-        </div>
-        `;
-        }).join('');
-
-        document.getElementById('ar-results').classList.remove('hidden');
-    }
-
-    // New method to reconstruct the sequence with missing words
-    getSequenceDisplay(result, correctWords) {
-        let displayHTML = '';
-
-        // Create a map of correct word positions to user words
-        const wordMap = new Map();
-
-        // Map user words to their correct positions
-        result.words.forEach(wordObj => {
-            if (wordObj.isCorrect && wordObj.correct) {
-                const correctIndex = correctWords.findIndex(w =>
-                    w.toLowerCase() === wordObj.correct.toLowerCase()
-                );
-                if (correctIndex !== -1) {
-                    wordMap.set(correctIndex, wordObj);
-                }
-            }
-        });
-
-        // Also include missing words in their correct positions
-        result.words.forEach(wordObj => {
-            if (wordObj.isMissing && wordObj.correct) {
-                const correctIndex = correctWords.findIndex(w =>
-                    w.toLowerCase() === wordObj.correct.toLowerCase()
-                );
-                if (correctIndex !== -1) {
-                    wordMap.set(correctIndex, wordObj);
-                }
-            }
-        });
-
-        // Build the display in correct sequence
-        correctWords.forEach((correctWord, index) => {
-            const wordObj = wordMap.get(index);
-
-            if (wordObj) {
-                if (wordObj.isMissing) {
-                    // Missing word - show in brackets
-                    displayHTML += `<span id="missing" class="text-red-600 px-1 rounded" title="Missing word">${wordObj.correct}</span> `;
-                } else if (wordObj.isFuzzyMatch) {
-                    // Fuzzy match - show with correction hint
-                    displayHTML += `<span class="text-yellow-600 px-1 rounded relative group" title="Close match: ${wordObj.user} → ${wordObj.correct}">
-                    ${wordObj.user}
-                    <span class="absolute bottom-full left-0 bg-yellow-100 text-yellow-800 text-xs p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    ${wordObj.correct}
-                    </span>
-                </span> `;
-                } else if (wordObj.isCorrect) {
-                    // Correct match
-                    displayHTML += `<span class="text-green-600 font-semibold">${wordObj.user}</span> `;
-                }
-            } else {
-                // Word not matched at all (shouldn't happen, but safety)
-                displayHTML += `<span class="text-gray-400">${correctWord}</span> `;
-            }
-        });
-
-        return displayHTML;
-    }
-
-    resetActiveRecall() {
-        clearInterval(this.timerInterval);
-        document.getElementById('ar-results').classList.add('hidden');
-        document.getElementById('ar-input-area').classList.add('hidden');
-
-        // Reset controls
-        document.getElementById('ar-start-btn').classList.remove('hidden');
-        document.getElementById('ar-next-btn').classList.add('hidden');
-        document.getElementById('ar-back-btn').classList.add('hidden');
-        document.getElementById('ar-repeat-btn').classList.add('hidden');
-        document.getElementById('ar-finish-btn').classList.add('hidden');
-    }
 
     // Add this method to your VocabularyTool class
     setupFlashcardListSelection() {
