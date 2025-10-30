@@ -907,8 +907,8 @@ export class FlashcardsTool {
             <div class="flashcard-inner min-h-64 ${card.mastered ? 'border-2 border-solid border-green-200 rounded-lg' : ''}">
                 <div class="flashcard-front bg-white rounded-lg shadow-md p-3 flex flex-col gap-5 items-center justify-center cursor-pointer h-full">
                     ${frontContent}
-                    <button class="speak-btn mt-3 p-1 bg-indigo-100 rounded-full hover:bg-indigo-200">
-                        <i data-feather="volume-2" class="text-indigo-700 w-3 h-3"></i>
+                    <button class="speak-btn mt-3 p-3 bg-indigo-100 rounded-full hover:bg-indigo-200">
+                        <i data-feather="volume-2" class="text-indigo-700 w-5 h-5"></i>
                     </button>
                     <p class="text-xs text-gray-500 mt-5">Click to flip</p>
                     ${card.mastered ? '<i data-feather="check-circle" class="text-green-500 mt-2 w-6 h-6"></i>' : ''}
@@ -1080,8 +1080,10 @@ export class FlashcardsTool {
             speakBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const idx = parseInt(flashcard.dataset.index);
-                const text = this.isFlipped ? this.flashcards[idx].english : this.flashcards[idx].german;
-                this.speakWord(text);
+                const text = this.flashcards[idx].german + ',' + this.flashcards[idx].sentence;
+                // adding word and sentence together
+                const lang = 'de-DE';
+                this.speakWord(text, 0.8, lang);
             });
         }
 
