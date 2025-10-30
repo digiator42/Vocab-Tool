@@ -21,7 +21,7 @@ export class FlashcardsTool {
     init() {
         this.setupEventListeners();
         this.renderFlashcards();
-        this.renderCustomListButtons();
+        this.renderCustomListButtons(false);
         this.updatePaginationControls();
         this.updateSRButton();
         feather.replace();
@@ -1055,8 +1055,21 @@ export class FlashcardsTool {
                 e.stopPropagation();
                 const idx = parseInt(flashcard.dataset.index);
                 this.flashcards[idx].mastered = !this.flashcards[idx].mastered;
+                console.log('Toggled mastered status');
+
+                // Update the current custom list with the modified flashcards
+                this.updateCurrentCustomList();
+
+                // Save to localStorage
                 this.saveFlashcards();
+
+                // Update progress
                 this.updateProgress();
+
+                // Only update buttons without reloading from localStorage
+                this.renderCustomListButtons(true);
+
+                // Re-render flashcards
                 this.renderFlashcards();
             });
         }
@@ -1215,9 +1228,15 @@ export class FlashcardsTool {
         }
     }
 
-    renderCustomListButtons() {
+    renderCustomListButtons(buttonsOnly = false) {
         const container = document.getElementById('custom-lists-container');
-        this.customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        if (!buttonsOnly) {
+            // Full render: reload from localStorage and update everything
+            this.customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+        }
+        // If buttonsOnly is true, use the existing this.customLists without reloading
+
         container.innerHTML = '';
 
         Object.keys(this.customLists).forEach(listName => {
@@ -1240,9 +1259,14 @@ export class FlashcardsTool {
                 listColor = 'bg-green-600 hover:bg-green-700';
                 listIcon = 'target';
                 listTitle = 'Fully mastered! 🎯';
-            } else if (masteryPercentage > 0) {
+            } else if (masteryPercentage >= 50) {
                 // Partially mastered - Yellow with percentage
                 listColor = 'bg-yellow-600 hover:bg-yellow-700';
+                listIcon = 'bar-chart-2';
+                listTitle = `${masteryPercentage}% mastered`;
+            } else if (masteryPercentage > 10 && masteryPercentage < 50) {
+                // Partially mastered - Blue with percentage
+                listColor = 'bg-blue-600 hover:bg-blue-700';
                 listIcon = 'bar-chart-2';
                 listTitle = `${masteryPercentage}% mastered`;
             } else {
@@ -1287,7 +1311,7 @@ export class FlashcardsTool {
                 if (confirm(`Delete the "${listName}" list?`)) {
                     delete this.customLists[listName];
                     localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
-                    this.renderCustomListButtons();
+                    this.renderCustomListButtons(true); // Use buttonsOnly when deleting
                     const listNames = Object.keys(this.customLists);
                     if (listNames.length > 0) {
                         this.flashcards = [...this.customLists[listNames[0]]];
@@ -1368,7 +1392,7 @@ export class FlashcardsTool {
         // Convert back to object
         this.customLists = Object.fromEntries(lists);
         localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
-        this.renderCustomListButtons();
+        this.renderCustomListButtons(true);
 
         this.showNotification(`Moved "${draggedListName}" before "${targetListName}"`);
     }
@@ -1458,7 +1482,7 @@ export class FlashcardsTool {
             this.flashcards = [...newCards];
             this.saveFlashcards();
             this.renderFlashcards();
-            this.renderCustomListButtons();
+            this.renderCustomListButtons(false);
 
             this.showNotification(`Added ${newCards.length} flashcards to "${listName}"`);
         } else {
