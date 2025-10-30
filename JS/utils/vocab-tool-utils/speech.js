@@ -18,27 +18,22 @@ export class SpeechService {
                     console.log('========Offline Speaking Mode=========', this.main)
                     const selectedVoiceName = this.main.voiceSelect.value;
                     this.speakText(text, selectedVoiceName, this.main.rate);
-                    resolve(); //
-                    return;
+                } else {
+                    const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
+                    const audio = new Audio(url);
+                    audio.play();
+                    audio.onplaying = () => this.main.setStatus("Speaking...");
+                    audio.onended = () => this.main.setStatus("Ready");
+                    audio.onerror = () => this.main.setStatus("Speech error");
                 }
-                const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
-                const audio = new Audio(url);
-                audio.play();
-                audio.onplaying = () => this.main.setStatus("Speaking...");
-                audio.onended = () => {
-                    this.main.setStatus("Ready");
-                    resolve();
-                };
-                audio.onerror = () => {
-                    this.main.setStatus("Speech error");
-                    resolve();
-                };
             } catch {
                 this.main.setStatus("Speech error, System voice");
                 const selectedVoiceName = this.main.voiceSelect.value;
                 this.speakText(text, selectedVoiceName, this.main.rate);
-                resolve();
             }
+
+            // RESOLVE IMMEDIATELY in all cases
+            resolve();
         });
     }
 
