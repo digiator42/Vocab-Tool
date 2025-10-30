@@ -1,9 +1,9 @@
-import { SpeechService } from './speech.js';
-import { TranslationService } from './translation.js';
-import { VocabPanelManager } from './vocab-panel.js';
-import { ActiveRecallModule } from './active-recall.js';
-import { ArticleService } from './article-service.js';
-import { FlashcardListService } from './flashcard-list.js';
+import { SpeechService } from '../utils/vocab-tool-utils/speech.js';
+import { TranslationService } from '../utils/vocab-tool-utils/translation.js';
+import { VocabPanelManager } from '../utils/vocab-tool-utils/vocab-panel.js';
+import { ActiveRecallModule } from '../utils/vocab-tool-utils/active-recall.js';
+import { ArticleService } from '../utils/vocab-tool-utils/article-service.js';
+import { FlashcardListService } from '../utils/vocab-tool-utils/flashcard-list.js';
 
 // Vocabulary Tool Module
 export class VocabularyTool {
