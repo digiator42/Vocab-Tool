@@ -3,6 +3,7 @@ import { TranslationService } from './translation.js';
 import { VocabPanelManager } from './vocab-panel.js';
 import { ActiveRecallModule } from './active-recall.js';
 import { ArticleService } from './article-service.js';
+import { FlashcardListService } from './flashcard-list.js';
 
 // Vocabulary Tool Module
 export class VocabularyTool {
@@ -58,6 +59,7 @@ export class VocabularyTool {
         this.vocabPanel = new VocabPanelManager(this);
         this.AR = new ActiveRecallModule(this);
         this.article = new ArticleService(this);
+        this.flashcardLists = new FlashcardListService(this);
         this.init();
     }
 
@@ -68,9 +70,9 @@ export class VocabularyTool {
         this.setupSelectionSystem();
         this.AR.setupActiveRecall();
         this.setupFocusMode();
+        this.flashcardLists.setupFlashcardListSelection();
         // this.setupManualSelection();
         // this.setupTooltipHover();
-        this.setupFlashcardListSelection();
         this.processBtn.click();
         this.speech.loadVoices();
         window.vocabTool = this; // For debugging
@@ -88,6 +90,7 @@ export class VocabularyTool {
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), time);
     }
+
     decodeSanitizedInput(input) {
         return input.replace(/(&amp;)?#x2F;/g, ',');
     }
@@ -153,17 +156,6 @@ export class VocabularyTool {
         langSelector.addEventListener('change', () => {
             this.selectedLang = langSelector.value;
         });
-    }
-
-    async getArticle(word) {
-        try {
-            const response = await fetch(`/api/article?word=${word}`);
-            const data = await response.json();
-            return data.article; // This will be a string like "der"
-        } catch (error) {
-            console.error('Error fetching article:', error);
-            return null;
-        }
     }
 
     async translate(text, article = false, extended = false) { return this.translation.translate(text, article, extended); }
@@ -1706,7 +1698,7 @@ export class VocabularyTool {
 
         localStorage.setItem('customGermanLists', JSON.stringify(customLists));
         // Refresh flashcard lists
-        this.refreshFlashcardLists();
+        this.flashcardLists.refreshFlashcardLists();
 
         if (addedCount > 0) {
             statusDiv.textContent = `Successfully added ${addedCount} words to "${selectedListName}"${skippedCount > 0 ? ` (${skippedCount} duplicates skipped)` : ''}!`;
@@ -1766,7 +1758,7 @@ export class VocabularyTool {
         // Handle selection
         select.onchange = () => {
             const selectedList = select.value;
-            this.addWordToList(selectedList, word, translation);
+            this.flashcardLists.addWordToList(selectedList, word, translation);
         };
 
         listsDiv.appendChild(select);
@@ -1778,54 +1770,6 @@ export class VocabularyTool {
         setTimeout(() => {
             document.getElementById('new-list-name').focus();
         }, 300);
-    }
-
-    addWordToList(listName, german, english) {
-        let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        if (!customLists[listName]) customLists[listName] = [];
-
-        const exists = customLists[listName].some(card => card.german === german && card.english === english);
-        if (exists) {
-            document.getElementById('add-flashcard-status').textContent = "Already exists in this list.";
-            document.getElementById('add-flashcard-status').className = "mt-2 text-sm text-center text-yellow-600";
-            return;
-        }
-
-        customLists[listName].push({ german, english, mastered: false });
-        localStorage.setItem('customGermanLists', JSON.stringify(customLists));
-        document.getElementById('add-flashcard-status').textContent = `Added to "${listName}"!`;
-        document.getElementById('add-flashcard-status').className = "mt-2 text-sm text-center text-green-600";
-
-        setTimeout(() => {
-            document.getElementById('add-to-flash-modal').classList.add('hidden');
-        }, 1200);
-        // Refresh the flashcard lists display
-        this.refreshFlashcardLists();
-    }
-
-    createNewList(word, translation) {
-        const listName = document.getElementById('new-list-name').value.trim();
-        if (!listName) {
-            document.getElementById('add-flashcard-status').textContent = "Enter a list name.";
-            document.getElementById('add-flashcard-status').className = "mt-2 text-sm text-center text-red-600";
-            return;
-        }
-
-        let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        if (customLists[listName]) {
-            document.getElementById('add-flashcard-status').textContent = "List already exists. Choose it above.";
-            document.getElementById('add-flashcard-status').className = "mt-2 text-sm text-center text-yellow-600";
-            return;
-        }
-
-        customLists[listName] = [{ german: word, english: translation, mastered: false }];
-        localStorage.setItem('customGermanLists', JSON.stringify(customLists));
-        document.getElementById('add-flashcard-status').textContent = `Created "${listName}" and added!`;
-        document.getElementById('add-flashcard-status').className = "mt-2 text-sm text-center text-green-600";
-
-        setTimeout(() => {
-            document.getElementById('add-to-flash-modal').classList.add('hidden');
-        }, 1200);
     }
 
     // Enhanced focus mode with mobile support
@@ -2210,219 +2154,4 @@ export class VocabularyTool {
         }
     }
 
-    // =================FLASHCARDS SELECTIONS========================
-
-    // Add this method to your VocabularyTool class
-    setupFlashcardListSelection() {
-        this.createFlashcardListSelector();
-    }
-
-    createFlashcardListSelector() {
-        // Create the container for flashcard list selection
-        const selectorContainer = document.createElement('div');
-        selectorContainer.id = 'flashcard-list-selector';
-        selectorContainer.className = 'mt-4 p-4 bg-white rounded-lg border border-gray-200';
-
-        selectorContainer.innerHTML = `
-        <h3 class="text-lg font-semibold mb-3">📚 Practice with Flashcards</h3>
-        <div class="flex flex-col gap-3">
-            <label class="text-sm font-medium text-gray-700">Choose a flashcard list:</label>
-            <div id="flashcard-lists-container" class="flex flex-wrap gap-2 mb-3">
-                <!-- Lists will be populated here -->
-            </div>
-            <div id="selected-list-info" class="hidden p-3 bg-blue-50 rounded-lg">
-                <div class="flex justify-between items-center">
-                    <span id="selected-list-name" class="font-medium"></span>
-                    <span id="selected-list-count" class="text-sm text-gray-600"></span>
-                </div>
-                <button id="load-flashcards-btn" class="mt-2 w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
-                    🎯 Load for Active Recall
-                </button>
-            </div>
-            <div id="no-lists-message" class="hidden p-4 text-center text-gray-500 bg-gray-50 rounded-lg">
-                No flashcard lists found. Create some lists first!
-            </div>
-        </div>
-        `;
-
-        // Insert before the Active Recall button
-        const activeRecallBtn = document.getElementById('active-recall-btn');
-        if (activeRecallBtn) {
-            // activeRecallBtn.parentNode.insertBefore(selectorContainer, activeRecallBtn);
-            this.output.insertAdjacentElement('afterend', selectorContainer);
-        } else {
-            // Fallback: insert after the output
-            this.output.insertAdjacentElement('afterend', selectorContainer);
-        }
-
-        this.populateFlashcardLists();
-        this.setupFlashcardListListeners();
-    }
-
-    populateFlashcardLists() {
-        const listsContainer = document.getElementById('flashcard-lists-container');
-        const noListsMessage = document.getElementById('no-lists-message');
-
-        if (!listsContainer) return;
-
-        // Get flashcard lists from localStorage
-        const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        const listNames = Object.keys(customLists);
-
-        listsContainer.innerHTML = '';
-
-        if (listNames.length === 0) {
-            noListsMessage.classList.remove('hidden');
-            return;
-        }
-
-        noListsMessage.classList.add('hidden');
-
-        listNames.forEach(listName => {
-            const list = customLists[listName];
-            const button = document.createElement('button');
-            button.className = 'px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium';
-            button.textContent = `${listName} (${list.length})`;
-            button.dataset.listName = listName;
-
-            listsContainer.appendChild(button);
-        });
-    }
-
-    setupFlashcardListListeners() {
-        const listsContainer = document.getElementById('flashcard-lists-container');
-        const selectedListInfo = document.getElementById('selected-list-info');
-        const selectedListName = document.getElementById('selected-list-name');
-        const selectedListCount = document.getElementById('selected-list-count');
-        const loadFlashcardsBtn = document.getElementById('load-flashcards-btn');
-
-        if (!listsContainer) return;
-
-        // Handle list selection
-        listsContainer.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON' && e.target.dataset.listName) {
-                // Remove active class from all buttons
-                document.querySelectorAll('#flashcard-lists-container button').forEach(btn => {
-                    btn.classList.remove('bg-blue-600', 'text-white');
-                    btn.classList.add('bg-blue-100', 'text-blue-700');
-                });
-
-                // Add active class to selected button
-                e.target.classList.remove('bg-blue-100', 'text-blue-700');
-                e.target.classList.add('bg-blue-600', 'text-white');
-
-                const listName = e.target.dataset.listName;
-                this.selectFlashcardList(listName);
-            }
-        });
-
-        // Handle load flashcards button
-        if (loadFlashcardsBtn) {
-            loadFlashcardsBtn.addEventListener('click', () => {
-                this.isFlashCardLoadRequested = true;
-                this.loadFlashcardsIntoActiveRecall();
-            });
-        }
-    }
-
-    selectFlashcardList(listName) {
-        const selectedListInfo = document.getElementById('selected-list-info');
-        const selectedListName = document.getElementById('selected-list-name');
-        const selectedListCount = document.getElementById('selected-list-count');
-
-        const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        const list = customLists[listName];
-
-        if (!list) return;
-
-        selectedListName.textContent = listName;
-        selectedListCount.textContent = `${list.length} flashcards`;
-        selectedListInfo.classList.remove('hidden');
-
-        // Store the selected list name
-        this.selectedFlashcardList = listName;
-    }
-
-
-    // Update loadFlashcardsIntoActiveRecall to use it:
-    loadFlashcardsIntoActiveRecall() {
-        if (!this.selectedFlashcardList) {
-            alert('Please select a flashcard list first!');
-            return;
-        }
-
-        const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        const list = customLists[this.selectedFlashcardList];
-
-        if (!list || list.length === 0) {
-            alert('Selected list is empty!');
-            return;
-        }
-
-        // DEBUG: Check what's actually stored
-        console.log('=== DEBUG: Raw flashcard data ===');
-        console.log('Selected list:', this.selectedFlashcardList);
-
-        // Combine German words and sentences, decode sanitized input and replace slashes
-        const textContent = list.map(card => {
-            let content = this.decodeSanitizedInput(card.german);
-
-            // Replace slashes with commas in German text
-            content = content.replace(/\//g, ',');
-
-            if (card.sentence) {
-                let sentence = this.decodeSanitizedInput(card.sentence);
-                sentence = sentence.replace(/\//g, ',');
-                content += `, ${sentence}`;
-            }
-            return content;
-        }).join('. ');
-        list.forEach((card, index) => {
-            console.log(`Card ${index}:`, {
-                german: card.german,
-                english: card.english,
-                germanRaw: JSON.stringify(card.german),
-                sentence: card.sentence,
-                sentenceRaw: card.sentence ? JSON.stringify(card.sentence) : 'No sentence'
-            });
-        });
-
-        console.log('=== END DEBUG ===');
-
-        console.log('Processed text content:', textContent);
-
-        // Set the text in the input area
-        this.input.value = textContent;
-
-        // Process the text
-        this.isFlashCardLoadRequested = true;
-
-        // Show success message
-        this.setStatus(`Loaded ${list.length} flashcards from "${this.selectedFlashcardList}"`);
-
-        // Scroll to the top to see the processed text
-        this.input.scrollIntoView({ behavior: 'smooth' });
-
-        // Auto-open Active Recall tool
-        setTimeout(() => {
-            const activeRecallBtn = document.getElementById('active-recall-btn');
-            if (activeRecallBtn && activeRecallBtn.textContent.includes('Active Recall')) {
-                activeRecallBtn.click();
-            }
-        }, 100);
-    }
-
-    // Also add this method to handle list updates
-    refreshFlashcardLists() {
-        this.populateFlashcardLists();
-
-        // Clear selection if the selected list no longer exists
-        if (this.selectedFlashcardList) {
-            const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-            if (!customLists[this.selectedFlashcardList]) {
-                this.selectedFlashcardList = null;
-                document.getElementById('selected-list-info').classList.add('hidden');
-            }
-        }
-    }
 }
