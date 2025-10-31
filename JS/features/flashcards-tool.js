@@ -1,3 +1,5 @@
+import { SpeechService } from '../utils/vocab-tool-utils/speech.js'
+
 // Flashcards Tool Module
 export class FlashcardsTool {
     constructor() {
@@ -13,6 +15,10 @@ export class FlashcardsTool {
         this.spacedRepetitionCards = []; // Cards for current SR session
         this.currentSRCardIndex = 0; // Current card in SR session
         this.srSessionData = JSON.parse(localStorage.getItem('srSessionData')) || {}; // SR progress
+        this.voiceSelect = document.getElementById("voiceSelect");
+
+        this.speechSynth = window.speechSynthesis;
+        this.speech = new SpeechService(this);
 
 
         this.init();
@@ -24,6 +30,7 @@ export class FlashcardsTool {
         this.renderCustomListButtons(false);
         this.updatePaginationControls();
         this.updateSRButton();
+        this.speech.loadVoices();
         feather.replace();
         AOS.init();
     }
@@ -1202,17 +1209,19 @@ export class FlashcardsTool {
     }
 
     // Update speakWord to handle language
-    speakWord(text, rate = 0.8, lang = 'de-DE') {
-        if (!text.trim()) return;
-        if (this.useSlowSpeak) rate = 0.6;
-        console.log('rate ---> ', rate);
+    // speakWord(text, rate = 0.8, lang = 'de-DE') {
+    //     if (!text.trim()) return;
+    //     if (this.useSlowSpeak) rate = 0.6;
+    //     console.log('rate ---> ', rate);
 
-        this.utterance = new SpeechSynthesisUtterance(text);
-        this.utterance.lang = lang;
-        this.utterance.rate = rate;
+    //     this.utterance = new SpeechSynthesisUtterance(text);
+    //     this.utterance.lang = lang;
+    //     this.utterance.rate = rate;
 
-        speechSynthesis.speak(this.utterance);
-    }
+    //     speechSynthesis.speak(this.utterance);
+    // }
+
+    speakWord(text, rate = 0.8, lang = 'de-DE') { return this.speech.speakText(text, this.voiceSelect.value, rate); }
 
     getCurrentListName() {
         const cur = JSON.stringify(this.flashcards);

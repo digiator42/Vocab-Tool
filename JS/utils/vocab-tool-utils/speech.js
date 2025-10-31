@@ -2,6 +2,7 @@
 export class SpeechService {
     constructor(main) {
         this.main = main;
+        this.germanVoices = [];
     }
 
     speak(text, lang = "de", slow = this.main.useSlowVoice) {
@@ -39,8 +40,8 @@ export class SpeechService {
 
     findGermanVoices() {
         const voices = this.main.speechSynth.getVoices();
-        this.main.germanVoices = voices.filter(voice => voice.lang.startsWith('de-'));
-        console.log('Available German voices:', this.main.germanVoices.map(v => v.name));
+         this.germanVoices = voices.filter(voice => voice.lang.startsWith('de-'));
+        console.log('Available German voices:',  this.germanVoices.map(v => v.name));
     }
 
     loadVoices() {
@@ -59,7 +60,7 @@ export class SpeechService {
     }
 
     getAvailableVoices() {
-        return this.main.germanVoices;
+        return this.germanVoices;
     }
 
     speakText(text, voiceName, rate = 1) {
@@ -71,7 +72,7 @@ export class SpeechService {
 
         console.log('Selected voice name:', voiceName);
 
-        const selectedVoice = this.main.germanVoices.find(voice => voice.name === voiceName);
+        const selectedVoice =  this.germanVoices?.find(voice => voice.name === voiceName);
         if (selectedVoice) {
             this.main.utterance.voice = selectedVoice;
         } else {

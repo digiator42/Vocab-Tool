@@ -22,7 +22,6 @@ export class VocabularyTool {
 
         this.OriginalWord = null;
         this.currentVocabData = null;
-        this.germanVoices = [];
         this.rate = 1;
         this.useOfflineSpeak = false;
         this.killianVoice = null;
