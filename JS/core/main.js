@@ -174,4 +174,57 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize with the last selected story when page loads
     loadLastSelectedStory();
+
+
+    const hamburger = document.getElementById('hamburger-menu');
+    const sidebar = document.getElementById('list-sidebar-container');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    // Only show hamburger menu on the flashcard tool and on smaller screens
+    function checkFlashcardToolActive() {
+        const flashcardTool = document.getElementById('flashcard-tool');
+        const isLargeScreen = window.innerWidth > 1024;
+
+        if (!flashcardTool.classList.contains('hidden') && !isLargeScreen) {
+            hamburger.style.display = 'flex';
+        } else {
+            hamburger.style.display = 'none';
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            hamburger.classList.remove('active');
+        }
+    }
+
+    // Toggle sidebar
+    hamburger.addEventListener('click', function () {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+        hamburger.classList.toggle('active');
+    });
+
+    // Close sidebar when clicking on overlay
+    overlay.addEventListener('click', function () {
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+        hamburger.classList.remove('active');
+    });
+
+    // Check when switching tabs
+    document.getElementById('tab-flash').addEventListener('click', function () {
+        setTimeout(checkFlashcardToolActive, 100);
+    });
+
+    document.getElementById('tab-vocab').addEventListener('click', function () {
+        setTimeout(checkFlashcardToolActive, 100);
+    });
+
+    document.getElementById('tab-exercise').addEventListener('click', function () {
+        setTimeout(checkFlashcardToolActive, 100);
+    });
+
+    // Check on window resize
+    window.addEventListener('resize', checkFlashcardToolActive);
+
+    // Initial check
+    checkFlashcardToolActive();
 });

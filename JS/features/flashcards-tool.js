@@ -1466,7 +1466,7 @@ export class FlashcardsTool {
 
             // List button with dynamic color and icon
             const btn = document.createElement('button');
-            btn.className = `px-4 py-2 ${listColor} text-white rounded-lg flex items-center transition-colors duration-200`;
+            btn.className = `px-4 py-2 ${listColor} text-white rounded-lg flex items-center transition-colors duration-200 w-full`;
             btn.title = `${listTitle} | ${masteredCount}/${totalCount} cards mastered`;
 
             // Create icon and text content

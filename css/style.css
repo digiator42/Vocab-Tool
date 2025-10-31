@@ -102,6 +102,7 @@ body.dark-mode {
 .dark-mode #ar-current-sentence,
 .dark-mode #grammar-exercise-container,
 .dark-mode #ative-recall-dropdown,
+.dark-mode #list-sidebar-container,
 .dark-mode select,
 .dark-mode textarea,
 .dark-mode #exercise-tool,
@@ -836,4 +837,87 @@ span.multi-highlighted {
 .heading-gradient {
     background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
     box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+/* Custom styles for the hamburger menu */
+.hamburger {
+    cursor: pointer;
+    width: 30px;
+    height: 20px;
+    position: fixed;
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 50;
+    top: 20px;
+    left: 20px;
+}
+
+.hamburger span {
+    display: block;
+    height: 3px;
+    width: 100%;
+    background-color: #4f46e5;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.hamburger.active span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+}
+
+.hamburger.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger.active span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+}
+
+/* Responsive sidebar styles */
+@media (max-width: 1024px) {
+    .hamburger {
+        display: flex;
+    }
+
+    #list-sidebar-container {
+        position: fixed;
+        left: -320px;
+        top: 0;
+        height: 100vh;
+        z-index: 40;
+        background-color: white;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+
+    #list-sidebar-container.active {
+        left: 0;
+    }
+
+    #main-flashcard-view {
+        width: 100%;
+    }
+}
+
+/* Overlay for mobile */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 39;
+    display: none;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* Ensure sidebar has scroll when content overflows */
+#list-sidebar-container {
+    overflow-y: auto;
 }
