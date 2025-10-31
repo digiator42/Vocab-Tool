@@ -1091,7 +1091,7 @@ export class VocabularyTool {
     createModal() {
         const modal = document.createElement('div');
         modal.id = "add-to-flash-modal";
-        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-45 hidden";
+        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden";
         modal.innerHTML = `
             <div id="single-add-model" class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
                 <button id="close-add-to-flash-modal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">&times;</button>
@@ -1325,7 +1325,7 @@ export class VocabularyTool {
 
         localStorage.setItem('customGermanLists', JSON.stringify(customLists));
         // Refresh flashcard lists
-        this.refreshFlashcardLists();
+        this.FCL.refreshFlashcardLists();
 
         if (addedCount > 0) {
             statusDiv.textContent = `Successfully added ${addedCount} words to "${selectedListName}"${skippedCount > 0 ? ` (${skippedCount} duplicates skipped)` : ''}!`;
