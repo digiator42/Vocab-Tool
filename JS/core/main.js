@@ -1,10 +1,10 @@
 // Main Application Entry Point
-import { VocabularyTool } from './vocab-tool.js';
-import { FlashcardsTool } from './flashcards-tool.js';
-import { ImportExportManager } from './import-export.js';
+import { VocabularyTool } from '../features/vocab-tool.js';
+import { FlashcardsTool } from '../features/flashcards-tool.js';
+import { ImportExportManager } from '../utils/import-export.js';
 import { TabManager } from './tab-manager.js';
-import { ExerciseTool } from './exercise-tool.js';
-import { germanStories } from './stories.js';
+import { ExerciseTool } from '../features/exercise-tool.js';
+import { germanStories } from '../utils/stories.js';
 import { SyncManager } from './sync-manager.js';
 
 const processBtn = document.getElementById("processBtn");

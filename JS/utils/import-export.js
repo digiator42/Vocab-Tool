@@ -23,6 +23,33 @@ export class ImportExportManager {
         return substituted;
     }
 
+    decodeOutput(output) {
+        // Handle double-encoded entities (like &amp;#x2F;)
+        let decoded = output.replace(/&amp;(#x2F;)/g, '&$1');
+
+        // Now decode normally
+        const substitutions = {
+            '&amp;': '&',
+            '&lt;': '<',
+            '&gt;': '>',
+            '&quot;': '"',
+            '&#x27;': "'",
+            '&#x2F;': '/'
+        };
+
+        decoded = decoded.replace(/&(amp|lt|gt|quot|#x27|#x2F);/g, (match) => substitutions[match] || match);
+
+        return decoded;
+    }
+
+    needsSanitization(input) {
+        if (typeof input !== 'string') return false;
+
+        // Check for characters that need sanitization
+        const unsafePattern = /[&<>"'/]/;
+        return unsafePattern.test(input);
+    }
+
     async loadInitialData() {
         let customLists = JSON.parse(localStorage.getItem('customGermanLists') || '{}');
         if (!customLists || Object.keys(customLists).length === 0) {
@@ -60,11 +87,14 @@ export class ImportExportManager {
             const exportData = {};
 
             for (const [name, cards] of Object.entries(customLists)) {
-                exportData[name] = cards.map(c => ({
-                    german: c.german,
-                    english: c.english,
-                    sentence: c.sentence || '',
-                    sentenceTranslation: c.sentenceTranslation || '',
+                // Decode the list name
+                const decodedName = this.decodeOutput(name);
+
+                exportData[decodedName] = cards.map(c => ({
+                    german: this.decodeOutput(c.german),
+                    english: this.decodeOutput(c.english),
+                    sentence: this.decodeOutput(c.sentence || ''),
+                    sentenceTranslation: this.decodeOutput(c.sentenceTranslation || ''),
                     mastered: !!c.mastered
                 }));
             }
@@ -163,33 +193,29 @@ export class ImportExportManager {
             // SANITIZE THE PARSED DATA
             const sanitizedData = {};
             for (const [name, cards] of Object.entries(importedData)) {
-                // Sanitize the list name
-                const sanitizedName = this.sanitizeInput(name);
+                // Only sanitize if the name contains unsafe characters
+                const sanitizedName = this.needsSanitization(name) ? this.sanitizeInput(name) : name;
 
                 if (!Array.isArray(cards)) {
                     console.warn(`Skipping "${sanitizedName}" - not an array`);
                     continue;
                 }
 
-                // Sanitize each card in the array
                 sanitizedData[sanitizedName] = cards.map((card, index) => {
-                    // Skip invalid cards
                     if (!card || typeof card !== 'object') {
                         console.warn(`Skipping card ${index} in "${sanitizedName}" - not an object`);
                         return null;
                     }
 
-                    // Sanitize all card fields
                     return {
-                        german: this.sanitizeInput(card.german || ''),
-                        english: this.sanitizeInput(card.english || ''),
-                        sentence: this.sanitizeInput(card.sentence || ''),
-                        sentenceTranslation: this.sanitizeInput(card.sentenceTranslation || ''),
+                        german: this.needsSanitization(card.german) ? this.sanitizeInput(card.german || '') : (card.german || ''),
+                        english: this.needsSanitization(card.english) ? this.sanitizeInput(card.english || '') : (card.english || ''),
+                        sentence: this.needsSanitization(card.sentence) ? this.sanitizeInput(card.sentence || '') : (card.sentence || ''),
+                        sentenceTranslation: this.needsSanitization(card.sentenceTranslation) ? this.sanitizeInput(card.sentenceTranslation || '') : (card.sentenceTranslation || ''),
                         mastered: !!card.mastered
                     };
-                }).filter(card => card !== null); // Remove null entries
+                }).filter(card => card !== null);
 
-                // Remove empty arrays after filtering
                 if (sanitizedData[sanitizedName].length === 0) {
                     delete sanitizedData[sanitizedName];
                     console.warn(`Removed "${sanitizedName}" - no valid cards after sanitization`);
