@@ -38,6 +38,25 @@ export class FlashcardsTool {
         AOS.init();
     }
 
+    decodeOutput(output) {
+        // Handle double-encoded entities (like &amp;#x2F;)
+        let decoded = output.replace(/&amp;(#x2F;)/g, '&$1');
+
+        // Now decode normally
+        const substitutions = {
+            '&amp;': '&',
+            '&lt;': '<',
+            '&gt;': '>',
+            '&quot;': '"',
+            '&#x27;': "'",
+            '&#x2F;': '/'
+        };
+
+        decoded = decoded.replace(/&(amp|lt|gt|quot|#x27|#x2F);/g, (match) => substitutions[match] || match);
+
+        return decoded;
+    }
+
     updateSRButton() {
         const srBtn = document.getElementById('spaced-repetition-btn');
         if (srBtn) {
@@ -437,7 +456,7 @@ export class FlashcardsTool {
                 const idx = card.dataset.index;
                 const text = this.isFlipped ? this.flashcards[idx].english : this.flashcards[idx].german;
                 const lang = this.isFlipped ? 'en-US' : 'de-DE';
-                this.speakWord(text, 0.8, lang);
+                this.speakWord(this.decodeOutput(text), 0.8, lang);
             }
         });
 
@@ -514,7 +533,7 @@ export class FlashcardsTool {
                     const text = this.flashcards[idx].german + ',' + sentence;
                     // adding word and sentence together
                     const lang = 'de-DE';
-                    this.speakWord(text, 0.8, lang);
+                    this.speakWord(this.decodeOutput(text), 0.8, lang);
                 }
             }
         });
@@ -1145,7 +1164,7 @@ export class FlashcardsTool {
                 const text = this.flashcards[idx].german + ',' + this.flashcards[idx].sentence;
                 // adding word and sentence together
                 const lang = 'de-DE';
-                this.speakWord(text, 0.8, lang);
+                this.speakWord(this.decodeOutput(text), 0.8, lang);
             });
         }
 

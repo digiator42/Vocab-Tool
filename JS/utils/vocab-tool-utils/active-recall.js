@@ -762,9 +762,9 @@ export class ActiveRecallModule {
         const activeRecallContainer = document.getElementById('active-recall-tool');
 
         rateSliderActiveRecall.addEventListener('change', (e) => {
-            this.rate = e.target.value;
-            rateSliderSpanActiveRecall.innerHTML = this.rate;
-            console.log('rate value - ', this.rate);
+            this.main.rate = e.target.value;
+            rateSliderSpanActiveRecall.innerHTML = this.main.rate;
+            console.log('rate value - ', this.main.rate);
         })
 
         document.addEventListener('keydown', (e) => {
@@ -817,7 +817,7 @@ export class ActiveRecallModule {
             // }
 
             rateSliderSpanActiveRecall.textContent = rateSliderActiveRecall.value;
-            this.rate = rateSliderActiveRecall.value;
+            this.main.rate = rateSliderActiveRecall.value;
         });
 
         this.addActiveRecallButton();
