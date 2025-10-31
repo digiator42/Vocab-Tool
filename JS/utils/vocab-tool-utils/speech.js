@@ -40,8 +40,8 @@ export class SpeechService {
 
     findGermanVoices() {
         const voices = this.main.speechSynth.getVoices();
-         this.germanVoices = voices.filter(voice => voice.lang.startsWith('de-'));
-        console.log('Available German voices:',  this.germanVoices.map(v => v.name));
+        this.germanVoices = voices.filter(voice => voice.lang.startsWith('de-'));
+        console.log('Available German voices:', this.germanVoices.map(v => v.name));
     }
 
     loadVoices() {
@@ -72,7 +72,7 @@ export class SpeechService {
 
         console.log('Selected voice name:', voiceName);
 
-        const selectedVoice =  this.germanVoices?.find(voice => voice.name === voiceName);
+        const selectedVoice = this.germanVoices?.find(voice => voice.name === voiceName);
         if (selectedVoice) {
             this.main.utterance.voice = selectedVoice;
         } else {
@@ -117,14 +117,31 @@ export class SpeechService {
     stopSpeech() {
         this.main.isStopSpeechRequested = !this.main.isStopSpeechRequested;
         const focusModeStopBtn = document.getElementById("focus-stop-btn");
-
         const stopSpeecBtn = document.getElementById("stopSpeechBtn");
+
+        // Stop any ongoing speech immediately
+        if (this.main.useOfflineSpeak) {
+            // Stop Web Speech API
+            this.main.speechSynth.cancel();
+            this.main.isSpeaking = false;
+            this.main.isPaused = false;
+            if (this.main.playBtn) this.main.playBtn.textContent = 'Play';
+            const focusModePlayBTN = document.getElementById("focus-play-btn");
+            if (focusModePlayBTN) focusModePlayBTN.textContent = 'Play';
+        } else {
+            // Stop audio element if playing
+            const audioElements = document.querySelectorAll('audio');
+            audioElements.forEach(audio => {
+                audio.pause();
+                audio.currentTime = 0;
+            });
+        }
+
         if (this.main.isStopSpeechRequested) {
             stopSpeecBtn.innerHTML = 'Activate Speech';
             if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
             this.main.showNotification("Speech Stopped");
-        }
-        else {
+        } else {
             stopSpeecBtn.innerHTML = 'Stop Speech';
             if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
             this.main.showNotification("Speech Activated");
