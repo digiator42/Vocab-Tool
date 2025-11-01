@@ -921,3 +921,7 @@ span.multi-highlighted {
 #list-sidebar-container {
     overflow-y: auto;
 }
+
+/* .flashcard.active {
+    border: 2px solid #3b82f6;
+} */

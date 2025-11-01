@@ -5,6 +5,8 @@ export class FlashcardsTool {
     constructor() {
         this.flashcards = JSON.parse(localStorage.getItem('germanFlashcards')) || [];
         this.customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+        this.isFiltered = false;
+        this.filteredFlashcards = [];
         this.originalListName = null;
         this.currentPage = 1;
         this.cardsPerPage = 20;
@@ -36,6 +38,46 @@ export class FlashcardsTool {
         this.speech.loadVoices();
         feather.replace();
         AOS.init();
+    }
+
+    debugListState(listName) {
+        const fromLocalStorage = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+        const fromMemory = this.customLists;
+
+        console.log('=== DEBUG LIST STATE ===');
+        console.log('List name:', listName);
+        console.log('In localStorage exists:', !!fromLocalStorage[listName]);
+        console.log('In memory exists:', !!fromMemory[listName]);
+        console.log('LocalStorage cards:', fromLocalStorage[listName]?.length);
+        console.log('Memory cards:', fromMemory[listName]?.length);
+        console.log('Are they same object?', fromLocalStorage[listName] === fromMemory[listName]);
+        console.log('Are they same content?', JSON.stringify(fromLocalStorage[listName]) === JSON.stringify(fromMemory[listName]));
+        console.log('========================');
+    }
+
+    getCurrentCards() {
+        if (this.spacedRepetitionMode) {
+            return this.spacedRepetitionCards;
+        } else if (this.isFiltered && this.filteredFlashcards.length > 0) {
+            return this.filteredFlashcards;
+        } else {
+            return this.flashcards;
+        }
+    }
+
+    getCurrentCardIndex() {
+        if (this.spacedRepetitionMode) {
+            return this.currentSRCardIndex;
+        } else if (this.singleCardMode) {
+            return this.currentPage - 1;
+        } else {
+            // For grid mode, we need to find the active card
+            const activeCard = document.querySelector('.flashcard.active');
+            if (activeCard) {
+                return parseInt(activeCard.dataset.index);
+            }
+            return 0;
+        }
     }
 
     decodeOutput(output) {
@@ -422,45 +464,78 @@ export class FlashcardsTool {
         });
 
         document.getElementById('show-original-btn').addEventListener('click', () => {
-            const names = Object.keys(this.customLists);
-            console.log('original -> ', this.originalListName);
-            if (names.length > 0) {
-                this.flashcards = [...this.customLists[this.originalListName || names[0]]];
+            const originalListName = localStorage.getItem('originalListName');
+            if (originalListName && this.customLists[originalListName]) {
+                this.flashcards = [...this.customLists[originalListName]];
+                this.isFiltered = false; // Exit filtered mode
+                this.filteredFlashcards = [];
                 this.currentPage = 1;
                 this.renderFlashcards();
+                this.showNotification('Showing all cards');
             } else {
-                this.showNotification('No custom lists available.');
+                this.showNotification('No original list found');
             }
         });
 
         document.getElementById('show-not-mastered-btn').addEventListener('click', () => {
             const listName = this.getCurrentListName();
 
-            if (listName && this.customLists[listName]) {
-                this.flashcards = [...this.customLists[listName]];
+            // Store the original list name
+            if (listName) {
+                localStorage.setItem('originalListName', listName);
+                console.log('Stored original list:', listName);
             }
-            const notMastered = this.flashcards.filter(c => !c.mastered);
+
+            // Get the original flashcards
+            let originalFlashcards = [];
+            if (listName && this.customLists[listName]) {
+                originalFlashcards = [...this.customLists[listName]];
+            } else {
+                originalFlashcards = [...this.flashcards];
+            }
+
+            const notMastered = originalFlashcards.filter(c => !c.mastered);
             if (notMastered.length === 0) {
                 this.showNotification('All words mastered!');
                 return;
             }
-            this.flashcards = notMastered;
+
+            // Set filtered state
+            this.isFiltered = true;
+            this.filteredFlashcards = notMastered;
             this.currentPage = 1;
+
+            // Render using filtered cards
             this.renderFlashcards();
+            this.showNotification(`Showing ${notMastered.length} non-mastered cards`);
         });
 
-        // Speak functionality - updated to handle flipped state
+        // Speak functionality - updated to handle all states
         document.addEventListener('click', e => {
             if (e.target.closest('.speak-btn') || e.target.closest('.speak-btn i')) {
                 const card = e.target.closest('.flashcard');
-                const idx = card.dataset.index;
-                const text = this.isFlipped ? this.flashcards[idx].english : this.flashcards[idx].german;
-                const lang = this.isFlipped ? 'en-US' : 'de-DE';
-                this.speakWord(this.decodeOutput(text), 0.8, lang);
+                const idx = parseInt(card.dataset.index);
+
+                // Get the correct cards based on current mode
+                const currentCards = this.getCurrentCards();
+
+                if (idx >= 0 && idx < currentCards.length) {
+                    const currentCard = currentCards[idx];
+
+                    // Handle flipped state
+                    const text = this.isFlipped ? currentCard.english : currentCard.german;
+                    const lang = this.isFlipped ? 'en-US' : 'de-DE';
+
+                    // Add sentence if available
+                    const fullText = this.isFlipped
+                        ? (currentCard.sentenceTranslation ? `${text}, ${currentCard.sentenceTranslation}` : text)
+                        : (currentCard.sentence ? `${text}, ${currentCard.sentence}` : text);
+
+                    this.speakWord(this.decodeOutput(fullText), 0.8, lang);
+                }
             }
         });
 
-        // Pagination - work differently in SR mode vs normal mode
         // Pagination - work differently in SR mode vs normal mode
         document.getElementById('next-page-btn').addEventListener('click', () => {
             if (this.spacedRepetitionMode) {
@@ -526,12 +601,13 @@ export class FlashcardsTool {
         // Playing audio event listener with v keyword for speak-btn
         document.addEventListener('keydown', (e) => {
             if (e.key.toLowerCase() === 'v' && document.activeElement === document.body) {
-                const activeCard = document.querySelector('.flashcard');
-                if (activeCard) {
-                    const idx = activeCard.dataset.index;
-                    const sentence = this.flashcards[idx]?.sentence ? `, ${this.flashcards[idx].sentence}` : '';
-                    const text = this.flashcards[idx].german + ',' + sentence;
-                    // adding word and sentence together
+                const currentCards = this.getCurrentCards();
+                const currentIndex = this.getCurrentCardIndex();
+
+                if (currentIndex >= 0 && currentIndex < currentCards.length) {
+                    const card = currentCards[currentIndex];
+                    const sentence = card?.sentence ? `, ${card.sentence}` : '';
+                    const text = card.german + ',' + sentence;
                     const lang = 'de-DE';
                     this.speakWord(this.decodeOutput(text), 0.8, lang);
                 }
@@ -580,14 +656,23 @@ export class FlashcardsTool {
 
     saveFlashcards() {
         localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
-        this.updateCurrentCustomList();
     }
 
     updateProgress() {
         const masteredCount = this.flashcards.filter(c => c.mastered).length;
         const percentage = this.flashcards.length ? Math.round((masteredCount / this.flashcards.length) * 100) : 0;
         document.getElementById('progress-bar').style.width = `${percentage}%`;
+        document.getElementById('progress-list-name').textContent = localStorage.getItem('originalListName');
         document.getElementById('progress-percentage').textContent = `${percentage}%`;
+    }
+
+    updateCurrentListInStorage() {
+        if (this.currentListName && this.customLists[this.currentListName]) {
+            // Create a fresh copy to avoid reference issues
+            this.customLists[this.currentListName] = JSON.parse(JSON.stringify(this.flashcards));
+            localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+            console.log('Explicitly updated list:', this.currentListName);
+        }
     }
 
     setupEditModal() {
@@ -628,7 +713,10 @@ export class FlashcardsTool {
             return;
         }
 
-        const card = this.flashcards[cardIndex];
+        // Get the correct cards based on current mode
+        const currentCards = this.getCurrentCards();
+        const card = currentCards[cardIndex];
+
         if (!card) return;
 
         // Safely set values with null checks
@@ -668,52 +756,119 @@ export class FlashcardsTool {
             return;
         }
 
-        if (cardIndex < 0 || cardIndex >= this.flashcards.length) {
+        // Get current cards
+        const currentCards = this.getCurrentCards();
+        if (cardIndex < 0 || cardIndex >= currentCards.length) {
             this.showNotification('Failed to update flashcard. Invalid index.');
             return;
         }
 
-        this.flashcards[cardIndex] = {
+        const cardToEdit = currentCards[cardIndex];
+        const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
+
+        if (!originalListName) {
+            this.showNotification('Cannot update: No original list found');
+            return;
+        }
+
+        // SIMPLE SOLUTION: Read lists fresh from localStorage
+        const customListsFromStorage = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        if (!customListsFromStorage[originalListName]) {
+            this.showNotification(`List "${originalListName}" not found in storage`);
+            return;
+        }
+
+        // Update the current view
+        currentCards[cardIndex] = {
             german: germanWord,
             english: englishWord,
             sentence: germanSentence || undefined,
             sentenceTranslation: englishTranslation || undefined,
-            mastered: this.flashcards[cardIndex].mastered
+            mastered: cardToEdit.mastered,
+            heading: cardToEdit.heading
         };
 
-        // Update using tracked current list name
-        if (this.currentListName) {
-            this.customLists[this.currentListName] = [...this.flashcards];
-            localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+        // Find and update in the original list from storage
+        const originalList = customListsFromStorage[originalListName];
+        const originalCardIndex = originalList.findIndex(card =>
+            card.german === cardToEdit.german && card.english === cardToEdit.english
+        );
+
+        if (originalCardIndex !== -1) {
+            // Create a new object to avoid reference issues
+            originalList[originalCardIndex] = {
+                german: germanWord,
+                english: englishWord,
+                sentence: germanSentence || undefined,
+                sentenceTranslation: englishTranslation || undefined,
+                mastered: cardToEdit.mastered,
+                heading: originalList[originalCardIndex].heading
+            };
+
+            // Save back to localStorage
+            localStorage.setItem('customGermanLists', JSON.stringify(customListsFromStorage));
+
+            // Update in-memory reference
+            this.customLists = customListsFromStorage;
         }
 
-        // Also update germanFlashcards
+        // Update main flashcards
+        const mainCardIndex = this.flashcards.findIndex(card =>
+            card.german === cardToEdit.german && card.english === cardToEdit.english
+        );
+        if (mainCardIndex !== -1) {
+            this.flashcards[mainCardIndex] = currentCards[cardIndex];
+        }
+
         localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
-
         this.renderFlashcards();
-        this.refreshCustomListButtons(); // Add this line
 
-        const modal = document.getElementById('edit-flashcard-modal');
-        if (modal) modal.classList.add('hidden');
-
+        document.getElementById('edit-flashcard-modal').classList.add('hidden');
         this.showNotification('Flashcard updated successfully!');
     }
 
     handleRemoveFlashcard(cardIndex) {
         if (confirm('Are you sure you want to remove this flashcard?')) {
-            this.flashcards.splice(cardIndex, 1);
+            // Get the correct cards based on current mode
+            const currentCards = this.getCurrentCards();
+            const cardToRemove = currentCards[cardIndex];
 
-            // Update using tracked current list name
-            if (this.currentListName) {
-                this.customLists[this.currentListName] = [...this.flashcards];
-                localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+            if (!cardToRemove) {
+                this.showNotification('Card not found!');
+                return;
             }
 
-            // Also update germanFlashcards
-            localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
+            // Remove from current view
+            currentCards.splice(cardIndex, 1);
 
+            // Update the ORIGINAL list in customGermanLists
+            const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
+            if (originalListName && this.customLists[originalListName]) {
+                const originalList = this.customLists[originalListName];
+
+                // Find the matching card in the original list
+                const originalCardIndex = originalList.findIndex(card =>
+                    card.german === cardToRemove.german && card.english === cardToRemove.english
+                );
+
+                if (originalCardIndex !== -1) {
+                    // Remove from the original list
+                    originalList.splice(originalCardIndex, 1);
+                    localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+                }
+            }
+
+            // Also remove from main flashcards
+            const mainCardIndex = this.flashcards.findIndex(card =>
+                card.german === cardToRemove.german && card.english === cardToRemove.english
+            );
+            if (mainCardIndex !== -1) {
+                this.flashcards.splice(mainCardIndex, 1);
+            }
+
+            localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
             this.renderFlashcards();
-            this.refreshCustomListButtons(); // Add this line
 
             this.showNotification('Flashcard removed successfully!');
         }
@@ -740,24 +895,28 @@ export class FlashcardsTool {
         const container = document.getElementById('flashcards-container');
         container.innerHTML = '';
 
-        if (this.singleCardMode) {
-            this.renderSingleCardMode(container);
+        // Determine which cards to render
+        let cardsToRender;
+        if (this.isFiltered && this.filteredFlashcards.length > 0) {
+            cardsToRender = this.filteredFlashcards;
+            console.log('Rendering filtered cards:', cardsToRender.length);
         } else {
-            this.renderGridMode(container);
+            cardsToRender = this.flashcards;
+            console.log('Rendering normal cards:', cardsToRender.length);
+        }
+
+        if (this.singleCardMode) {
+            this.renderSingleCardMode(container, cardsToRender);
+        } else {
+            this.renderGridMode(container, cardsToRender);
         }
 
         feather.replace();
         this.updateProgress();
     }
 
-    renderSingleCardMode(container) {
-        console.log('renderSingleCardMode called:', {
-            spacedRepetitionMode: this.spacedRepetitionMode,
-            currentSRCardIndex: this.currentSRCardIndex,
-            currentPage: this.currentPage,
-            totalFlashcards: this.flashcards.length,
-            totalSRCards: this.spacedRepetitionCards.length
-        });
+    renderSingleCardMode(container, cardsToRender = this.flashcards) {
+        console.log('renderSingleCardMode called with:', cardsToRender.length, 'cards');
 
         container.className = "flex items-center justify-center mx-auto max-w-3xl";
 
@@ -770,7 +929,6 @@ export class FlashcardsTool {
             // In SR mode, use SR cards and index
             card = this.spacedRepetitionCards[this.currentSRCardIndex];
             if (!card) {
-                // If no card found, exit SR mode and re-render
                 this.spacedRepetitionMode = false;
                 this.currentSRCardIndex = 0;
                 this.spacedRepetitionCards = [];
@@ -778,24 +936,21 @@ export class FlashcardsTool {
                 return;
             }
             actualIndex = this.currentSRCardIndex;
-            // Add progress indicator for SR mode
             cardInfo = `<div class="absolute top-4 left-4 bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
             ${this.currentSRCardIndex + 1} / ${this.spacedRepetitionCards.length}
         </div>`;
         } else {
-            // In normal single card mode, use flashcards and currentPage
-            card = this.flashcards[this.currentPage - 1];
+            // Use the passed cardsToRender instead of this.flashcards
+            card = cardsToRender[this.currentPage - 1];
             if (!card) {
-                // If no card at current page, reset to page 1
                 this.currentPage = 1;
-                card = this.flashcards[0];
-                if (!card) return; // No cards at all
+                card = cardsToRender[0];
+                if (!card) return;
             }
             actualIndex = this.currentPage - 1;
 
-            // Add progress indicator for normal single card mode
             cardInfo = `<div class="absolute top-4 left-4 bg-gray-500 text-white px-3 py-1 rounded-full text-sm">
-            ${this.currentPage} / ${this.flashcards.length}
+            ${this.currentPage} / ${cardsToRender.length}
         </div>`;
         }
 
@@ -913,14 +1068,14 @@ export class FlashcardsTool {
         this.updatePaginationControls();
     }
 
-    renderGridMode(container) {
+    renderGridMode(container, cardsToRender = this.flashcards) {
         container.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 mx-auto max-w-5xl";
         const startIndex = (this.currentPage - 1) * this.cardsPerPage;
-        const endIndex = Math.min(startIndex + this.cardsPerPage, this.flashcards.length);
+        const endIndex = Math.min(startIndex + this.cardsPerPage, cardsToRender.length);
 
         let lastHeading = '';
 
-        this.flashcards.slice(startIndex, endIndex).forEach((card, idx) => {
+        cardsToRender.slice(startIndex, endIndex).forEach((card, idx) => {
             const actualIndex = startIndex + idx;
 
             // Add heading if it exists and is different from previous
@@ -1055,34 +1210,43 @@ export class FlashcardsTool {
                 // Mastered shortcut (works in both normal and SR mode)
                 if (e.key.toLowerCase() === 'm' && this.singleCardMode) {
                     console.log('Keyboard shortcut: Mastered');
-                    const currentFlashcard = document.querySelector('.flashcard');
-                    if (currentFlashcard) {
-                        // Find the master button and trigger click instead of duplicating logic
-                        const masterBtn = currentFlashcard.querySelector('.master-btn');
-                        if (masterBtn) {
-                            masterBtn.click();
-                        } else {
-                            // Fallback to the existing logic if button not found
-                            const idx = parseInt(currentFlashcard.dataset.index);
-                            let currentCard;
+                    const currentCards = this.getCurrentCards();
+                    const currentIndex = this.getCurrentCardIndex();
 
-                            if (this.spacedRepetitionMode) {
-                                currentCard = this.spacedRepetitionCards[idx];
-                            } else {
-                                currentCard = this.flashcards[idx];
-                            }
+                    if (currentIndex >= 0 && currentIndex < currentCards.length) {
+                        const currentCard = currentCards[currentIndex];
+                        currentCard.mastered = !currentCard.mastered;
 
-                            if (currentCard) {
-                                currentCard.mastered = !currentCard.mastered;
-                                this.saveFlashcards();
-                                this.updateProgress();
-                                this.renderFlashcards();
-                                this.refreshCustomListButtons();
+                        // Update the ORIGINAL list in customGermanLists
+                        const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
+                        if (originalListName && this.customLists[originalListName]) {
+                            const originalList = this.customLists[originalListName];
 
-                                const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
-                                this.showNotification(`Card ${action}!`);
+                            // Find the matching card in the original list
+                            const originalCardIndex = originalList.findIndex(card =>
+                                card.german === currentCard.german && card.english === currentCard.english
+                            );
+
+                            if (originalCardIndex !== -1) {
+                                originalList[originalCardIndex].mastered = currentCard.mastered;
+                                localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
                             }
                         }
+
+                        // Also update main flashcards
+                        const mainCardIndex = this.flashcards.findIndex(card =>
+                            card.german === currentCard.german && card.english === currentCard.english
+                        );
+                        if (mainCardIndex !== -1) {
+                            this.flashcards[mainCardIndex].mastered = currentCard.mastered;
+                        }
+
+                        localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
+                        this.updateProgress();
+                        this.renderFlashcards();
+
+                        const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
+                        this.showNotification(`Card ${action}!`);
                     }
                 }
 
@@ -1117,7 +1281,16 @@ export class FlashcardsTool {
         flashcard.addEventListener('click', function (event) {
             if (!event.target.classList.contains('master-btn') &&
                 !event.target.classList.contains('edit-btn') &&
-                !event.target.classList.contains('remove-btn')) {
+                !event.target.classList.contains('remove-btn') &&
+                !event.target.classList.contains('speak-btn')) {
+
+                // Remove active class from all cards
+                document.querySelectorAll('.flashcard').forEach(card => {
+                    card.classList.remove('active');
+                });
+
+                // Add active class to clicked card
+                this.classList.add('active');
                 this.classList.toggle('flipped');
             }
         });
@@ -1128,43 +1301,91 @@ export class FlashcardsTool {
                 e.stopPropagation();
                 const idx = parseInt(flashcard.dataset.index);
 
-                // Get the actual current list name before updating
-                const currentList = this.getCurrentListName();
-                console.log('Master toggle - currentListName:', currentList);
+                // Get the ORIGINAL list name
+                const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
+                console.log('Master toggle - originalListName:', originalListName);
 
-                this.flashcards[idx].mastered = !this.flashcards[idx].mastered;
+                // Determine which card was clicked based on filtered state
+                let clickedCard;
+                let cardSource;
 
-                // Update using the actual current list name
-                if (currentList) {
-                    this.customLists[currentList] = [...this.flashcards];
-                    localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
-                    console.log('Updated list:', currentList);
-
-                    // Synchronize the tracked currentListName
-                    this.currentListName = currentList;
+                if (this.isFiltered) {
+                    clickedCard = this.filteredFlashcards[idx];
+                    cardSource = 'filtered';
+                } else {
+                    clickedCard = this.flashcards[idx];
+                    cardSource = 'normal';
                 }
 
-                // Also update germanFlashcards
+                console.log('Clicked card from:', cardSource, clickedCard);
+
+                if (!clickedCard) {
+                    console.error('No card found at index:', idx);
+                    return;
+                }
+
+                // Toggle mastered status
+                clickedCard.mastered = !clickedCard.mastered;
+
+                // Update the ORIGINAL list in customGermanLists
+                if (originalListName && this.customLists[originalListName]) {
+                    const originalList = this.customLists[originalListName];
+
+                    // Find the matching card in the original list
+                    const originalCardIndex = originalList.findIndex(card =>
+                        card.german === clickedCard.german && card.english === clickedCard.english
+                    );
+
+                    if (originalCardIndex !== -1) {
+                        // Update the mastered status in the original list
+                        originalList[originalCardIndex].mastered = clickedCard.mastered;
+                        localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+                        console.log('Updated original list:', originalListName);
+
+                        // Also update the main flashcards
+                        this.flashcards[originalCardIndex].mastered = clickedCard.mastered;
+                    }
+                }
+
+                // Update germanFlashcards
                 localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
 
                 this.updateProgress();
+
+                // If we're in filtered mode and card is now mastered, remove it from filtered view
+                if (this.isFiltered && clickedCard.mastered) {
+                    this.filteredFlashcards = this.filteredFlashcards.filter(card =>
+                        !(card.german === clickedCard.german && card.english === clickedCard.english)
+                    );
+                    console.log('Removed mastered card from filtered view. Remaining:', this.filteredFlashcards.length);
+
+                    if (this.filteredFlashcards.length === 0) {
+                        this.showNotification('All filtered words mastered!');
+                        this.isFiltered = false;
+                    }
+                }
+
                 this.renderFlashcards();
-                this.refreshCustomListButtons();
+                this.renderCustomListButtons();
 
                 this.showNotification('Mastery status updated!');
             });
         }
 
-        // Update speak button to handle flipped state
+        // Update speak button to handle all states
         const speakBtn = flashcard.querySelector('.speak-btn');
         if (speakBtn) {
             speakBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const idx = parseInt(flashcard.dataset.index);
-                const text = this.flashcards[idx].german + ',' + this.flashcards[idx].sentence;
-                // adding word and sentence together
-                const lang = 'de-DE';
-                this.speakWord(this.decodeOutput(text), 0.8, lang);
+                const currentCards = this.getCurrentCards();
+
+                if (idx >= 0 && idx < currentCards.length) {
+                    const card = currentCards[idx];
+                    const text = card.german + ',' + (card.sentence || '');
+                    const lang = 'de-DE';
+                    this.speakWord(this.decodeOutput(text), 0.8, lang);
+                }
             });
         }
 
@@ -1199,10 +1420,14 @@ export class FlashcardsTool {
                     e.stopPropagation();
                     e.preventDefault();
                     const idx = parseInt(flashcard.dataset.index);
-                    const currentCard = this.spacedRepetitionMode ?
-                        this.spacedRepetitionCards[idx] :
-                        this.flashcards[idx];
-                    this.handleSRRating(currentCard, 1);
+
+                    // Use getCurrentCards() instead of conditional logic
+                    const currentCards = this.getCurrentCards();
+                    const currentCard = currentCards[idx];
+
+                    if (currentCard) {
+                        this.handleSRRating(currentCard, 1);
+                    }
                 });
             }
 
@@ -1212,10 +1437,14 @@ export class FlashcardsTool {
                     e.stopPropagation();
                     e.preventDefault();
                     const idx = parseInt(flashcard.dataset.index);
-                    const currentCard = this.spacedRepetitionMode ?
-                        this.spacedRepetitionCards[idx] :
-                        this.flashcards[idx];
-                    this.handleSRRating(currentCard, 10);
+
+                    // Use getCurrentCards() instead of conditional logic
+                    const currentCards = this.getCurrentCards();
+                    const currentCard = currentCards[idx];
+
+                    if (currentCard) {
+                        this.handleSRRating(currentCard, 10);
+                    }
                 });
             }
 
@@ -1224,10 +1453,14 @@ export class FlashcardsTool {
                     e.stopPropagation();
                     e.preventDefault();
                     const idx = parseInt(flashcard.dataset.index);
-                    const currentCard = this.spacedRepetitionMode ?
-                        this.spacedRepetitionCards[idx] :
-                        this.flashcards[idx];
-                    this.handleSRRating(currentCard, 1440);
+
+                    // Use getCurrentCards() instead of conditional logic
+                    const currentCards = this.getCurrentCards();
+                    const currentCard = currentCards[idx];
+
+                    if (currentCard) {
+                        this.handleSRRating(currentCard, 1440);
+                    }
                 });
             }
 
@@ -1236,10 +1469,14 @@ export class FlashcardsTool {
                     e.stopPropagation();
                     e.preventDefault();
                     const idx = parseInt(flashcard.dataset.index);
-                    const currentCard = this.spacedRepetitionMode ?
-                        this.spacedRepetitionCards[idx] :
-                        this.flashcards[idx];
-                    this.handleSRRating(currentCard, 5760);
+
+                    // Use getCurrentCards() instead of conditional logic
+                    const currentCards = this.getCurrentCards();
+                    const currentCard = currentCards[idx];
+
+                    if (currentCard) {
+                        this.handleSRRating(currentCard, 5760);
+                    }
                 });
             }
         }, 100);
@@ -1348,12 +1585,13 @@ export class FlashcardsTool {
             document.getElementById('prev-page-btn').disabled = this.currentSRCardIndex === 0;
             document.getElementById('next-page-btn').disabled = this.currentSRCardIndex >= totalPages - 1;
         } else {
-            // Normal mode
+            // Determine which cards to use for pagination
+            const totalCards = this.isFiltered ? this.filteredFlashcards.length : this.flashcards.length;
             const totalPages = this.singleCardMode
-                ? this.flashcards.length
-                : Math.ceil(this.flashcards.length / this.cardsPerPage);
+                ? totalCards
+                : Math.ceil(totalCards / this.cardsPerPage);
 
-            document.getElementById('page-info').textContent = `Page ${this.currentPage} of ${totalPages}`;
+            document.getElementById('page-info').textContent = `Page ${this.currentPage} of ${totalPages}${this.isFiltered ? ' (Filtered)' : ''}`;
 
             const controls = document.getElementById('pagination-controls');
             controls.classList.toggle('hidden', totalPages <= 1);
@@ -1379,34 +1617,30 @@ export class FlashcardsTool {
     speakWord(text, rate = 0.8, lang = 'de-DE') { return this.speech.speakText(text, this.voiceSelect.value, rate); }
 
     getCurrentListName() {
-        // First try to use the tracked currentListName if it exists and matches
-        if (this.currentListName && this.customLists[this.currentListName]) {
-            const currentCards = JSON.stringify(this.flashcards);
-            const listCards = JSON.stringify(this.customLists[this.currentListName]);
-            if (currentCards === listCards) {
-                return this.currentListName;
-            }
+        // First try to get from localStorage (for filtered scenarios)
+        const storedListName = localStorage.getItem('originalListName');
+        if (storedListName && this.customLists[storedListName]) {
+            return storedListName;
         }
 
-        // Fallback to the original comparison method
+        // Then try the tracked currentListName
+        if (this.currentListName && this.customLists[this.currentListName]) {
+            return this.currentListName;
+        }
+
+        // Fallback to comparison method
         const cur = JSON.stringify(this.flashcards);
         for (const [listName, listCards] of Object.entries(this.customLists)) {
             if (JSON.stringify(listCards) === cur) return listName;
         }
+
         return null;
     }
 
     updateCurrentCustomList() {
-        const actualCurrentListName = this.getCurrentListName();
-        if (actualCurrentListName && this.customLists[actualCurrentListName]) {
-            this.customLists[actualCurrentListName] = [...this.flashcards];
+        if (this.currentListName) {
+            this.customLists[this.currentListName] = JSON.parse(JSON.stringify(this.flashcards));
             localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
-            console.log('Updated custom list:', actualCurrentListName);
-
-            // Ensure currentListName is synchronized
-            this.currentListName = actualCurrentListName;
-        } else {
-            console.log('No current list name available for update');
         }
     }
 
@@ -1475,17 +1709,42 @@ export class FlashcardsTool {
             ${listName} (${totalCount})
             ${masteryPercentage > 0 && masteryPercentage < 100 ? `<span class="ml-2 text-xs bg-yellow-500 px-2 py-1 rounded-full">${masteryPercentage}%</span>` : ''}
         `;
-
             btn.addEventListener('click', () => {
-                this.flashcards = [...this.customLists[listName]];
-                this.saveFlashcards();
-                this.currentListName = listName; // Track the current list
+                console.log('Loading list:', listName);
+
+                // COMPLETELY RESET everything
+                this.isFiltered = false;
+                this.filteredFlashcards = [];
+                this.spacedRepetitionMode = false;
+                this.currentSRCardIndex = 0;
+                this.spacedRepetitionCards = [];
+
+                // Read FRESH from localStorage - don't trust any in-memory state
+                const customListsFromStorage = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+                if (!customListsFromStorage[listName]) {
+                    this.showNotification(`List "${listName}" not found!`);
+                    return;
+                }
+
+                // Create a DEEP COPY of the list to avoid any reference issues
+                this.flashcards = JSON.parse(JSON.stringify(customListsFromStorage[listName]));
+
+                // Update in-memory state
+                this.customLists = customListsFromStorage;
+                this.currentListName = listName;
                 this.originalListName = listName;
+
+                // Save to both storage locations
+                localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
+                localStorage.setItem('originalListName', listName);
+
                 this.currentPage = 1;
                 this.updateSRButton();
                 this.renderFlashcards();
 
-                console.log('Switched to list:', listName, 'with', this.flashcards.length, 'cards');
+                console.log('Successfully loaded list:', listName, 'with', this.flashcards.length, 'cards');
+                this.showNotification(`Loaded "${listName}" list with ${this.flashcards.length} cards`);
             });
 
             // Remove button
