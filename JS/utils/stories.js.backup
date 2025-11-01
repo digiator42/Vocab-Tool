@@ -32,7 +32,7 @@ Nach einer Stunde gehen Anna und Max zurück nach Hause. Anna macht ihre
 Hausaufgaben, und Max schläft in seinem Korb. Am Nachmittag gehen sie oft wieder
 nach draußen und besuchen Annas Freunde.`
     },
-    "a1-4_62e2adad3b304533": {
+    "a1-4": {
         "title": "A1 Story: Meine Familie",
         "text": `Ich heiße Ben. Das ist meine Familie. Wir wohnen in einem Haus.
                 Mein Vater heißt Thomas. Er ist groß. Er arbeitet im Büro.
@@ -42,7 +42,7 @@ alt. Sie spielt gern mit Puppen.
                 Wir haben einen Hund. Der Hund heißt Bello. Bello ist klein und braun.
                 Am Abend sehen wir zusammen fern. Ich liebe meine Familie.`
     },
-    "a1-5_d04a2ded1fc14db7": {
+    "a1-5": {
         "title": "A1 Story: Einkaufen im Supermarkt",
         "text": `Heute geht Lena einkaufen. Sie hat eine Liste.
                 Zuerst kauft sie Brot und Brötchen.
@@ -53,7 +53,7 @@ alt. Sie spielt gern mit Puppen.
                 An der Kasse bezahlt sie mit Geld.
                 Der Einkauf ist schwer. Jetzt geht Lena nach Hause.`
     },
-    "a1-6_9499650dc5f24940": {
+    "a1-6": {
         "title": "A1 Story: Das Wetter",
         "text": `Heute ist Montag. Die Sonne scheint. Es ist warm.
 Dienstag: Es ist windig. Die Blätter fallen von den Bäumen.
@@ -260,7 +260,7 @@ liebsten liest sie aber am Abend ein spannendes Buch. Gegen 22 Uhr legt sie sich
 ins Bett, doch oft schläft sie erst später ein, weil sie noch ein bisschen
 liest.`
     },
-    "a2-17_446412cc5dba407a": {
+    "a2-17": {
         "title": "A2 Story: Ein Brief von einem Freund",
         "text": `Hallo Sarah,
                 wie geht es dir? Mir geht es gut.
@@ -273,7 +273,7 @@ machen. Kommst du? Bitte sag mir bald Bescheid.
                 Viele Grüße,
                 Dein Tom`
     },
-    "a2-18_c822b5d22cc64547": {
+    "a2-18": {
         "title": "A2 Story: Beim Arzt",
         "text": `Emma fühlt sich nicht gut. Sie hat Kopfschmerzen und Husten.
                 Sie ruft in der Arztpraxis an und macht einen Termin.
@@ -286,7 +286,7 @@ sich ein paar Tage aus und trinken Sie viel Tee“, sagt er.
                 Emma geht in die Apotheke und holt ihre Medikamente. Jetzt geht
 sie nach Hause und ruht sich aus.`
     },
-    "a2-19_ea7cc175100440d5": {
+    "a2-19": {
         "title": "A2 Story: Mein Wochenende",
         "text": `Letztes Wochenende war sehr schön.
                 Am Samstagmorgen putzte ich meine Wohnung. Danach traf ich mich
@@ -299,7 +299,7 @@ telefonierten eine Stunde.
                 Dann machte ich einen langen Spaziergang im Park. Die Luft war
 frisch. Es war ein perfektes, ruhiges Wochenende.`
     },
-    "a2-20_fa678bc07d554aa7": {
+    "a2-20": {
         "title": "A2 Story: Ein Tag in der Schule",
         "text": `Heute hatte ich einen interessanten Tag in der Schule.
                 In der ersten Stunde hatten wir Deutsch. Wir lasen eine
@@ -312,7 +312,7 @@ schwer, aber der Lehrer erklärte es gut.
                 Um vier Uhr fuhr ich mit dem Fahrrad nach Hause. Jetzt mache ich
 meine Hausaufgaben.`
     },
-    "a2-21_b39524ce99f0414c": {
+    "a2-21": {
         "title": "A2 Story: Ein Geburtstagsfest",
         "text": `Heute hat meine Freundin Julia Geburtstag. Sie wird fünfzehn Jahre alt.
                 Ich kaufe ihr ein Geschenk. Ich schenke ihr ein Buch und eine CD.
@@ -324,7 +324,7 @@ Birthday“ auf Deutsch. Julia bläst die Kerzen aus.
                 Dann tanzen wir und hören Musik. Es ist eine tolle Party!
                 Um Mitternacht gehe ich nach Hause. Ich bin müde, aber glücklich.`
     },
-    "a2-22_6734daeaa2da4025": {
+    "a2-22": {
         "title": "A2 Story: Meine Hobbys",
         "text": `In meiner Freizeit mache ich viele verschiedene Dinge.
                 Mein Haupt-Hobby ist das Lesen. Ich lese besonders gern Krimis
@@ -387,7 +387,7 @@ das Leben in Heidelberg gewöhnen muss. Sie tauschen Telefonnummern und
 verabreden sich für die nächste Woche im Café. Im Alltag muss Paula sich an
 viele neue Situationen anpassen. Sie kauft ihr erstes eigenes Fahrrad und lernt.`
     },
-    "a2-10_e024c12d5cdc4a71": {
+    "a2-10": {
         "title": "A2/B1 Story: Annas Alltag in Berlin",
         "text": `Anna lebt seit drei Jahren in Berlin. Jeden Morgen steht sie um
 sieben Uhr auf, aber am Wochenende schläft sie oft länger. Bevor sie zur Arbeit
@@ -405,7 +405,7 @@ liebsten liest sie aber am Abend ein spannendes Buch. Gegen 22 Uhr legt sie sich
 ins Bett, doch oft schläft sie erst später ein, weil sie noch ein bisschen
 liest.`
     },
-    "a2-1_2fc073fdc53a4321": {
+    "a2-1": {
         "title": "A2 Story: Mein erster Tag in der Schule",
         "text": `Heute ist mein erster Tag in der neuen Schule. Ich bin sehr
 nervös. Meine Mutter bringt mich zur Schule. Die Schule ist groß und modern. Im
@@ -416,7 +416,7 @@ Willkommen!', sagt er. Wir werden Freunde. In der Pause spielen wir zusammen
 Fußball. Die Schule ist toll!`
     },
 
-    "a2-2_e3bb47c94e6b4dae": {
+    "a2-2": {
         "title": "A2 Story: Ein Besuch im Supermarkt",
         "text": `Es ist Samstag. Sarah geht zum Supermarkt. Sie braucht viele
 Sachen. Zuerst kauft sie Obst: Äpfel, Bananen und Orangen. Dann geht sie zur
@@ -427,7 +427,7 @@ Karte. Sie packt alles in ihre Tasche und geht nach Hause. Jetzt kann sie
 kochen!`
     },
 
-    "a2-3_a6e227e0fd8547ef": {
+    "a2-3": {
         "title": "A2 Story: Das Wetter heute",
         "text": `Lisa schaut aus dem Fenster. Der Himmel ist grau. Es regnet
 stark. 'Oh nein!', denkt sie. 'Ich wollte heute im Park joggen.' Sie ruft ihre
@@ -438,7 +438,7 @@ einen lustigen Film. Später hört der Regen auf. Die Sonne kommt raus. Was für
 ein schöner Tag!`
     },
 
-    "a2-4_182bc7653e0343cc": {
+    "a2-4": {
         "title": "A2 Story: Meine Familie",
         "text": `Ich heiße Paul und bin 15 Jahre alt. Meine Familie ist ziemlich
 groß. Ich habe zwei Geschwister: einen Bruder und eine Schwester. Mein Bruder
@@ -449,7 +449,7 @@ zusammen. Wir kochen und reden viel. Manchmal besuchen wir meine Großeltern. Si
 wohnen in einem kleinen Dorf. Ich liebe meine Familie sehr!`
     },
 
-    "a2-5_80d06c3dbe1c4b1e": {
+    "a2-5": {
         "title": "A2 Story: Der verlorene Schlüssel",
         "text": `Maria kommt nach Hause. Sie sucht ihren Schlüssel in der
 Tasche. Aber er ist nicht da! 'Wo ist mein Schlüssel?', fragt sie sich. Sie
@@ -460,7 +460,7 @@ Café. Der Kellner lächelt. 'Suchen Sie das?', fragt er und zeigt den Schlüsse
 sie nach Hause gehen.`
     },
 
-    "b1-1_2d20efc6d2464cf4": {
+    "b1-1": {
         "title": "B1 Story: Eine Reise nach Hamburg",
         "text": `Letzten Monat bin ich nach Hamburg gefahren. Die Fahrt mit dem
 Zug hat drei Stunden gedauert. Hamburg ist eine wunderschöne Stadt am Wasser. Am
@@ -474,7 +474,7 @@ interessant, obwohl ich nicht alles verstanden habe. Hamburg hat mir so gut
 gefallen, dass ich nächstes Jahr wieder hinfahren möchte.`
     },
 
-    "b1-2_0c528c1f52624f42": {
+    "b1-2": {
         "title": "B1 Story: Der neue Job",
         text: `Nachdem Julia ihr Studium beendet hatte, begann sie mit der
 Jobsuche. Sie schickte viele Bewerbungen ab, aber die meisten Firmen antworteten
@@ -488,7 +488,7 @@ möchten Ihnen die Stelle anbieten', sagte die Chefin. Julia konnte ihr Glück
 kaum fassen. Endlich hatte sie ihren Traumjob gefunden`
     },
 
-    "b1-3_0b77d9a871b24911": {
+    "b1-3": {
         "title": "B1 Story: Ein unerwartetes Treffen",
         text: `Thomas saß in einem Café in München und las ein Buch. Plötzlich
 hörte er eine bekannte Stimme. 'Thomas? Bist du das?' Er schaute auf und traute
@@ -502,7 +502,7 @@ Zeiten und ihre Leben heute. Bevor sie sich verabschiedeten, tauschten sie ihre
 Telefonnummern aus. 'Lass uns nicht wieder so lange warten', sagte Julia
 lächelnd.`
     },
-    "a2-1_1720641ec2ba4138": {
+    "a2-1": {
         "title": "A2 Story: Mein erster Tag in der neuen Stadt",
         text: `Heute ist ein besonderer Tag für mich. Ich bin gestern in eine
 neue Stadt gezogen. Die Stadt heißt Frankfurt und ist sehr groß. Ich komme aus
@@ -541,7 +541,7 @@ neuer Job. Ich bin aufgeregt, aber ich habe keine Angst mehr. Diese Stadt fühlt
 sich schon ein bisschen wie zu Hause an`
     },
 
-    "a2-2_ae52342ed6da4729": {
+    "a2-2": {
         "title": "A2 Story: Ein Tag am Meer",
         text: `Es ist Sommer und heute fahre ich mit meiner Familie ans Meer.
 Wir fahren schon seit zwei Stunden mit dem Auto. Meine kleine Schwester Lisa
@@ -587,7 +587,7 @@ bald wieder', sagt er. Ich freue mich schon auf das nächste Mal. Ein Tag am Mee
 ist immer etwas Besonderes`
     },
 
-    "b1-1_0d157a656ff446c7": {
+    "b1-1": {
         "title": "B1 Story: Die Entscheidung",
         text: `Marlene saß in ihrem Büro und starrte auf den
 Computerbildschirm. Vor ihr lag ein wichtiger Brief, den sie seit drei Tagen
@@ -635,7 +635,7 @@ neues Kapitel in ihrem Leben begann. Sie wusste nicht, was die Zukunft bringen
 würde, aber zum ersten Mal seit langen fühlte sie sich lebendig. Manchmal muss
 man den sicheren Weg verlassen, um wirklich glücklich zu werden`
     },
-    "a2-11_d465dbb5fd824a7f": {
+    "a2-11": {
         "title": "A2/B1 Story: Annas Alltag in Berlin",
         text: `Anna ist eine Studentin. Sie kommt aus Spanien, aber sie wohnt
 jetzt in Berlin. Ihre Wohnung ist klein, aber gemütlich. Sie hat ein Wohnzimmer,
@@ -654,7 +654,7 @@ Im Winter geht sie gerne auf den Weihnachtsmarkt. Anna mag ihr Leben in Berlin.
 Es ist immer etwas los.`
     },
 
-    "a2-12_c2117682eccc47a7": {
+    "a2-12": {
         "title": "A2/B1 Geschichte: Lenas Abenteuer in München",
         "text": `Lena ist 25 Jahre alt und lebt seit einem Jahr in München. Sie
 kommt ursprünglich aus einem kleinen Dorf in Norddeutschland, aber sie wollte
@@ -718,7 +718,7 @@ Lena fühlt sich in München immer mehr zu Hause.Sie hat nicht nur eine Stadt
 gefunden, die sie liebt, sondern auch Menschen, die ihr wichtig sind, und eine
 Leidenschaft für Geschichte, die sie ihr Leben lang begleiten wird.`
     },
-    "a2-10_9113e03027a4470c": {
+    "a2-10": {
         "title": "A2/B1 Geschichte: Toms neue Herausforderung in Hamburg",
         "text": `Tom ist 30 Jahre alt und lebt seit drei Monaten in Hamburg. Er
 kommt aus England und hat einen Job als Ingenieur in einer großen Firma
@@ -770,7 +770,7 @@ wieder mit dem Fahrrad am Hafen entlangfährt, denkt er: „Hamburg ist vielleic
 nicht meine Heimat, aber es ist der Ort, an dem ich glücklich bin.`
     },
 
-    "a2-13_509d1a4dcff34699": {
+    "a2-13": {
         "title": "A2/B1 Story: Annas Alltag in Berlin",
         "text": `Anna wohnt in Berlin, einer großen und lebendigen Stadt in
 Deutschland. Jeden Morgen wacht sie um halb sieben auf. Zuerst trinkt sie eine
@@ -797,7 +797,7 @@ ihr Leben in Berlin sehr. Die Stadt ist nie langweilig, und es gibt immer etwas
 Neues zu entdecken. Auch wenn es manchmal stressig ist, fühlt sie sich hier zu
 Hause.`
     },
-    "a2-14_c9d7d88df1a649de": {
+    "a2-14": {
         "title": "A2/B1 Geschichte: Annas erster Tag in München",
         "text": `Anna stand vor ihrer neuen Wohnung in München. Das Gebäude war
 alt, aber schön. Sie war sehr aufgeregt. Heute war ihr erster Tag in der neuen
@@ -834,7 +834,7 @@ Die Stadt war groß und fremd, aber sie hatte schon eine neue Freundin gefunden.
 Sie öffnete ein Fenster und hörte die Geräusche der Stadt. München fühlte sich
 jetzt ein bisschen wie Zuhause an. Der Anfang war geschafft.`
     },
-    "a2-15_7439b3766a904e10": {
+    "a2-15": {
         "title": "A2/B1 Geschichte: Annas erster Tag in München",
         "text": `Anna stand vor ihrer neuen Wohnung in München. Das Gebäude war
 alt, aber schön. Sie war sehr aufgeregt. Heute war ihr erster Tag in der neuen
@@ -872,7 +872,7 @@ Sie öffnete ein Fenster und hörte die Geräusche der Stadt. München fühlte s
 jetzt ein bisschen wie Zuhause an. Der Anfang war geschafft.`
     },
 
-    "a2-16_e64c9a4772834e4f": {
+    "a2-16": {
         "title": "B1 Geschichte: Das Geheimnis des alten Hauses",
         "text": `Markus fuhr mit dem Fahrrad das letzte Stück zur Arbeit. Er
 liebte seine neue Stelle in der kleinen Bibliothek. Jeden Tag radelte er an
@@ -917,7 +917,7 @@ Markus Herrn Vogel in einem Rollstuhl in den Garten seines alten Hauses. Es war
 ein sehr emotionaler und schöner Tag. Für Markus war es mehr als nur Neugierde
 gewesen. Es war eine menschliche Reise, die er nie vergessen würde.`
     },
-    "a2-b1-1_8a1982a8d03d4bc1": {
+    "a2-b1-1": {
         "title": "A2/B1 Story: Ein Unvergesslicher Urlaub auf dem Bauernhof",
         "text": `Letzten Sommer verbrachte ich meine Ferien nicht am Meer,
 sondern auf einem Bauernhof. Meine Eltern wollten, dass ich die Natur erlebe,
@@ -950,7 +950,7 @@ anderen – und viel besser! Ich habe nicht nur viel über Tiere und die Landarb
 gelernt, sondern auch verstanden, wo unser Essen herkommt. Jetzt träume ich
 davon, nächstes Jahr wieder zum Sonnenhof zu fahren.`
     },
-    "a2-b1-2_e0bc0b3929fe4000": {
+    "a2-b1-2": {
         "title": "A2/B1 Story: Das Große Stadtrand-Abenteuer",
         "text": `Leo und sein bester Freund Finn langweilten sich. Es waren
 Sommerferien, und alle ihre Freunde waren verreist. „Hier passiert nie etwas
@@ -997,7 +997,7 @@ ihn kümmern. Sie nannten ihn „Ritter“, nach ihrem Abenteuer.
 Die langweiligen Ferien waren jetzt vorbei. Leo und Finn hatten nicht nur eine
 Burgruine entdeckt, sondern auch einen neuen besten Freund gefunden.`
     },
-    "a2-b1-3_186d2984b23b4e75": {
+    "a2-b1-3": {
         "title": "A2/B1 Story: Die Suche nach dem Rezept",
         "text": `Claras Großmutter war die beste Köchin der Welt. Ihr
 Apfelkuchen war legendär. Jedes Mal, wenn Clara sie besuchte, duftete das ganze
@@ -1035,7 +1035,7 @@ Rezept war mehr als nur eine Anleitung für einen Kuchen; es war eine Erinnerung
 an die Liebe und Wärme ihrer Großmutter. Jetzt backt Clara den Kuchen jedes Mal,
 wenn sie ihre Oma vermisst, und denkt an die schönen gemeinsamen Sonntage.`
     },
-    "a2-b1-4_fcd5b95f63c34e74": {
+    "a2-b1-4": {
         "title": "A2/B1 Story: Ein Neuer Anfang im Schreibclub",
         "text": `Lukas war neu in der Schule und fühlte sich unsichtbar. Er war
 ruhig und hatte noch keine Freunde gefunden. In seiner alten Stadt war er immer
