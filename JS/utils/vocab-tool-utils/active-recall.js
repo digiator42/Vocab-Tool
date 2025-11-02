@@ -72,7 +72,7 @@ export class ActiveRecallModule {
         if (slowVoice) {
             slowVoice.addEventListener('change', (e) => {
                 this.main.useSlowVoice = e.target.checked;
-                console.log("Slow voice set to:", this.main.useSlowVoice)
+                console.log("Slow voice set to:-> ", this.main.useSlowVoice)
             });
             if (this.main.isTouchDevice) {
                 slowVoice.addEventListener('touchend', (e) => {
@@ -738,8 +738,8 @@ export class ActiveRecallModule {
         // check if slowVoice is checked
         if (slowVoice) {
             slowVoice.addEventListener('change', (e) => {
-                this.useSlowVoice = e.target.checked;
-                console.log("Slow voice set to:", this.useSlowVoice)
+                this.main.useSlowVoice = e.target.checked;
+                console.log("Slow voice set to:", this.main.useSlowVoice)
             });
         }
         if (slowVoice && this.isTouchDevice) {
@@ -788,9 +788,9 @@ export class ActiveRecallModule {
                 e.preventDefault();
             } else if (e.ctrlKey && e.shiftKey && e.key === ' ') {
                 slowVoice.checked = !slowVoice.checked;
-                this.useSlowVoice = slowVoice.checked;
+                this.main.useSlowVoice = slowVoice.checked;
                 e.preventDefault();
-                console.log("Slow voice set to:", this.useSlowVoice)
+                console.log("Slow voice set to:", this.main.useSlowVoice)
             }
             // fuzzy match art+shift+f
             else if (e.altKey && e.shiftKey && e.key === 'F') {

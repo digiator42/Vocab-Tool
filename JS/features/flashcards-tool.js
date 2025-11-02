@@ -1247,7 +1247,7 @@ export class FlashcardsTool {
                         this.refreshCustomListButtons();
 
                         const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
-                        this.showNotification(`Card ${action}!`);
+                        // this.showNotification(`Card ${action}!`);
                     }
                 }
 
@@ -1614,7 +1614,10 @@ export class FlashcardsTool {
     //     speechSynthesis.speak(this.utterance);
     // }
 
-    speakWord(text, rate = 0.8, lang = 'de-DE') { return this.speech.speakText(text, this.voiceSelect.value, rate); }
+    speakWord(text, rate = 0.9, lang = 'de-DE') {
+        this.useSlowSpeak ? rate = 0.6 : rate = rate;
+        return this.speech.speakText(text, this.voiceSelect.value, rate);
+    }
 
     getCurrentListName() {
         // First try to get from localStorage (for filtered scenarios)
@@ -1680,7 +1683,7 @@ export class FlashcardsTool {
                 // Fully mastered - Green with target icon
                 listColor = 'bg-green-600 hover:bg-green-700';
                 listIcon = 'target';
-                listTitle = 'Fully mastered! 🎯';
+                // listTitle = 'Fully mastered! 🎯';
             } else if (masteryPercentage >= 50) {
                 // Partially mastered - Yellow with percentage
                 listColor = 'bg-yellow-600 hover:bg-yellow-700';
@@ -1695,7 +1698,7 @@ export class FlashcardsTool {
                 // No mastery - Blue with list icon
                 listColor = 'bg-purple-600 hover:bg-purple-700';
                 listIcon = 'list';
-                listTitle = 'No cards mastered yet';
+                // listTitle = 'No cards mastered yet';
             }
 
             // List button with dynamic color and icon
@@ -1705,10 +1708,16 @@ export class FlashcardsTool {
 
             // Create icon and text content
             btn.innerHTML = `
-            <i data-feather="${listIcon}" class="mr-2 w-4 h-4"></i>
-            ${listName} (${totalCount})
-            ${masteryPercentage > 0 && masteryPercentage < 100 ? `<span class="ml-2 text-xs bg-yellow-500 px-2 py-1 rounded-full">${masteryPercentage}%</span>` : ''}
-        `;
+                <i data-feather="${listIcon}" class="mr-2 w-4 h-4"></i>
+                ${listName}
+                <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+                    <span class="text-xs bg-purple-900 px-2 py-1 rounded-full">${totalCount}</span>
+                    ${masteryPercentage > 0 && masteryPercentage < 100 ? `
+                    <span class="text-xs bg-yellow-500 px-2 py-1 rounded-full">${masteryPercentage}%</span>
+                    ` : ''}
+                </div>
+                `;
+
             btn.addEventListener('click', () => {
                 console.log('Loading list:', listName);
 

@@ -20,6 +20,7 @@ export class SpeechService {
                     const selectedVoiceName = this.main.voiceSelect.value;
                     this.speakText(text, selectedVoiceName, this.main.rate);
                 } else {
+                    console.log('online speak', slow ? 'Slow voice is activated' : 'Slow Voice NOT active');
                     const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
                     const audio = new Audio(url);
                     audio.play();
