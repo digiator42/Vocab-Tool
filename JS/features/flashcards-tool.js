@@ -1244,6 +1244,7 @@ export class FlashcardsTool {
                         localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
                         this.updateProgress();
                         this.renderFlashcards();
+                        this.refreshCustomListButtons();
 
                         const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
                         this.showNotification(`Card ${action}!`);
@@ -1364,7 +1365,6 @@ export class FlashcardsTool {
                         this.isFiltered = false;
                     }
                 }
-
                 this.renderFlashcards();
                 this.renderCustomListButtons();
 
