@@ -2,8 +2,10 @@
 export class TranslationService {
     constructor(main) {
         this.main = main;
-        this.useOfflineTranslate = false;
+        this.useOfflineTranslate = true;
         this.offlineApiUrl = 'http://127.0.0.1:5000';
+
+        window.trans = this;
     }
 
     joinTranslationChunks(data) {
@@ -35,7 +37,8 @@ export class TranslationService {
                 q: text,
                 source: article ? 'en' : 'de',
                 target: article ? 'de' : this.main.selectedLang,
-                format: 'text'
+                format: 'text',
+                alternatives: 3
             };
 
             const response = await fetch(`${this.offlineApiUrl}/translate`, {
@@ -52,13 +55,15 @@ export class TranslationService {
 
             const data = await response.json();
 
-            // For now, return basic translation
+            console.log('------->> ', data);
+
+            // // For now, return basic translation
             if (extended) {
                 // You might need to implement additional endpoints for extended data
                 return {
                     sentences: [{ trans: data.translatedText, orig: text }],
-                    // Add mock extended data or implement proper endpoints
-                    dict: [],
+                    // Faking google api response
+                    dict: { pos: '', terms: data?.alternatives, entry: '' },
                     examples: {}
                 };
             }

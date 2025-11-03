@@ -633,8 +633,7 @@ export class VocabularyTool {
         const word = span.textContent.trim();
         console.log('🔍 Processing word:', word);
 
-        this.vocabPanel.showVocabInfoForWord(word, span);
-
+        
         if (span.classList.contains('highlighted')) {
             console.log('🗑️ Removing highlight');
             span.classList.remove('highlighted');
@@ -642,6 +641,8 @@ export class VocabularyTool {
         } else {
             console.log('✨ Adding highlight');
             this.highlightAndTranslateIndividualWord(span);
+            // Calling vocab tool on highlighting only
+            this.vocabPanel.showVocabInfoForWord(word, span);
         }
     }
 

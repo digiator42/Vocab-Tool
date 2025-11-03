@@ -74,7 +74,7 @@ export class VocabPanelManager {
                     <button id="close-vocab-panel" class="text-white hover:text-gray-200 text-xl">&times;</button>
                 </div>
                 <div id="vocab-main-word" class="text-xl font-bold mt-2">Click a word to see details</div>
-                <div id="vocab-pos" class="text-sm opacity-90">Part of speech will appear here</div>
+                <div id="vocab-pos" class="text-sm opacity-90">No info</div>
             </div>
             
             <div class="overflow-y-auto max-h-[calc(80vh-80px)]">
@@ -275,7 +275,8 @@ export class VocabPanelManager {
     populateVocabDetails(data) {
         console.log('📊 populateVocabDetails called with:', data);
 
-        const dictEntry = data.dict?.[0];
+        // Google sends array of dict objcs, liberetrans sends just normal array
+        const dictEntry = data.dict?.[0] || data.dict;
 
         // Part of Speech
         const posElement = document.getElementById('vocab-pos');
