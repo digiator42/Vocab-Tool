@@ -633,7 +633,7 @@ export class VocabularyTool {
         const word = span.textContent.trim();
         console.log('🔍 Processing word:', word);
 
-        
+
         if (span.classList.contains('highlighted')) {
             console.log('🗑️ Removing highlight');
             span.classList.remove('highlighted');
@@ -888,15 +888,18 @@ export class VocabularyTool {
 
             if (!this.isSpeaking) {
                 const selectedVoiceName = this.voiceSelect.value;
+                console.log('======== speak text called ============');
                 this.speech.speakText(text, selectedVoiceName, this.rate);
             } else if (!this.isPaused) {
                 this.speechSynth.pause();
+                this.stopWordHighlighting();
                 this.isPaused = true;
-                this.playBtn.textContent = 'Resume';
+                playBtn.textContent = 'Resume';
             } else {
                 this.speechSynth.resume();
+                this.startWordHighlighting();
                 this.isPaused = false;
-                this.playBtn.textContent = 'Pause';
+                playBtn.textContent = 'Pause';
             }
             if (focusModePlayBTN) {
                 focusModePlayBTN.textContent = this.playBtn.textContent;
@@ -1737,5 +1740,214 @@ export class VocabularyTool {
             document.body.style.overflow = '';
             document.body.style.backgroundColor = '';
         }
+    }
+
+    debugOutputSpans() {
+        const allSpans = Array.from(this.output.querySelectorAll('span'));
+        console.log('=== OUTPUT SPANS DEBUG ===');
+        console.log('Total spans:', allSpans.length);
+        allSpans.forEach((span, index) => {
+            console.log(`Span ${index}:`, {
+                text: span.textContent,
+                trimmed: span.textContent.trim(),
+                classes: span.className,
+                html: span.outerHTML
+            });
+        });
+        console.log('=== END DEBUG ===');
+    }
+
+    testHighlighting() {
+        const testSpans = Array.from(this.output.querySelectorAll('span')).slice(0, 5);
+        if (testSpans.length > 0) {
+            console.log('🧪 Testing highlighting on first 5 spans');
+            this.highlightWhileSpeaking(
+                testSpans.map(s => s.textContent).join(' '),
+                testSpans
+            );
+        }
+    }
+
+    // Add this method to verify CSS application
+    checkCSSApplied() {
+        const highlightedSpans = this.output.querySelectorAll('.speaking-current, .speaking-highlight');
+        console.log('🎨 CSS Check - Highlighted spans:', highlightedSpans.length);
+
+        highlightedSpans.forEach((span, index) => {
+            const styles = window.getComputedStyle(span);
+            console.log(`Span ${index} (${span.textContent}):`, {
+                backgroundColor: styles.backgroundColor,
+                color: styles.color,
+                border: styles.border,
+                transform: styles.transform
+            });
+        });
+    }
+
+    // Add this to monitor the highlighting process
+    debugHighlighting() {
+        console.log('=== HIGHLIGHTING DEBUG ===');
+        console.log('Current highlight object:', this.currentHighlight);
+
+        if (this.currentHighlight && this.currentHighlight.spans) {
+            console.log('Spans in current highlight:', this.currentHighlight.spans.length);
+            this.currentHighlight.spans.forEach((span, index) => {
+                const styles = window.getComputedStyle(span);
+                console.log(`Span ${index} (${span.textContent}):`, {
+                    backgroundColor: styles.backgroundColor,
+                    hasHighlightClass: span.classList.contains('speaking-current')
+                });
+            });
+        }
+        console.log('=== END DEBUG ===');
+    }
+
+    clearSpeakingHighlights() {
+        console.log('🧹 Clearing speaking highlights');
+
+        // Remove speaking highlight classes from all spans
+        const allSpans = document.querySelectorAll('#output span');
+        allSpans.forEach(span => {
+            span.classList.remove('speaking-highlight');
+            span.classList.remove('speaking-current');
+
+            // Also remove any inline styles that might have been left over
+            span.style.backgroundColor = '';
+            span.style.color = '';
+            span.style.border = '';
+            span.style.borderRadius = '';
+            span.style.padding = '';
+            span.style.margin = '';
+            span.style.fontWeight = '';
+            span.style.zIndex = '';
+            span.style.position = '';
+            span.style.transform = '';
+            span.style.transition = '';
+            span.style.boxShadow = '';
+        });
+
+        if (this.currentHighlight && this.currentHighlight.currentSpan) {
+            this.currentHighlight.currentSpan = null;
+        }
+    }
+
+    // Add this method to your class
+    clearPreviousWordHighlight() {
+        if (this.currentHighlight && this.currentHighlight.currentSpan) {
+            const previousSpan = this.currentHighlight.currentSpan;
+            previousSpan.classList.remove('speaking-current');
+            previousSpan.classList.add('speaking-highlight'); // Keep as highlighted but not current
+        }
+    }
+
+    // Quick inline style test
+    testInlineHighlighting() {
+        const firstSpan = this.output.querySelector('span');
+        if (firstSpan) {
+            firstSpan.style.backgroundColor = '#ff0000';
+            firstSpan.style.color = '#ffffff';
+            firstSpan.style.fontWeight = 'bold';
+            firstSpan.style.padding = '2px 4px';
+            console.log('🔴 Applied inline styles to first span');
+        }
+    }
+
+    // Calculate timing based on word count and speech rate
+    calculateWordTiming(words) {
+        // Slow it down for debugging - 1000ms per word
+        const baseSpeed = 1000; // 1 second per word for testing
+        const rateFactor = 1 / this.rate;
+        const timing = baseSpeed * rateFactor;
+        console.log('⏱️ Word timing:', timing, 'ms for', words.length, 'words');
+        return timing;
+    }
+
+    // Add this method to check if spans are found
+    getSpansForText(text) {
+        const allSpans = Array.from(this.main.output.querySelectorAll('span'));
+        const words = text.split(/\s+/);
+        const matchingSpans = [];
+
+        console.log('🔍 Looking for spans for text:', text);
+        console.log('Total spans in output:', allSpans.length);
+        console.log('Words to find:', words);
+
+        words.forEach(word => {
+            const matchingSpan = allSpans.find(span => {
+                const spanText = span.textContent.trim();
+                const isMatch = spanText.toLowerCase() === word.toLowerCase();
+                if (isMatch) {
+                    console.log('✅ Found match:', word, 'in span:', spanText);
+                }
+                return isMatch;
+            });
+            if (matchingSpan) {
+                matchingSpans.push(matchingSpan);
+            } else {
+                console.log('❌ No span found for word:', word);
+            }
+        });
+
+        console.log('📦 Final matching spans:', matchingSpans.length);
+        return matchingSpans;
+    }
+
+    // Make sure this clears ALL highlights immediately
+    clearAllSpeakingHighlights() {
+        const allSpans = this.output.querySelectorAll('span');
+        allSpans.forEach(span => {
+            span.classList.remove('speaking-highlight', 'speaking-current');
+        });
+
+        if (this.currentHighlight) {
+            this.currentHighlight.currentSpan = null;
+        }
+    }
+
+    // New method to highlight by character index (more reliable)
+    highlightCurrentWordByIndex(charIndex, wordLength) {
+        this.clearPreviousWordHighlight();
+
+        const allSpans = Array.from(this.output.querySelectorAll('span'));
+        let currentCharCount = 0;
+        let targetSpan = null;
+
+        // Find the span that contains the character at charIndex
+        for (const span of allSpans) {
+            const spanText = span.textContent;
+            const spanLength = spanText.length;
+
+            if (currentCharCount <= charIndex && charIndex < currentCharCount + spanLength) {
+                targetSpan = span;
+                break;
+            }
+            currentCharCount += spanLength + 1; // +1 for space
+        }
+
+        if (targetSpan) {
+            console.log('🎯 Highlighting span:', targetSpan.textContent);
+
+            // Use CSS classes
+            targetSpan.classList.add('speaking-highlight', 'speaking-current');
+
+            // Store reference
+            if (this.currentHighlight) {
+                this.currentHighlight.currentSpan = targetSpan;
+            }
+
+            // Scroll into view if needed
+            targetSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            console.log('❌ Could not find span for char index:', charIndex);
+        }
+    }
+
+    // Stop word highlighting
+    stopWordHighlighting() {
+        if (this.currentHighlight && this.currentHighlight.interval) {
+            clearInterval(this.currentHighlight.interval);
+            this.currentHighlight.interval = null;
+        }
+        this.clearAllSpeakingHighlights();
     }
 }

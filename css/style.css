@@ -930,3 +930,35 @@ span.multi-highlighted {
 /* .flashcard.active {
     border: 2px solid #3b82f6;
 } */
+
+/* Speaking highlight styles - simplified */
+#output span.speaking-highlight {
+    background-color: #ffeb3b !important;
+    border: 2px solid #ff9800 !important;
+    color: #000 !important;
+    border-radius: 4px;
+    padding: 1px 2px;
+    z-index: 100;
+    position: relative;
+}
+
+#output span.speaking-current {
+    background-color: #ff5722 !important;
+    border: 3px solid #d84315 !important;
+    color: white !important;
+    font-weight: bold;
+    transform: scale(1.05);
+    box-shadow: 0 0 8px rgba(255, 87, 34, 0.6);
+    z-index: 1000;
+}
+
+/* Dark mode */
+.dark-mode #output span.speaking-highlight {
+    background-color: #ffd54f !important;
+    border-color: #ffb300 !important;
+}
+
+.dark-mode #output span.speaking-current {
+    background-color: #f44336 !important;
+    border-color: #c62828 !important;
+}

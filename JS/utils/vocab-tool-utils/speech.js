@@ -64,29 +64,59 @@ export class SpeechService {
         return this.germanVoices;
     }
 
-    speakText(text, voiceName, rate = 1) {
+    speakText(text, voiceName, rate = this.rate) {
         if (!text.trim()) return;
+
+        // Stop any current speech and highlighting
         this.main.speechSynth.cancel();
+        this.main.stopWordHighlighting();
+
         this.main.utterance = new SpeechSynthesisUtterance(text);
         this.main.utterance.lang = 'de-DE';
         this.main.utterance.rate = rate;
 
-        console.log('Selected voice name:', voiceName);
-
-        const selectedVoice = this.germanVoices?.find(voice => voice.name === voiceName);
+        const selectedVoice = this.germanVoices.find(voice => voice.name === voiceName);
         if (selectedVoice) {
             this.main.utterance.voice = selectedVoice;
-        } else {
-            console.warn(`Voice "${voiceName}" not found. Falling back to default German voice.`);
         }
+
+        // Set up word boundary tracking for real-time highlighting
+        this.main.utterance.onboundary = (event) => {
+            if (event.name === 'word') {
+                const charIndex = event.charIndex;
+                const wordLength = event.charLength;
+
+                // Clear ALL previous highlights before highlighting new word
+                this.main.clearAllSpeakingHighlights();
+
+                // Extract the current word being spoken
+                const currentWord = text.substring(charIndex, charIndex + wordLength).trim();
+                console.log('🔊 Speaking word:', currentWord, 'at index:', charIndex);
+
+                // Highlight the current word
+                this.main.highlightCurrentWordByIndex(charIndex, wordLength);
+            }
+        };
+
+        this.main.utterance.onstart = () => {
+            this.main.isSpeaking = true;
+            if (this.main.playBtn) this.main.playBtn.textContent = 'Pause';
+            const focusModePlayBTN = document.getElementById("focus-play-btn");
+            if (focusModePlayBTN) focusModePlayBTN.textContent = 'Pause';
+        };
 
         this.main.utterance.onend = () => {
             this.main.isSpeaking = false;
             this.main.isPaused = false;
             this.main.utterance = null;
+            this.main.stopWordHighlighting();
             if (this.main.playBtn) this.main.playBtn.textContent = 'Play';
             const focusModePlayBTN = document.getElementById("focus-play-btn");
             if (focusModePlayBTN) focusModePlayBTN.textContent = 'Play';
+        };
+
+        this.main.utterance.onerror = () => {
+            this.main.stopWordHighlighting();
         };
 
         this.main.speechSynth.speak(this.main.utterance);
@@ -94,6 +124,24 @@ export class SpeechService {
         if (this.main.playBtn) this.main.playBtn.textContent = 'Pause';
         const focusModePlayBTN = document.getElementById("focus-play-btn");
         if (focusModePlayBTN) focusModePlayBTN.textContent = 'Pause';
+    }
+
+    // Helper method to get spans for a given text
+    getSpansForText(text) {
+        const allSpans = Array.from(this.main.output.querySelectorAll('span'));
+        const words = text.split(/\s+/);
+        const matchingSpans = [];
+
+        words.forEach(word => {
+            const matchingSpan = allSpans.find(span =>
+                span.textContent.trim().toLowerCase() === word.toLowerCase()
+            );
+            if (matchingSpan) {
+                matchingSpans.push(matchingSpan);
+            }
+        });
+
+        return matchingSpans;
     }
 
     populateVoiceDropdown() {
@@ -142,6 +190,7 @@ export class SpeechService {
             stopSpeecBtn.innerHTML = 'Activate Speech';
             if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
             this.main.showNotification("Speech Stopped");
+            this.main.stopWordHighlighting();
         } else {
             stopSpeecBtn.innerHTML = 'Stop Speech';
             if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
