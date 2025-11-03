@@ -1770,7 +1770,7 @@ export class VocabularyTool {
 
     // Add this method to verify CSS application
     checkCSSApplied() {
-        const highlightedSpans = this.output.querySelectorAll('.speaking-current, .speaking-highlight');
+        const highlightedSpans = this.output.querySelectorAll('.speaking-current');
         console.log('🎨 CSS Check - Highlighted spans:', highlightedSpans.length);
 
         highlightedSpans.forEach((span, index) => {
@@ -1808,7 +1808,6 @@ export class VocabularyTool {
         // Remove speaking highlight classes from all spans
         const allSpans = document.querySelectorAll('#output span');
         allSpans.forEach(span => {
-            span.classList.remove('speaking-highlight');
             span.classList.remove('speaking-current');
 
             // Also remove any inline styles that might have been left over
@@ -1836,7 +1835,6 @@ export class VocabularyTool {
         if (this.currentHighlight && this.currentHighlight.currentSpan) {
             const previousSpan = this.currentHighlight.currentSpan;
             previousSpan.classList.remove('speaking-current');
-            previousSpan.classList.add('speaking-highlight'); // Keep as highlighted but not current
         }
     }
 
@@ -1904,31 +1902,40 @@ export class VocabularyTool {
         }
     }
 
-    // New method to highlight by character index (more reliable)
     highlightCurrentWordByIndex(charIndex, wordLength) {
-        this.clearPreviousWordHighlight();
+        this.clearAllSpeakingHighlights();
 
         const allSpans = Array.from(this.output.querySelectorAll('span'));
         let currentCharCount = 0;
         let targetSpan = null;
+
+        console.log('🔍 Looking for char index:', charIndex, 'word length:', wordLength);
 
         // Find the span that contains the character at charIndex
         for (const span of allSpans) {
             const spanText = span.textContent;
             const spanLength = spanText.length;
 
+            console.log(`🔍 Span: "${spanText}" (${spanLength} chars), current count: ${currentCharCount}`);
+
+            // Check if this span contains the target character
             if (currentCharCount <= charIndex && charIndex < currentCharCount + spanLength) {
                 targetSpan = span;
+                console.log('✅ Found target span:', spanText);
                 break;
             }
-            currentCharCount += spanLength + 1; // +1 for space
+
+            // Move to next span - add span length PLUS 1 for the space
+            currentCharCount += spanLength + 1; // +1 for the space between words
+
+            console.log(`➡️ Moving to next span. New char count: ${currentCharCount}`);
         }
 
         if (targetSpan) {
             console.log('🎯 Highlighting span:', targetSpan.textContent);
 
             // Use CSS classes
-            targetSpan.classList.add('speaking-highlight', 'speaking-current');
+            targetSpan.classList.add('speaking-current');
 
             // Store reference
             if (this.currentHighlight) {
@@ -1939,7 +1946,33 @@ export class VocabularyTool {
             targetSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
             console.log('❌ Could not find span for char index:', charIndex);
+            console.log('📊 Final char count:', currentCharCount, 'Total spans:', allSpans.length);
+
+            // Debug: Show all spans and their calculated positions
+            this.debugSpanPositions(charIndex);
         }
+    }
+
+    // Add this debug method
+    debugSpanPositions(targetIndex) {
+        const allSpans = Array.from(this.output.querySelectorAll('span'));
+        let currentCharCount = 0;
+
+        console.log('=== SPAN POSITION DEBUG ===');
+        console.log('Target char index:', targetIndex);
+
+        allSpans.forEach((span, index) => {
+            const spanText = span.textContent;
+            const spanLength = spanText.length;
+            const spanStart = currentCharCount;
+            const spanEnd = currentCharCount + spanLength - 1;
+
+            console.log(`Span ${index}: "${spanText}" [${spanStart}-${spanEnd}]`);
+
+            currentCharCount += spanLength + 1; // +1 for space
+        });
+
+        console.log('=== END DEBUG ===');
     }
 
     // Stop word highlighting

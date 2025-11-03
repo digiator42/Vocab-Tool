@@ -67,6 +67,9 @@ export class SpeechService {
     speakText(text, voiceName, rate = this.rate) {
         if (!text.trim()) return;
 
+        // Temporary: Add this to your speakText method to see the actual text vs spans
+        console.log('📝 Full text:', text);
+        console.log('🔤 All spans:', Array.from(this.main.output.querySelectorAll('span')).map(s => s.textContent));
         // Stop any current speech and highlighting
         this.main.speechSynth.cancel();
         this.main.stopWordHighlighting();
