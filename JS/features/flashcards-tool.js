@@ -1683,7 +1683,7 @@ export class FlashcardsTool {
                 // Fully mastered - Green with target icon
                 listColor = 'bg-green-600 hover:bg-green-700';
                 listIcon = 'target';
-                // listTitle = 'Fully mastered! 🎯';
+                listTitle = ''; // 'Fully mastered! 🎯';
             } else if (masteryPercentage >= 50) {
                 // Partially mastered - Yellow with percentage
                 listColor = 'bg-yellow-600 hover:bg-yellow-700';
@@ -1698,8 +1698,10 @@ export class FlashcardsTool {
                 // No mastery - Blue with list icon
                 listColor = 'bg-purple-600 hover:bg-purple-700';
                 listIcon = 'list';
-                // listTitle = 'No cards mastered yet';
+                listTitle = ''; // 'No cards mastered yet';
             }
+
+            
 
             // List button with dynamic color and icon
             const btn = document.createElement('button');

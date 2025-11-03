@@ -1185,14 +1185,14 @@ export class VocabularyTool {
         // Add event listeners for article buttons
         setTimeout(() => {
             document.querySelectorAll('.get-article-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const word = btn.dataset.word;
                     const index = parseInt(btn.dataset.index);
 
                     // Check if this is a "Make Sure" click for multiple articles
                     if (btn.textContent.includes('⚠️ Make Sure') && btn.dataset.allArticles) {
-                        this.article.showArticleDetails(word, JSON.parse(btn.dataset.allArticles), btn);
+                        await this.article.showArticleDetails(word, JSON.parse(btn.dataset.allArticles), btn);
                     } else {
                         this.article.handleGetArticle(word, index, btn);
                     }
@@ -1228,7 +1228,7 @@ export class VocabularyTool {
                     <select id="batch-list-select" class="flex-1 p-2 border rounded max-w-[50%]">
                         <option value="">Select a list...</option>
                     </select>
-                    <input id="batch-new-list-name" type="text" class="flex-1 p-2 border rounded max-w-md" placeholder="Or create new list">
+                    <input id="batch-new-list-name" type="text" class="flex-1 p-2 border rounded max-w-[50%]" placeholder="Or create new list">
                 </div>
             </div>
             
