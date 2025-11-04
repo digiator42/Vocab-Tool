@@ -103,8 +103,9 @@ export class VocabularyTool {
     }
 
     tokenize(text) {
-        return text.split(/(\s+|[^A-Za-zÄÖÜäöüß]+)/).filter(Boolean);
+        return text.split(/\s+/).filter(Boolean);
     }
+
 
     setupLanguageSelector() {
         const langSelector = document.createElement('select');
@@ -866,20 +867,23 @@ export class VocabularyTool {
                 focusModeGoBTN.innerText = this.processBtn.innerText;
             }
 
-            this.tokenize(this.input.value).forEach((tok) => {
-                if (/^[A-Za-zÄÖÜäöüß]+$/.test(tok)) {
-                    const span = document.createElement("span");
-                    span.textContent = tok;
-                    span.className = "relative cursor-pointer hover:bg-yellow-100 rounded mx-0.5";
-                    this.output.appendChild(span);
-                } else {
-                    this.output.appendChild(document.createTextNode(tok));
-                }
+            // Simple space splitting
+            const words = this.input.value.split(/\s+/).filter(Boolean);
+
+            words.forEach((word) => {
+                const span = document.createElement("span");
+                span.textContent = word;
+                span.className = "relative cursor-pointer hover:bg-yellow-100 rounded mx-0.5";
+                this.output.appendChild(span);
+
+                // Add space between words
+                this.output.appendChild(document.createTextNode(' '));
             });
+
             this.setStatus("Text processed");
             this.clearAllSelections();
         });
-
+        
         this.stopSpeechBtn.addEventListener("click", () => this.speech.stopSpeech());
 
         this.playBtn.addEventListener('click', () => {
