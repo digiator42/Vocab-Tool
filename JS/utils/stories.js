@@ -663,58 +663,58 @@ lebendig ist und es viele Möglichkeiten gibt, etwas zu unternehmen. Lena
 studiert Kunstgeschichte an der Universität und arbeitet nebenbei in einem
 kleinen Café in der Altstadt.
 
-Jeden Morgen steht Lena um sieben Uhr auf.Sie macht sich einen Kaffee und
-frühstückt schnell, bevor sie zur Uni geht.Ihre Wohnung ist klein, aber
-gemütlich.Sie liegt in Schwabing, einem Stadtteil, der für seine Künstler und
-Studenten bekannt ist.Von ihrer Wohnung aus fährt sie mit der U - Bahn zur
-Universität.Die Fahrt dauert etwa zwanzig Minuten, und Lena nutzt die Zeit, um
+Jeden Morgen steht Lena um sieben Uhr auf. Sie macht sich einen Kaffee und
+frühstückt schnell, bevor sie zur Uni geht. Ihre Wohnung ist klein, aber
+gemütlich. Sie liegt in Schwabing, einem Stadtteil, der für seine Künstler und
+Studenten bekannt ist. Von ihrer Wohnung aus fährt sie mit der U-Bahn zur
+Universität. Die Fahrt dauert etwa zwanzig Minuten, und Lena nutzt die Zeit, um
 zu lesen oder Musik zu hören.
 
-Eines Tages, als Lena in der U - Bahn sitzt, bemerkt sie einen älteren Mann, der
-ein Buch liest.Es ist ein Buch über die Geschichte Münchens, und Lena ist sofort
-neugierig.Sie liebt alles, was mit Geschichte zu tun hat, besonders mit der
-Stadt, in der sie jetzt lebt.Sie spricht den Mann an und fragt ihn nach dem
-Buch.Der Mann, Herr Schmidt, ist sehr freundlich und erzählt ihr, dass er
-Historiker ist und früher an der Universität unterrichtet hat.Sie unterhalten
+Eines Tages, als Lena in der U-Bahn sitzt, bemerkt sie einen älteren Mann, der
+ein Buch liest. Es ist ein Buch über die Geschichte Münchens, und Lena ist sofort
+neugierig. Sie liebt alles, was mit Geschichte zu tun hat, besonders mit der
+Stadt, in der sie jetzt lebt. Sie spricht den Mann an und fragt ihn nach dem
+Buch. Der Mann, Herr Schmidt, ist sehr freundlich und erzählt ihr, dass er
+Historiker ist und früher an der Universität unterrichtet hat. Sie unterhalten
 sich lange, und Herr Schmidt lädt Lena ein, an einer kostenlosen Stadtführung
 teilzunehmen, die er am Wochenende für Touristen anbietet.
 
-Am Samstag geht Lena zur Stadtführung.Herr Schmidt erzählt viele spannende
-Geschichten über München, die Lena noch nie gehört hat.Er zeigt der Gruppe alte
+Am Samstag geht Lena zur Stadtführung. Herr Schmidt erzählt viele spannende
+Geschichten über München, die Lena noch nie gehört hat. Er zeigt der Gruppe alte
 Gebäude, versteckte Gassen und erklärt, wie die Stadt im Laufe der Jahrhunderte
-gewachsen ist.Lena ist begeistert.Sie macht viele Notizen und Fotos, weil sie
+gewachsen ist. Lena ist begeistert. Sie macht viele Notizen und Fotos, weil sie
 die Informationen für ihr Studium nutzen möchte.
 
 Nach der Führung lädt Herr Schmidt Lena und einige andere Teilnehmer in ein
-traditionelles bayerisches Restaurant ein.Dort essen sie Weißwurst, Brezen und
-trinken Weißbier.Lena fühlt sich wie eine echte Münchnerin, auch wenn sie noch
-viel über die bayerische Kultur lernen muss.Sie unterhält sich mit den anderen
+traditionelles bayerisches Restaurant ein. Dort essen sie Weißwurst, Brezen und
+trinken Weißbier. Lena fühlt sich wie eine echte Münchnerin, auch wenn sie noch
+viel über die bayerische Kultur lernen muss. Sie unterhält sich mit den anderen
 Gästen und merkt, dass München nicht nur eine Stadt ist, sondern ein Ort, an dem
 Menschen aus aller Welt zusammenkommen.
 
-In den nächsten Wochen trifft sich Lena regelmäßig mit Herr Schmidt.Er wird zu
-einer Art Mentor für sie.Sie besuchen Museen, sprechen über Kunst und
+In den nächsten Wochen trifft sich Lena regelmäßig mit Herr Schmidt. Er wird zu
+einer Art Mentor für sie. Sie besuchen Museen, sprechen über Kunst und
 Geschichte, und Lena lernt immer mehr über die Stadt und ihre
-Vergangenheit.Eines Tages erzählt Herr Schmidt ihr von einem alten Archiv in der
-Stadtbibliothek, in dem es Dokumente aus dem 18. Jahrhundert gibt.Lena ist
+Vergangenheit. Eines Tages erzählt Herr Schmidt ihr von einem alten Archiv in der
+Stadtbibliothek, in dem es Dokumente aus dem 18. Jahrhundert gibt. Lena ist
 sofort begeistert und beschließt, dort für ihre Abschlussarbeit zu
 recherchieren.
 
-Die Arbeit im Archiv ist nicht einfach.Die alten Dokumente sind schwer zu lesen,
-und Lena muss viel Geduld haben.Aber mit der Hilfe von Herr Schmidt macht sie
-Fortschritte.Sie entdeckt ein Tagebuch einer Frau, die im 18. Jahrhundert in
-München gelebt hat.Das Tagebuch erzählt von ihrem Alltag, ihren Träumen und den
-Herausforderungen, die sie als Frau in dieser Zeit hatte.Lena ist fasziniert.Sie
+Die Arbeit im Archiv ist nicht einfach. Die alten Dokumente sind schwer zu lesen,
+und Lena muss viel Geduld haben. Aber mit der Hilfe von Herr Schmidt macht sie
+Fortschritte. Sie entdeckt ein Tagebuch einer Frau, die im 18. Jahrhundert in
+München gelebt hat. Das Tagebuch erzählt von ihrem Alltag, ihren Träumen und den
+Herausforderungen, die sie als Frau in dieser Zeit hatte. Lena ist fasziniert. Sie
 beschließt, ihre Abschlussarbeit über diese Frau zu schreiben und ihre
 Geschichte mit der Welt zu teilen.
 
-Am Ende des Semesters präsentiert Lena ihre Arbeit an der Universität.Ihre
+Am Ende des Semesters präsentiert Lena ihre Arbeit an der Universität. Ihre
 Professorin ist beeindruckt und sagt, dass Lenas Forschung etwas ganz Besonderes
-ist.Lena ist stolz, aber sie weiß, dass sie das ohne die Hilfe von Herr Schmidt
-nicht geschafft hätte.Sie lädt ihn zur Präsentation ein, und er freut sich sehr,
+ist. Lena ist stolz, aber sie weiß, dass sie das ohne die Hilfe von Herr Schmidt
+nicht geschafft hätte. Sie lädt ihn zur Präsentation ein, und er freut sich sehr,
 ihre Arbeit zu sehen.
 
-Lena fühlt sich in München immer mehr zu Hause.Sie hat nicht nur eine Stadt
+Lena fühlt sich in München immer mehr zu Hause. Sie hat nicht nur eine Stadt
 gefunden, die sie liebt, sondern auch Menschen, die ihr wichtig sind, und eine
 Leidenschaft für Geschichte, die sie ihr Leben lang begleiten wird.`
     },
@@ -727,45 +727,45 @@ das Meer liebt und die Hafenstadt so viel zu bieten hat. Aber es gibt auch
 Herausforderungen: Die Sprache ist nicht immer einfach, und die Kultur ist
 anders als in England.
 
-Jeden Tag fährt Tom mit dem Fahrrad zur Arbeit.Der Weg führt ihn entlang der
+Jeden Tag fährt Tom mit dem Fahrrad zur Arbeit. Der Weg führt ihn entlang der
 Elbe, und er genießt den Blick auf die großen Schiffe und die Möwen, die über
-dem Wasser fliegen.Seine Kollegen sind nett, aber manchmal hat Tom
+dem Wasser fliegen. Seine Kollegen sind nett, aber manchmal hat Tom
 Schwierigkeiten, alles zu verstehen, weil sie schnell sprechen oder Dialekt
-benutzen.Trotzdem gibt er sich Mühe, Deutsch zu lernen, und besucht zweimal pro
+benutzen. Trotzdem gibt er sich Mühe, Deutsch zu lernen, und besucht zweimal pro
 Woche einen Sprachkurs.
 
 Eines Tages bekommt Tom eine besondere Aufgabe in der Firma: Er soll bei einem
-neuen Projekt mithelfen, ein umweltfreundliches Schiff zu entwickeln.Tom ist
+neuen Projekt mithelfen, ein umweltfreundliches Schiff zu entwickeln. Tom ist
 begeistert, weil er schon immer an nachhaltigen Technologien interessiert
-war.Aber die Aufgabe ist nicht einfach.Er muss mit einem großen Team
+war. Aber die Aufgabe ist nicht einfach. Er muss mit einem großen Team
 zusammenarbeiten, und es gibt viele Meetings, in denen auf Deutsch gesprochen
-wird.Tom hat Angst, Fehler zu machen, aber sein Chef ermutigt ihn und sagt:
-„Mach dir keine Sorgen, Tom.Du lernst mit der Zeit.“
+wird. Tom hat Angst, Fehler zu machen, aber sein Chef ermutigt ihn und sagt:
+„Mach dir keine Sorgen, Tom. Du lernst mit der Zeit.“
 
-Nach der Arbeit geht Tom oft in eine Kneipe in der Nähe des Hafens.Dort trifft
+Nach der Arbeit geht Tom oft in eine Kneipe in der Nähe des Hafens. Dort trifft
 er Hanna, eine junge Frau, die als Journalistin für eine lokale Zeitung
-arbeitet.Hanna spricht gut Englisch, aber sie hilft Tom auch, sein Deutsch zu
-verbessern.Sie erzählt ihm von Hamburgs Geschichte, von der Speicherstadt und
-den vielen Kanälen, die die Stadt so besonders machen.Tom und Hanna werden
+arbeitet. Hanna spricht gut Englisch, aber sie hilft Tom auch, sein Deutsch zu
+verbessern. Sie erzählt ihm von Hamburgs Geschichte, von der Speicherstadt und
+den vielen Kanälen, die die Stadt so besonders machen. Tom und Hanna werden
 schnell Freunde.
 
-Eines Wochenendes lädt Hanna Tom zu einer Bootstour auf der Alster ein.Sie
-mieten ein kleines Ruderboot und fahren über den See.Hanna erzählt Tom von ihrer
-Arbeit und wie sie Geschichten über die Menschen in Hamburg schreibt.Tom ist
-beeindruckt und erzählt ihr von seinem Projekt.Hanna findet die Idee eines
+Eines Wochenendes lädt Hanna Tom zu einer Bootstour auf der Alster ein. Sie
+mieten ein kleines Ruderboot und fahren über den See. Hanna erzählt Tom von ihrer
+Arbeit und wie sie Geschichten über die Menschen in Hamburg schreibt. Tom ist
+beeindruckt und erzählt ihr von seinem Projekt. Hanna findet die Idee eines
 umweltfreundlichen Schiffes spannend und fragt, ob sie einen Artikel darüber
-schreiben darf.Tom ist einverstanden, aber ein bisschen nervös, weil er noch nie
+schreiben darf. Tom ist einverstanden, aber ein bisschen nervös, weil er noch nie
 in einer Zeitung war.
 
-Einige Wochen später erscheint der Artikel in der Zeitung.Toms Kollegen
-gratulieren ihm, und sogar sein Chef ist stolz.Der Artikel bringt der Firma viel
-Aufmerksamkeit, und Tom fühlt sich zum ersten Mal wirklich als Teil des Teams.Er
+Einige Wochen später erscheint der Artikel in der Zeitung. Toms Kollegen
+gratulieren ihm, und sogar sein Chef ist stolz. Der Artikel bringt der Firma viel
+Aufmerksamkeit, und Tom fühlt sich zum ersten Mal wirklich als Teil des Teams. Er
 merkt, dass er nicht nur einen Job in Hamburg gefunden hat, sondern auch ein
 neues Zuhause.
 
-Tom beschließt, noch mehr über die Stadt zu lernen.Er besucht Museen, geht zu
-Konzerten und probiert neue Restaurants aus.Mit Hannas Hilfe wird sein Deutsch
-immer besser, und er fühlt sich immer wohler in der Stadt.Eines Tages, als er
+Tom beschließt, noch mehr über die Stadt zu lernen. Er besucht Museen, geht zu
+Konzerten und probiert neue Restaurants aus. Mit Hannas Hilfe wird sein Deutsch
+immer besser, und er fühlt sich immer wohler in der Stadt. Eines Tages, als er
 wieder mit dem Fahrrad am Hafen entlangfährt, denkt er: „Hamburg ist vielleicht
 nicht meine Heimat, aber es ist der Ort, an dem ich glücklich bin.`
     },
