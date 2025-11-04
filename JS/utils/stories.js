@@ -147,7 +147,7 @@ Erfahrungen in München zu machen.`
     },
     "a2-6_9a9d5592": {
         title: "A2 Story: Der Überraschungsbesuch",
-        text: `[translate:Als Katharina an diesem Samstagmorgen aufwacht, hört sie ein Klopfen
+        text: `Als Katharina an diesem Samstagmorgen aufwacht, hört sie ein Klopfen
 an der Tür. Sie wundert sich, denn sie erwartet keinen Besuch. Als sie öffnet,
 steht ihre beste Freundin Lara aus Hamburg vor ihr. Lara hält Blumen in der Hand
 und lächelt.
@@ -164,12 +164,12 @@ Stand. Am Abend kochen sie gemeinsam Pasta mit Tomatensoße und hören Musik. Sp
 am Abend sitzen sie noch lange auf dem Balkon und schauen die Sterne.
 
 Katharina ist dankbar für die schöne Überraschung und freut sich auf weitere
-gemeinsame Erlebnisse mit Lara.]`
+gemeinsame Erlebnisse mit Lara.`
     },
 
     "a2-7_b0b29053": {
         title: "A2 Story: Ein neuer Nachbar",
-        text: `[translate:Letzte Woche ist ein neuer Nachbar in Marias Haus eingezogen. Er
+        text: `Letzte Woche ist ein neuer Nachbar in Marias Haus eingezogen. Er
 heißt Herr Schmidt und er kommt aus Dresden. Maria beschließt, ihn willkommen zu
 heißen und bäckt einen Apfelkuchen. Am Nachmittag klingelt sie an seiner Tür.
 
@@ -181,11 +181,11 @@ begeisterter Gartenliebhaber ist und gern Blumen pflanzt.
 In den nächsten Tagen sieht Maria Herr Schmidt oft im Garten. Sie helfen sich
 gegenseitig beim Gießen der Pflanzen und unterhalten sich über die
 Nachbarschaft. Maria lernt von Herrn Schmidt, wie man Rosen pflegt, und Herr
-Schmidt freut sich über Marias Gesellschaft. Sie werden gute Freunde.]`
+Schmidt freut sich über Marias Gesellschaft. Sie werden gute Freunde.`
     },
     "a2-8_c172218d": {
         title: "A2/B1 Story: Paulas neues Leben in Heidelberg",
-        text: `[translate:Paula sitzt am Fenster ihres kleinen Zimmers in Heidelberg und
+        text: `Paula sitzt am Fenster ihres kleinen Zimmers in Heidelberg und
 betrachtet den Regen, der gegen die Scheibe trommelt. Vor fünf Wochen ist sie
 von einem kleinen Dorf im Norden Deutschlands in diese lebendige
 Universitätsstadt gezogen, um ihr Studium in Biologie zu beginnen. Alles ist neu
@@ -240,7 +240,7 @@ muss – nicht nur für das Studium, sondern auch für das Leben in einer neuen
 Stadt. Aber sie hat schon jetzt das Gefühl, am richtigen Ort zu sein. Sie
 genießt die Vielfalt der Stadt, die kleinen Abenteuer des Alltags und die neue
 Freiheit. Am Fenster sitzend lächelt Paula, als die Sonne nach dem Regen durch
-die Wolken bricht und ein Regenbogen über Heidelberg erscheint.]`
+die Wolken bricht und ein Regenbogen über Heidelberg erscheint.`
     },
     "a2-9_318bcd1e": {
         title: "A2/B1 Story: Annas Alltag in Berlin",

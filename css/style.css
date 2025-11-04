@@ -653,6 +653,9 @@ body.dropdown-open {
     position: relative;
     /* Ensure tooltips are positioned relative to span */
     display: inline-block;
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
     /* Ensure spans don't break tooltip positioning */
     vertical-align: top;
     /* Prevent vertical misalignment */
@@ -933,17 +936,14 @@ span.multi-highlighted {
 
 
 #output span.speaking-current {
-    background-color: #e8f5e9 !important; /* Soft green */
-    border: 2px solid #66bb6a !important;
-    color: #2e7d32 !important;
+    display: inline-block;
+    color: #05ee15 !important;
     font-weight: bold;
-    z-index: 1000;
-}
+    /* z-index: 1000; */
 
-.dark-mode #output span.speaking-current {
-    background-color: #9eeca4 !important;
-    border: 2px solid #2fac33 !important;
-    color: #1b5e20 !important;
-    font-weight: bold;
-    z-index: 1000;
+    /* Flexible highlighting */
+    display: inline-block !important;
+    max-width: 100% !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
 }

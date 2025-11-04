@@ -867,23 +867,43 @@ export class VocabularyTool {
                 focusModeGoBTN.innerText = this.processBtn.innerText;
             }
 
-            // Simple space splitting
-            const words = this.input.value.split(/\s+/).filter(Boolean);
+            // Preserve newlines and natural text flow
+            const lines = this.input.value.split('\n');
 
-            words.forEach((word) => {
-                const span = document.createElement("span");
-                span.textContent = word;
-                span.className = "relative cursor-pointer hover:bg-yellow-100 rounded mx-0.5";
-                this.output.appendChild(span);
+            lines.forEach((line, lineIndex) => {
+                if (line.trim() === '') {
+                    // Add empty line (paragraph break)
+                    this.output.appendChild(document.createElement('br'));
+                } else {
+                    // Process each line separately to preserve line breaks
+                    const words = line.split(/\s+/).filter(Boolean);
 
-                // Add space between words
-                this.output.appendChild(document.createTextNode(' '));
+                    words.forEach((word, wordIndex) => {
+                        const span = document.createElement("span");
+                        span.textContent = word;
+                        // Make spans flexible for highlighting - they'll wrap naturally
+                        span.className = "inline-block relative cursor-pointer hover:bg-yellow-100 rounded mx-0.5 max-w-full";
+                        span.style.wordWrap = "break-word";
+                        span.style.overflowWrap = "break-word";
+                        this.output.appendChild(span);
+
+                        // Add space between words (except last word in line)
+                        if (wordIndex < words.length - 1) {
+                            this.output.appendChild(document.createTextNode(' '));
+                        }
+                    });
+
+                    // Add line break after each line (except last line)
+                    if (lineIndex < lines.length - 1) {
+                        this.output.appendChild(document.createElement('br'));
+                    }
+                }
             });
 
             this.setStatus("Text processed");
             this.clearAllSelections();
         });
-        
+
         this.stopSpeechBtn.addEventListener("click", () => this.speech.stopSpeech());
 
         this.playBtn.addEventListener('click', () => {
@@ -893,7 +913,7 @@ export class VocabularyTool {
             if (!this.isSpeaking) {
                 const selectedVoiceName = this.voiceSelect.value;
                 console.log('======== speak text called ============');
-                this.speech.speakText(text, selectedVoiceName, this.rate);
+                this.speech.speakText(text, selectedVoiceName, this.rate, true);
             } else if (!this.isPaused) {
                 this.speechSynth.pause();
                 this.stopWordHighlighting();

@@ -1616,7 +1616,7 @@ export class FlashcardsTool {
 
     speakWord(text, rate = 0.9, lang = 'de-DE') {
         this.useSlowSpeak ? rate = 0.6 : rate = rate;
-        return this.speech.speakText(text, this.voiceSelect.value, rate);
+        return this.speech.speakText(text, this.voiceSelect.value, rate, false);
     }
 
     getCurrentListName() {
@@ -1701,7 +1701,7 @@ export class FlashcardsTool {
                 listTitle = ''; // 'No cards mastered yet';
             }
 
-            
+
 
             // List button with dynamic color and icon
             const btn = document.createElement('button');
@@ -1964,5 +1964,10 @@ export class FlashcardsTool {
         notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 3500);
+    }
+
+    // Stop word highlighting
+    stopWordHighlighting() {
+        // Just ignore the callback error   
     }
 }

@@ -5,9 +5,9 @@ export class SpeechService {
         this.germanVoices = [];
     }
 
-    speak(text, lang = "de", slow = this.main.useSlowVoice) {
+    speak(text, lang = "de", slow = this.main.useSlowVoice, isFullText = false) {
         return new Promise((resolve) => {
-            console.log('Loading speech for:', text, 'in', lang);
+            console.log('Loading speech for:', text, 'in', lang, 'Full text:', isFullText);
             if (lang === null || text === '' || this.main.isStopSpeechRequested) {
                 resolve();
                 return;
@@ -18,7 +18,12 @@ export class SpeechService {
                 if (this.main.useOfflineSpeak) {
                     console.log('========Offline Speaking Mode=========', this.main)
                     const selectedVoiceName = this.main.voiceSelect.value;
-                    this.speakText(text, selectedVoiceName, this.main.rate);
+                    // Use different function based on whether it's full text or selection
+                    if (isFullText) {
+                        this.speakText(text, selectedVoiceName, this.main.rate, true);
+                    } else {
+                        this.speakSelectedText(text, selectedVoiceName, this.main.rate);
+                    }
                 } else {
                     console.log('online speak', slow ? 'Slow voice is activated' : 'Slow Voice NOT active');
                     const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
@@ -31,12 +36,59 @@ export class SpeechService {
             } catch {
                 this.main.setStatus("Speech error, System voice");
                 const selectedVoiceName = this.main.voiceSelect.value;
-                this.speakText(text, selectedVoiceName, this.main.rate);
+                // Use different function based on whether it's full text or selection
+                if (isFullText) {
+                    this.speakText(text, selectedVoiceName, this.main.rate, true);
+                } else {
+                    this.speakSelectedText(text, selectedVoiceName, this.main.rate);
+                }
             }
 
-            // RESOLVE IMMEDIATELY in all cases
             resolve();
         });
+    }
+
+    // New function specifically for selected words (no boundary tracking)
+    speakSelectedText(text, voiceName, rate = this.rate) {
+        if (!text.trim()) return;
+
+        console.log('🔊 Speaking SELECTED text (no highlighting):', text);
+
+        this.main.speechSynth.cancel();
+        this.main.stopWordHighlighting();
+
+        this.main.utterance = new SpeechSynthesisUtterance(text);
+        this.main.utterance.lang = 'de-DE';
+        this.main.utterance.rate = rate;
+
+        const selectedVoice = this.germanVoices.find(voice => voice.name === voiceName);
+        if (selectedVoice) {
+            this.main.utterance.voice = selectedVoice;
+        }
+
+        // NO boundary tracking for selected words
+
+        this.main.utterance.onstart = () => {
+            this.main.isSpeaking = true;
+            if (this.main.playBtn) this.main.playBtn.textContent = 'Pause';
+            const focusModePlayBTN = document.getElementById("focus-play-btn");
+            if (focusModePlayBTN) focusModePlayBTN.textContent = 'Pause';
+        };
+
+        this.main.utterance.onend = () => {
+            this.main.isSpeaking = false;
+            this.main.isPaused = false;
+            this.main.utterance = null;
+            if (this.main.playBtn) this.main.playBtn.textContent = 'Play';
+            const focusModePlayBTN = document.getElementById("focus-play-btn");
+            if (focusModePlayBTN) focusModePlayBTN.textContent = 'Play';
+        };
+
+        this.main.speechSynth.speak(this.main.utterance);
+        this.main.isSpeaking = true;
+        if (this.main.playBtn) this.main.playBtn.textContent = 'Pause';
+        const focusModePlayBTN = document.getElementById("focus-play-btn");
+        if (focusModePlayBTN) focusModePlayBTN.textContent = 'Pause';
     }
 
     findGermanVoices() {
@@ -64,13 +116,11 @@ export class SpeechService {
         return this.germanVoices;
     }
 
-    speakText(text, voiceName, rate = this.rate) {
+    speakText(text, voiceName, rate = this.rate, enableHighlighting = false) {
         if (!text.trim()) return;
 
-        // Temporary: Add this to your speakText method to see the actual text vs spans
-        console.log('📝 Full text:', text);
-        console.log('🔤 All spans:', Array.from(this.main.output.querySelectorAll('span')).map(s => s.textContent));
-        // Stop any current speech and highlighting
+        console.log('🔊 Speaking text, highlighting enabled:', enableHighlighting);
+
         this.main.speechSynth.cancel();
         this.main.stopWordHighlighting();
 
@@ -83,23 +133,22 @@ export class SpeechService {
             this.main.utterance.voice = selectedVoice;
         }
 
-        // Set up word boundary tracking for real-time highlighting
-        this.main.utterance.onboundary = (event) => {
-            if (event.name === 'word') {
-                const charIndex = event.charIndex;
-                const wordLength = event.charLength;
+        // ONLY enable boundary tracking for full text highlighting
+        if (enableHighlighting) {
+            this.main.utterance.onboundary = (event) => {
+                if (event.name === 'word') {
+                    const charIndex = event.charIndex;
+                    const wordLength = event.charLength;
 
-                // Clear ALL previous highlights before highlighting new word
-                this.main.clearAllSpeakingHighlights();
+                    this.main.clearAllSpeakingHighlights();
 
-                // Extract the current word being spoken
-                const currentWord = text.substring(charIndex, charIndex + wordLength).trim();
-                console.log('🔊 Speaking word:', currentWord, 'at index:', charIndex);
+                    const currentWord = text.substring(charIndex, charIndex + wordLength).trim();
+                    console.log('🔊 Speaking word:', currentWord, 'at index:', charIndex);
 
-                // Highlight the current word
-                this.main.highlightCurrentWordByIndex(charIndex, wordLength);
-            }
-        };
+                    this.main.highlightCurrentWordByIndex(charIndex, wordLength);
+                }
+            };
+        }
 
         this.main.utterance.onstart = () => {
             this.main.isSpeaking = true;

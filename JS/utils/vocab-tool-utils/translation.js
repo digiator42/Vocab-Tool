@@ -2,7 +2,7 @@
 export class TranslationService {
     constructor(main) {
         this.main = main;
-        this.useOfflineTranslate = true;
+        this.useOfflineTranslate = false;
         this.offlineApiUrl = 'http://127.0.0.1:5000';
 
         window.trans = this;
