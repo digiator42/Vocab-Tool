@@ -93,7 +93,6 @@ body.dark-mode {
 .dark-mode .container,
 .dark-mode .main-content,
 .dark-mode #vocab-tool-container,
-.dark-mode #add-to-flash-modal div,
 .dark-mode #edit-flashcard-modal div,
 .dark-mode #article-detail-modal div,
 .dark-mode #vocab-info-panel,
@@ -127,6 +126,12 @@ body.dark-mode {
     background-color: rgb(12, 12, 23) !important;
     color: white !important;
     border-color: #444 !important;
+}
+
+.dark-mode .german-sentence-batch-modal {
+    background-color: #8c8c8f !important;
+    color: black !important;
+    border: 1px solid #928f8f !important;
 }
 
 .dark-mode label,

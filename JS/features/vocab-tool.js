@@ -1017,14 +1017,6 @@ export class VocabularyTool {
             const tooltip = span.querySelector('.tooltip');
             const translation = tooltip ? tooltip.textContent : '';
 
-            console.log(`Individual span ${index}:`, {
-                text: word,
-                hasSelectionGroup,
-                hasGroupId,
-                translation,
-                dataset: { ...span.dataset }
-            });
-
             // Skip if it's part of a group
             if (hasSelectionGroup || hasGroupId) {
                 console.log(`Skipping - part of group: ${word}`);
@@ -1032,15 +1024,19 @@ export class VocabularyTool {
             }
 
             if (word && translation) {
+                // Find sentence containing this word
+                const sentence = this.findSentenceContainingWord(word);
+
                 selections.push({
                     words: [word],
                     text: word,
                     translation: translation,
+                    sentence: sentence, // Add the sentence here
                     type: 'individual',
                     isGroup: false,
                     wordCount: 1
                 });
-                console.log(`Added individual: "${word}" -> "${translation}"`);
+                console.log(`Added individual: "${word}" -> "${translation}"`, sentence ? `Sentence: ${sentence}` : 'No sentence found');
             }
         });
 
@@ -1077,16 +1073,22 @@ export class VocabularyTool {
 
             if (isRealGroup || isMobileGroup || isDesktopGroup) {
                 const words = group.spans ? group.spans.map(span => span.textContent.trim()) : [];
+
+                // For groups, use the first word to find a sentence
+                const firstWord = words[0];
+                const sentence = firstWord ? this.findSentenceContainingWord(firstWord) : '';
+
                 selections.push({
                     words: words,
                     text: group.text,
                     translation: group.translation,
+                    sentence: sentence, // Add the sentence here
                     type: 'group',
                     isGroup: true,
                     wordCount: words.length,
                     groupId: groupId
                 });
-                console.log(`Added group: "${group.text}" -> "${group.translation}"`);
+                console.log(`Added group: "${group.text}" -> "${group.translation}"`, sentence ? `Sentence: ${sentence}` : 'No sentence found');
             } else {
                 console.log(`Skipping - not a real group: ${groupId}`);
             }
@@ -1104,6 +1106,20 @@ export class VocabularyTool {
         });
 
         return selections;
+    }
+
+    findSentenceContainingWord(word) {
+        const fullText = this.input.value;
+        const sentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+
+        // Find the first sentence that contains the word
+        const matchingSentence = sentences.find(sentence =>
+            sentence.toLowerCase().includes(word.replace('.', '').toLowerCase())
+        );
+
+        console.log('---> ', word, matchingSentence);
+
+        return matchingSentence ? matchingSentence.trim() + '.' : '';
     }
 
     getSpanTextContent(span) {
@@ -1194,11 +1210,22 @@ export class VocabularyTool {
             </div>
         `;
 
+            // Add sentence display if available
+            const sentenceDisplay = selection.sentence ? `
+                <div class="german-sentence-batch-modal text-xs bg-gray-200 text-blue-600 my-2 italic leading-tight break-all max-w-full overflow-hidden">
+                    <span class="inline-block align-top">📝</span>
+                    <span class="inline-block align-top break-words whitespace-normal max-w-[90%]">
+                        ${this.highlightWordsInSentence(selection.sentence, selection.words)}
+                    </span>
+                </div>
+            ` : '';
+
             selectionDiv.innerHTML = `
             <div class="flex items-center justify-between">
                 <div class="flex-1">
-                    <div class="font-semibold text-gray-800 german-word">${selection.words.join(' ')}</div>
+                    <div class="font-semibold text-gray-800 german-word">${selection.words.join(' ').replace(/[\p{P}]/gu, '').replace(/[.,!?;]/g, '')}</div>
                     <div class="text-sm text-gray-600">${selection.translation}</div>
+                    ${sentenceDisplay}
                     <div class="text-xs text-gray-500 mt-1">
                         ${selection.isGroup ? '📚 Word Group' : '🔤 Single Word'} • ${selection.words.length} word(s)
                         ${isSingleWord && !showArticleButton ? '• (Not a noun)' : ''}
@@ -1235,6 +1262,20 @@ export class VocabularyTool {
         document.getElementById('batch-new-list-name').value = '';
 
         modal.classList.remove('hidden');
+    }
+
+    highlightWordsInSentence(sentence, words) {
+        let highlightedSentence = sentence;
+
+        // Highlight each word in the sentence
+        words.forEach(word => {
+            highlightedSentence = highlightedSentence.replace(
+                new RegExp(word, 'gi'),
+                `<b>${word}</b>`
+            );
+        });
+
+        return highlightedSentence;
     }
 
     createBatchAddModal() {
@@ -1317,11 +1358,17 @@ export class VocabularyTool {
         const selections = [];
         checkboxes.forEach(checkbox => {
             const index = parseInt(checkbox.dataset.index);
-            // We need to store the selections data or reconstruct it
             const selectionDiv = checkbox.closest('.p-3');
             const germanText = selectionDiv.querySelector('.font-semibold').textContent;
             const englishText = selectionDiv.querySelector('.text-sm').textContent;
-            selections.push({ german: germanText, english: englishText });
+            const sentenceElement = selectionDiv.querySelector('.text-blue-600');
+            const sentence = sentenceElement ? sentenceElement.textContent.replace('📝 ', '') : '';
+
+            selections.push({
+                german: germanText,
+                english: englishText,
+                sentence: sentence
+            });
         });
 
         let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
@@ -1342,6 +1389,7 @@ export class VocabularyTool {
             if (!exists) {
                 customLists[selectedListName].push({
                     german: selection.german,
+                    sentence: selection.sentence,
                     english: selection.english,
                     mastered: false
                 });
