@@ -226,6 +226,29 @@ export class FlashcardsTool {
         return srControls;
     }
 
+    calculateInsertPosition(currentPos, totalLength, timeInterval) {
+        let jumpSize;
+
+        // For insertion after 1 minute - 10% ahead + random
+        if (timeInterval === 1) {
+            jumpSize = Math.max(1, Math.floor(currentPos * 0.1)) + Math.floor(Math.random() * 8);
+        }
+        // For insertion after 10 minutes - 30% ahead + random
+        else if (timeInterval === 10) {
+            jumpSize = Math.max(1, Math.floor(currentPos * 0.3)) + Math.floor(Math.random() * 15);
+        }
+        else {
+            jumpSize = 1 + Math.floor(Math.random() * 2); // Default case
+        }
+
+        // Ensure the jump doesn't exceed remaining space in the list
+        const remainingSpace = totalLength - currentPos - 1; // -1 to leave room for at least one card after
+        jumpSize = Math.min(jumpSize, Math.max(1, remainingSpace));
+
+        console.log('jumpSize ===> ', jumpSize, 'currentPos:', currentPos, 'totalLength:', totalLength);
+        return jumpSize;
+    }
+
     handleSRRating(card, minutesUntilNext) {
         console.log('SR Rating called:', {
             currentSRCardIndex: this.currentSRCardIndex,
@@ -251,13 +274,17 @@ export class FlashcardsTool {
             cardData.repetitions = 0;
             cardData.interval = 1;
             console.log('Rescheduling card for current session (Again):', card.german);
-            this.rescheduleCardForCurrentSession(card, 3);
+            const pos = this.calculateInsertPosition(this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext);
+            console.log('=====>>> ', this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext, pos);
+            this.rescheduleCardForCurrentSession(card, pos);
 
         } else if (minutesUntilNext === 10) { // Hard
             cardData.repetitions += 1;
             cardData.interval = Math.max(1, cardData.interval * 1.2);
             console.log('Rescheduling card for current session (Hard):', card.german);
-            this.rescheduleCardForCurrentSession(card, 8);
+            const pos = this.calculateInsertPosition(this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext);
+            console.log('=====>>> ', this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext, pos);
+            this.rescheduleCardForCurrentSession(card, pos);
 
         } else { // Good or Easy
             cardData.repetitions += 1;
