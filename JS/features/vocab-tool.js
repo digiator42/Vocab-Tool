@@ -1001,6 +1001,7 @@ export class VocabularyTool {
     }
 
     // Get all selections: individual words + grouped words
+    // Get all selections: individual words + grouped words
     getAllSelections() {
         const selections = [];
 
@@ -1017,45 +1018,60 @@ export class VocabularyTool {
             const tooltip = span.querySelector('.tooltip');
             const translation = tooltip ? tooltip.textContent : '';
 
+            console.log(`🔍 Processing individual span ${index}: "${word}"`, {
+                hasSelectionGroup,
+                hasGroupId,
+                hasTooltip: !!tooltip,
+                translation
+            });
+
             // Skip if it's part of a group
             if (hasSelectionGroup || hasGroupId) {
-                console.log(`Skipping - part of group: ${word}`);
+                console.log(`⏭️ Skipping - part of group: "${word}"`);
                 return;
             }
 
             if (word && translation) {
                 // Find sentence containing this word
+                console.log(`📝 Finding sentence for individual word: "${word}"`);
                 const sentence = this.findSentenceContainingWord(word);
 
                 selections.push({
                     words: [word],
                     text: word,
                     translation: translation,
-                    sentence: sentence, // Add the sentence here
+                    sentence: sentence,
                     type: 'individual',
                     isGroup: false,
                     wordCount: 1
                 });
-                console.log(`Added individual: "${word}" -> "${translation}"`, sentence ? `Sentence: ${sentence}` : 'No sentence found');
+                console.log(`✅ Added individual: "${word}" -> "${translation}"`,
+                    sentence ? `📄 Sentence: ${sentence}` : '❌ No sentence found');
+            } else {
+                console.log(`❌ Skipping individual - missing word or translation:`, { word, translation });
             }
         });
 
         // 2. Debug selectionGroups
+        console.log("🔄 Processing selectionGroups...");
         console.log("SelectionGroups map size:", this.selectionGroups.size);
-        console.log("SelectionGroups content:", Array.from(this.selectionGroups.entries()));
+
+        const groupEntries = Array.from(this.selectionGroups.entries());
+        console.log("SelectionGroups content:", groupEntries);
 
         // Get all grouped words from the main selectionGroups map
         this.selectionGroups.forEach((group, groupId) => {
-            console.log(`Processing group ${groupId}:`, {
+            console.log(`\n🔍 Processing group ${groupId}:`, {
                 text: group.text,
                 translation: group.translation,
                 spanCount: group.spans ? group.spans.length : 0,
-                spans: group.spans ? group.spans.map(s => s.textContent.trim()) : []
+                spans: group.spans ? group.spans.map(s => s.textContent.trim()) : [],
+                rawGroupData: group // Log the entire group object
             });
 
             // Safe checks
             if (!groupId || !group.text || !group.translation) {
-                console.log(`Skipping group ${groupId} - missing data`);
+                console.log(`❌ Skipping group ${groupId} - missing data`);
                 return;
             }
 
@@ -1064,7 +1080,7 @@ export class VocabularyTool {
             const isMobileGroup = groupId.includes('mobile_g');
             const isDesktopGroup = groupId.includes('desktop_group_');
 
-            console.log(`Group ${groupId} checks:`, {
+            console.log(`📊 Group ${groupId} checks:`, {
                 isRealGroup,
                 isMobileGroup,
                 isDesktopGroup,
@@ -1074,52 +1090,106 @@ export class VocabularyTool {
             if (isRealGroup || isMobileGroup || isDesktopGroup) {
                 const words = group.spans ? group.spans.map(span => span.textContent.trim()) : [];
 
-                // For groups, use the first word to find a sentence
-                const firstWord = words[0];
-                const sentence = firstWord ? this.findSentenceContainingWord(firstWord) : '';
+                console.log(`📝 Finding sentence for group: "${group.text}"`);
+                console.log(`🔤 Group words:`, words);
+
+                // For groups, use the entire group text to find a sentence
+                const sentence = this.findSentenceContainingWord(group.text);
+
+                // Also try with the first word as fallback
+                if (!sentence && words.length > 0) {
+                    console.log(`🔄 Trying fallback with first word: "${words[0]}"`);
+                    const fallbackSentence = this.findSentenceContainingWord(words[0]);
+                    console.log(`🔄 Fallback result:`, fallbackSentence);
+                }
 
                 selections.push({
                     words: words,
                     text: group.text,
                     translation: group.translation,
-                    sentence: sentence, // Add the sentence here
+                    sentence: sentence,
                     type: 'group',
                     isGroup: true,
                     wordCount: words.length,
                     groupId: groupId
                 });
-                console.log(`Added group: "${group.text}" -> "${group.translation}"`, sentence ? `Sentence: ${sentence}` : 'No sentence found');
+                console.log(`✅ Added group: "${group.text}" -> "${group.translation}"`,
+                    sentence ? `📄 Sentence: ${sentence}` : '❌ No sentence found');
             } else {
-                console.log(`Skipping - not a real group: ${groupId}`);
+                console.log(`⏭️ Skipping - not a real group: ${groupId}`);
             }
         });
 
-        console.log(`=== FINAL: ${selections.length} total selections ===`);
+        // 3. Final summary with detailed logging
+        console.log(`\n=== FINAL RESULTS: ${selections.length} total selections ===`);
         selections.forEach((sel, index) => {
-            console.log(`Selection ${index}:`, {
+            console.log(`\n📋 Selection ${index}:`, {
                 text: sel.text,
                 translation: sel.translation,
                 type: sel.type,
                 wordCount: sel.wordCount,
-                isGroup: sel.isGroup
+                isGroup: sel.isGroup,
+                sentence: sel.sentence || '❌ NO SENTENCE',
+                sentenceLength: sel.sentence ? sel.sentence.length : 0
             });
+
+            if (!sel.sentence) {
+                console.log(`❌ PROBLEM: Selection "${sel.text}" has no sentence!`);
+            }
         });
+
+        // 4. Check what's in the input text
+        console.log(`\n📄 INPUT TEXT SAMPLE:`, this.input.value.substring(0, 500) + '...');
 
         return selections;
     }
 
+    // Also update findSentenceContainingWord with better debugging
     findSentenceContainingWord(word) {
+        console.log(`\n🔍 [findSentenceContainingWord] START - Searching for: "${word}"`);
+
         const fullText = this.input.value;
         const sentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 0);
 
-        // Find the first sentence that contains the word
-        const matchingSentence = sentences.find(sentence =>
-            sentence.toLowerCase().includes(word.replace('.', '').toLowerCase())
-        );
+        console.log(`📊 Text stats:`, {
+            totalLength: fullText.length,
+            sentenceCount: sentences.length,
+            firstFewSentences: sentences.slice(0, 3)
+        });
 
-        console.log('---> ', word, matchingSentence);
+        const phrase = Array.isArray(word) ? word.join(' ') : word;
+        const cleanPhrase = phrase.replace(/[.,!?;:]/g, '').toLowerCase();
 
-        return matchingSentence ? matchingSentence.trim() + '.' : '';
+        console.log(`🔧 Processing:`, {
+            original: word,
+            phrase: phrase,
+            cleanPhrase: cleanPhrase
+        });
+
+        let matchingSentence = null;
+
+        // Search through each sentence
+        for (let i = 0; i < sentences.length; i++) {
+            const sentence = sentences[i];
+            const cleanSentence = sentence.replace(/[.,!?;:]/g, '').toLowerCase();
+
+            const hasMatch = cleanSentence.includes(cleanPhrase);
+
+            console.log(`  📝 Sentence ${i}: "${sentence}"`);
+            console.log(`  🔍 Clean: "${cleanSentence}"`);
+            console.log(`  ✅ Contains "${cleanPhrase}"?`, hasMatch);
+
+            if (hasMatch) {
+                matchingSentence = sentence;
+                console.log(`🎉 FOUND MATCH in sentence ${i}!`);
+                break;
+            }
+        }
+
+        const result = matchingSentence ? matchingSentence.trim() + '.' : '';
+        console.log(`🔍 [findSentenceContainingWord] END - Result:`, result);
+
+        return result;
     }
 
     getSpanTextContent(span) {
@@ -1212,9 +1282,9 @@ export class VocabularyTool {
 
             // Add sentence display if available
             const sentenceDisplay = selection.sentence ? `
-                <div class="german-sentence-batch-modal text-xs bg-gray-200 text-blue-600 my-2 italic leading-tight break-all max-w-full overflow-hidden">
+                <div class="german-sentence-batch-modal text-xs bg-gray-200 text-blue-600 my-2 italic leading-tight max-w-full overflow-hidden">
                     <span class="inline-block align-top">📝</span>
-                    <span class="inline-block align-top break-words whitespace-normal max-w-[90%]">
+                    <span class="inline-block align-top whitespace-normal max-w-[90%]">
                         ${this.highlightWordsInSentence(selection.sentence, selection.words)}
                     </span>
                 </div>
@@ -1264,17 +1334,129 @@ export class VocabularyTool {
         modal.classList.remove('hidden');
     }
 
-    highlightWordsInSentence(sentence, words) {
-        let highlightedSentence = sentence;
 
-        // Highlight each word in the sentence
-        words.forEach(word => {
-            highlightedSentence = highlightedSentence.replace(
-                new RegExp(word, 'gi'),
-                `<b>${word}</b>`
-            );
+    findSentenceContainingWord(word) {
+        const fullText = this.input.value;
+        const sentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+
+        const phrase = Array.isArray(word) ? word.join(' ') : word;
+        const cleanPhrase = phrase.replace(/[.,!?;:]/g, '').toLowerCase();
+
+        // Find ALL matching sentences first
+        const matchingSentences = sentences.filter(sentence => {
+            const cleanSentence = sentence.replace(/[.,!?;:]/g, ' ').toLowerCase(); // Replace punctuation with spaces
+
+            // For single words, use word boundaries (spaces)
+            if (cleanPhrase.split(' ').length === 1) {
+                return cleanSentence.includes(` ${cleanPhrase} `) ||
+                    cleanSentence.startsWith(`${cleanPhrase} `) ||
+                    cleanSentence.endsWith(` ${cleanPhrase}`);
+            } else {
+                // For phrases, just check inclusion
+                return cleanSentence.includes(cleanPhrase);
+            }
         });
 
+        // If no matches, return empty
+        if (matchingSentences.length === 0) return '';
+
+        // If only one match, return it
+        if (matchingSentences.length === 1) {
+            return matchingSentences[0].trim() + '.';
+        }
+
+        // If multiple matches, use some simple heuristics:
+        // 1. Prefer sentences that contain the exact phrase (not just parts)
+        const exactMatches = matchingSentences.filter(sentence =>
+            sentence.toLowerCase().includes(phrase.toLowerCase())
+        );
+        if (exactMatches.length > 0) {
+            return exactMatches[0].trim() + '.';
+        }
+
+        // 2. Prefer longer sentences (more context)
+        const sortedByLength = matchingSentences.sort((a, b) => b.length - a.length);
+        return sortedByLength[0].trim() + '.';
+    }
+
+    highlightWordsInSentence(sentence, words) {
+        console.log('🎨 HIGHLIGHT START ====================');
+        console.log('Input sentence:', sentence);
+        console.log('Input words:', words);
+        console.log('Type of words:', typeof words);
+
+        if (!Array.isArray(words)) {
+            console.log('❌ Words is not an array, returning original sentence');
+            console.log('🎨 HIGHLIGHT END ====================');
+            return sentence;
+        }
+
+        let highlightedSentence = sentence;
+
+        // Highlight each word individually if the phrase doesn't exist
+        const phrase = words.join(' ');
+        const cleanPhrase = phrase.replace(/[.,!?;:]$/g, '');
+
+        console.log('Joined phrase:', phrase);
+        console.log('Clean phrase:', cleanPhrase);
+
+        const lowerSentence = highlightedSentence.toLowerCase();
+        const lowerPhrase = cleanPhrase.toLowerCase();
+
+        console.log('Lowercase sentence:', lowerSentence);
+        console.log('Lowercase phrase:', lowerPhrase);
+
+        // Try to highlight the exact phrase first
+        console.log('🎯 STEP 1: Checking for exact phrase match in sentence...');
+        const phraseIndex = lowerSentence.indexOf(lowerPhrase);
+        console.log('Phrase found at index:', phraseIndex);
+
+        if (phraseIndex !== -1) {
+            console.log('✅ Exact phrase found, highlighting phrase...');
+            const actualMatch = highlightedSentence.substring(phraseIndex, phraseIndex + cleanPhrase.length);
+            console.log('Actual match text:', actualMatch);
+
+            highlightedSentence =
+                highlightedSentence.substring(0, phraseIndex) +
+                `<b>${actualMatch}</b>` +
+                highlightedSentence.substring(phraseIndex + cleanPhrase.length);
+
+            console.log('After phrase highlighting:', highlightedSentence);
+        } else {
+            console.log('❌ Exact phrase not found, highlighting individual words...');
+            // If exact phrase not found, highlight individual words
+            words.forEach((word, index) => {
+                console.log(`🔍 Processing word ${index + 1}/${words.length}:`, word);
+                const cleanWord = word.replace(/[.,!?;:]$/g, '');
+                const lowerWord = cleanWord.toLowerCase();
+
+                console.log('Clean word:', cleanWord);
+                console.log('Lower word:', lowerWord);
+
+                let startIndex = 0;
+                let matchCount = 0;
+
+                while ((startIndex = lowerSentence.indexOf(lowerWord, startIndex)) !== -1) {
+                    const actualMatch = highlightedSentence.substring(startIndex, startIndex + cleanWord.length);
+                    console.log(`  Found "${cleanWord}" at index ${startIndex}, actual text: "${actualMatch}"`);
+
+                    highlightedSentence =
+                        highlightedSentence.substring(0, startIndex) +
+                        `<b>${actualMatch}</b>` +
+                        highlightedSentence.substring(startIndex + cleanWord.length);
+
+                    startIndex += `<b>${actualMatch}</b>`.length;
+                    matchCount++;
+
+                    console.log(`  After replacement:`, highlightedSentence);
+                }
+
+                console.log(`  Total matches for "${cleanWord}": ${matchCount}`);
+            });
+        }
+
+        console.log('🎨 HIGHLIGHT END ====================');
+        console.log('Final highlighted sentence:', highlightedSentence);
         return highlightedSentence;
     }
 
