@@ -1014,7 +1014,7 @@ export class VocabularyTool {
         individualSpans.forEach((span, index) => {
             const hasSelectionGroup = !!span.dataset.selectionGroup;
             const hasGroupId = !!span.dataset.groupId;
-            const word = this.getSpanTextContent(span);
+            const word = this.getSpanTextContent(span).replace(/[\p{P}]/gu, '').trim();
             const tooltip = span.querySelector('.tooltip');
             const translation = tooltip ? tooltip.textContent : '';
 
@@ -1039,7 +1039,7 @@ export class VocabularyTool {
                 selections.push({
                     words: [word],
                     text: word,
-                    translation: translation,
+                    translation: translation.replace(/[\p{P}]/gu, '').trim(),
                     sentence: sentence,
                     type: 'individual',
                     isGroup: false,
@@ -1293,7 +1293,7 @@ export class VocabularyTool {
             selectionDiv.innerHTML = `
             <div class="flex items-center justify-between">
                 <div class="flex-1">
-                    <div class="font-semibold text-gray-800 german-word">${selection.words.join(' ').replace(/[\p{P}]/gu, '').replace(/[.,!?;]/g, '')}</div>
+                    <div class="font-semibold text-gray-800 german-word">${selection.words.join(' ').replace(/[\p{P}]/gu, '')}</div>
                     <div class="text-sm text-gray-600">${selection.translation}</div>
                     ${sentenceDisplay}
                     <div class="text-xs text-gray-500 mt-1">
@@ -1547,9 +1547,9 @@ export class VocabularyTool {
             const sentence = sentenceElement ? sentenceElement.textContent.replace('📝 ', '') : '';
 
             selections.push({
-                german: germanText,
+                german: germanText.replace(/[\p{P}]/gu, '').trim(),
                 english: englishText,
-                sentence: sentence
+                sentence: sentence.replace(/[\p{P}]/gu, '').trim()
             });
         });
 

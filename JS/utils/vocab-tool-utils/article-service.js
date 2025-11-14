@@ -37,8 +37,10 @@ export class ArticleService {
 
     // Main method to get article for a word
     async getArticle(word) {
+        const cleanWord = word.replace(/[\p{P}]/gu, '').trim()
+        
         try {
-            const response = await fetch(`https://german-genders.vercel.app/api/search/${encodeURIComponent(word.toLowerCase())}`);
+            const response = await fetch(`https://german-genders.vercel.app/api/search/${encodeURIComponent(cleanWord.toLowerCase())}`);
             const data = await response.json();
 
             console.log('Article API response:', data);
@@ -51,7 +53,7 @@ export class ArticleService {
                     article: article,
                     baseWord: data.title,
                     type: 'single',
-                    originalWord: word
+                    originalWord: cleanWord
                 };
             } else if (data.responseType === 901) {
                 // Multiple articles case (homonym)
@@ -65,7 +67,7 @@ export class ArticleService {
                     articles: articles,
                     baseWord: data.title,
                     type: 'multiple',
-                    originalWord: word
+                    originalWord: cleanWord
                 };
             } else {
                 return {
