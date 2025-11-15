@@ -921,7 +921,6 @@ export class VocabularyTool {
                 playBtn.textContent = 'Resume';
             } else {
                 this.speechSynth.resume();
-                this.startWordHighlighting();
                 this.isPaused = false;
                 playBtn.textContent = 'Pause';
             }

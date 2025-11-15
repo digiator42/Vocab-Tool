@@ -240,6 +240,9 @@ export class SpeechService {
 
         if (this.main.isStopSpeechRequested) {
             stopSpeecBtn.innerHTML = 'Activate Speech';
+            this.main.playBtn.textContent = 'Play Audio';
+            this.main.isSpeaking = !this.main.isSpeaking;
+            this.main.speechSynth.cancel();
             if (focusModeStopBtn) focusModeStopBtn.innerText = stopSpeecBtn.innerHTML;
             this.main.showNotification("Speech Stopped");
             this.main.stopWordHighlighting();
