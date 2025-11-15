@@ -689,7 +689,7 @@ export class FlashcardsTool {
         const masteredCount = this.flashcards.filter(c => c.mastered).length;
         const percentage = this.flashcards.length ? Math.round((masteredCount / this.flashcards.length) * 100) : 0;
         document.getElementById('progress-bar').style.width = `${percentage}%`;
-        document.getElementById('progress-list-name').textContent = localStorage.getItem('originalListName');
+        document.getElementById('progress-list-name').textContent = this.decodeOutput(localStorage.getItem('originalListName'));
         document.getElementById('progress-percentage').textContent = `${percentage}%`;
     }
 
@@ -753,10 +753,10 @@ export class FlashcardsTool {
         const englishTranslationInput = document.getElementById('edit-english-translation');
         const cardIndexInput = document.getElementById('edit-card-index');
 
-        if (germanWordInput) germanWordInput.value = card.german;
-        if (germanSentenceInput) germanSentenceInput.value = card.sentence || '';
-        if (englishWordInput) englishWordInput.value = card.english;
-        if (englishTranslationInput) englishTranslationInput.value = card.sentenceTranslation || '';
+        if (germanWordInput) germanWordInput.value = this.decodeOutput(card.german);
+        if (germanSentenceInput) germanSentenceInput.value = this.decodeOutput(card.sentence) || '';
+        if (englishWordInput) englishWordInput.value = this.decodeOutput(card.english);
+        if (englishTranslationInput) englishTranslationInput.value = this.decodeOutput(card.sentenceTranslation) || '';
         if (cardIndexInput) cardIndexInput.value = cardIndex;
 
         modal.classList.remove('hidden');
