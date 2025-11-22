@@ -47,6 +47,7 @@ export class VocabularyTool {
         this.groupTooltips = new Map();
         this.isFocusMode = false;
         this.originalState = null;
+        this.hideFocusPanel = false;
 
         this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -663,6 +664,9 @@ export class VocabularyTool {
             console.log('✨ Adding highlight');
             this.highlightAndTranslateIndividualWord(span);
             // Calling vocab tool on highlighting only
+            if (this.isFocusMode && this.hideFocusPanel) {
+                return;
+            }
             this.vocabPanel.showVocabInfoForWord(word, span);
         }
     }
@@ -1797,7 +1801,9 @@ export class VocabularyTool {
         });
 
         document.addEventListener('touchend', (e) => {
+            console.log('------->>> >>> ');
             if (touchCount === 3 && Date.now() - lastTouchTime < 1000) {
+                console.log('------->>> >>> ');
                 this.toggleFocusMode();
             }
             touchCount = 0;
@@ -1875,6 +1881,7 @@ export class VocabularyTool {
         const originalRateSpan = document.getElementById('rateSliderSpan');
         const originalOfflineCheckbox = document.getElementById('offline-speak');
         const originalAddToFlashBtn = document.getElementById('addToFlashBtn');
+        const originalLangSelector = document.getElementById('langSelector');
 
         const focusControls = document.createElement('div');
         focusControls.id = 'focus-controls';
@@ -1896,6 +1903,14 @@ export class VocabularyTool {
         <button id="focus-add-flash-btn" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">
             ${originalAddToFlashBtn ? originalAddToFlashBtn.innerText : 'Add Flash'}
         </button>
+
+        <button id="focus-panel-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
+            Hide Panel
+        </button>
+
+        <select id="focus-lang-selector" class="px-3 py-2 bg-gray-100 rounded-lg text-sm">
+            ${Array.from(originalLangSelector.options).map(option => `<option value="${option.value}" ${option.selected ? 'selected' : ''}>${option.text}</option>`).join('')}
+        </select>
         
         <div class="flex items-center gap-2">
             <span id="focus-rate-span" class="text-sm text-gray-700">${originalRateSpan.textContent}</span>
@@ -1906,7 +1921,7 @@ export class VocabularyTool {
             <input id="focus-offline-checkbox" type="checkbox" ${originalOfflineCheckbox.checked ? 'checked' : ''} class="rounded">
             <label for="focus-offline-checkbox" class="text-sm font-medium text-gray-700">Offline</label>
         </div>
-        
+
         <button id="focus-exit-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
             ❌ Exit
         </button>
@@ -1920,6 +1935,17 @@ export class VocabularyTool {
         const focusRateSpan = focusControls.querySelector('#focus-rate-span');
         const focusOfflineCheckbox = focusControls.querySelector('#focus-offline-checkbox');
         const focusExitBtn = focusControls.querySelector('#focus-exit-btn');
+        const focusLangSelector = focusControls.querySelector('#focus-lang-selector');
+        const focusPanelBtn = focusControls.querySelector('#focus-panel-btn'); 
+
+        focusPanelBtn.onclick = () => {
+            this.hideFocusPanel = !this.hideFocusPanel;
+            if (this.hideFocusPanel) {
+                focusPanelBtn.textContent = 'Show Panel';
+            } else {
+                focusPanelBtn.textContent = 'Hide Panel';
+            }
+        }
 
         focusGoBtn.onclick = () => originalProcessBtn.click();
         focusPlayBtn.onclick = () => originalPlayBtn.click();
@@ -1933,6 +1959,11 @@ export class VocabularyTool {
         }
 
         focusExitBtn.onclick = () => this.exitFocusMode();
+
+        focusLangSelector.onchange = (e) => {
+            originalLangSelector.value = e.target.value;
+            this.selectedLang = e.target.value;
+        };
 
         focusRateSlider.oninput = (e) => {
             const newRate = parseFloat(e.target.value);
