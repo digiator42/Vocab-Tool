@@ -995,8 +995,8 @@ export class VocabularyTool {
         //     const selection = allSelections[0];
         //     this.showAddToFlashModal(selection.text, selection.translation);
         // } else {
-            // Multiple selections - show batch modal (now async)
-            await this.showBatchAddToFlashModal(allSelections);
+        // Multiple selections - show batch modal (now async)
+        await this.showBatchAddToFlashModal(allSelections);
         // }
 
         // Reset button state
@@ -1628,6 +1628,9 @@ export class VocabularyTool {
         const dativeContractions = new Set(['im', 'am', 'beim', 'vom', 'zum', 'zur']);
         const accusativeContractions = new Set(['ins', 'ans']);
 
+        // Pronouns that can be objects (excluding 'sich' to avoid false positives with reflexive verbs/infinitive clauses)
+        const validPronouns = new Set(['mich', 'dich', 'ihn', 'sie', 'es', 'uns', 'euch', 'ihnen', 'mir', 'dir', 'ihm', 'ihr', 'Sie']);
+
         // Helper to check if a word is an article
         const isArticle = (word) => /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)$/i.test(word);
 
@@ -1673,7 +1676,7 @@ export class VocabularyTool {
 
                 // Extend highlight to include article, adjectives, and noun
                 let j = i + 1;
-                let hasNoun = false;
+                let validObjectFound = false;
 
                 while (j < spans.length) {
                     const currentSpan = spans[j];
@@ -1685,31 +1688,35 @@ export class VocabularyTool {
 
                     highlightLength++;
 
-                    const hasSentenceEnd = /[.!?;:]$/.test(originalWord);
+                    // Check for sentence end OR comma (often ends a phrase)
+                    const hasPunctuationEnd = /[.,!?;:]$/.test(originalWord);
 
-                    // Check if it's a noun (Capitalized)
-                    if (/^[A-ZÄÖÜ]/.test(currentWord) && !isArticle(currentWord)) {
-                        hasNoun = true;
+                    // Check if it's a noun (Capitalized) or a valid pronoun
+                    // Exclude articles from "Capitalized" check (e.g. "Die" at start of sentence, though here we are mid-sentence)
+                    if ((/^[A-ZÄÖÜ]/.test(currentWord) && !isArticle(currentWord)) || validPronouns.has(currentWord)) {
+                        validObjectFound = true;
                         break;
                     }
 
-                    if (hasSentenceEnd) break;
+                    if (hasPunctuationEnd) break;
                     j++;
                 }
 
-                // Apply highlights
-                const colorClass = caseType === 'dative' ? 'text-red-600' : 'text-blue-600';
+                // Only apply highlight if we found a valid object (Noun or Pronoun)
+                if (validObjectFound) {
+                    const colorClass = caseType === 'dative' ? 'text-red-600' : 'text-blue-600';
 
-                for (let k = 0; k < highlightLength; k++) {
-                    if (i + k < spans.length) {
-                        const s = spans[i + k];
-                        s.classList.add(colorClass, 'font-bold');
-                        s.title = caseType.charAt(0).toUpperCase() + caseType.slice(1) + ' Case';
+                    for (let k = 0; k < highlightLength; k++) {
+                        if (i + k < spans.length) {
+                            const s = spans[i + k];
+                            s.classList.add(colorClass, 'font-bold');
+                            // s.title = caseType.charAt(0).toUpperCase() + caseType.slice(1) + ' Case';
+                        }
                     }
-                }
 
-                // Skip the processed words
-                i += highlightLength - 1;
+                    // Skip the processed words
+                    i += highlightLength - 1;
+                }
             }
         }
 
