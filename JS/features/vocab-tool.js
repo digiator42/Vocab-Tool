@@ -19,6 +19,7 @@ export class VocabularyTool {
         this.storySelect = document.getElementById("storySelect");
         this.voiceSelect = document.getElementById("voiceSelect");
         this.vocabSection = document.getElementById("vocab-tool");
+        this.analyzeCasesBtn = document.getElementById("analyzeCasesBtn");
 
         this.OriginalWord = null;
         this.currentVocabData = null;
@@ -929,10 +930,15 @@ export class VocabularyTool {
             }
         });
 
+        this.analyzeCasesBtn.addEventListener("click", () => {
+            this.analyzeCases();
+        });
+
         const rateSlider = document.getElementById('rateSlider');
         const rateSliderSpan = document.getElementById('rateSliderSpan');
 
         rateSlider.addEventListener('change', (e) => {
+
             this.rate = e.target.value;
             rateSliderSpan.innerHTML = this.rate;
             console.log('rate value - ', this.rate);
@@ -984,14 +990,14 @@ export class VocabularyTool {
         // Small delay for better mobile UX
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        if (allSelections.length === 1) {
-            // Single selection - show normal modal
-            const selection = allSelections[0];
-            this.showAddToFlashModal(selection.text, selection.translation);
-        } else {
+        // if (allSelections.length === 1) {
+        //     // Single selection - show normal modal
+        //     const selection = allSelections[0];
+        //     this.showAddToFlashModal(selection.text, selection.translation);
+        // } else {
             // Multiple selections - show batch modal (now async)
             await this.showBatchAddToFlashModal(allSelections);
-        }
+        // }
 
         // Reset button state
         addToFlashBtn.disabled = false;
@@ -1579,7 +1585,6 @@ export class VocabularyTool {
                 skippedCount++;
             }
         });
-
         localStorage.setItem('customGermanLists', JSON.stringify(customLists));
         // Refresh flashcard lists
         this.FCL.refreshFlashcardLists();
@@ -1597,63 +1602,118 @@ export class VocabularyTool {
         }
     }
 
-    showAddToFlashModal(word, translation) {
-        const modal = document.getElementById('add-to-flash-modal');
-        if (!modal) {
-            this.createModal();
-        }
+    setupAddToFlashcardModal() {
+        this.createAddToFlashcardButton();
+        this.createModal();
+        this.createBatchAddModal();
+    }
 
-        modal.classList.remove('hidden');
-        document.getElementById('selected-word-preview').textContent = `"${word}" → "${translation}"`;
+    analyzeCases() {
+        console.log("🔍 Analyzing cases...");
+        this.statusEl.innerHTML = "<span class='text-red-600'>Red (Dative), </span><span class='text-blue-600'>Blue (Accusative)</span>";
+        const spans = Array.from(this.output.querySelectorAll('span'));
 
-        // Mobile-specific modal positioning
-        if (this.isTouchDevice) {
-            modal.style.position = 'fixed';
-            modal.style.top = '50%';
-            modal.style.left = '50%';
-            modal.style.transform = 'translate(-50%, -50%)';
-            modal.style.width = '90%';
-            modal.style.maxWidth = '400px';
-        }
-
-        const listsDiv = document.getElementById('flashcard-lists');
-        const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-        listsDiv.innerHTML = ''; // Clear previous content
-
-        const select = document.createElement('select');
-        select.className = "px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm w-full";
-        select.style.minHeight = '44px'; // Mobile touch target
-
-        // Optional default option
-        const defaultOption = document.createElement('option');
-        defaultOption.textContent = 'Choose a list';
-        defaultOption.disabled = true;
-        defaultOption.selected = true;
-        select.appendChild(defaultOption);
-
-        // Add each list as an option
-        Object.keys(customLists).forEach(listName => {
-            const option = document.createElement('option');
-            option.value = listName;
-            option.textContent = listName;
-            select.appendChild(option);
+        // Clear previous case highlights
+        spans.forEach(span => {
+            span.classList.remove('text-red-600', 'text-blue-600', 'font-bold');
+            span.title = '';
         });
 
-        // Handle selection
-        select.onchange = () => {
-            const selectedList = select.value;
-            this.addWordToList(selectedList, word, translation);
+        // Define prepositions
+        const dativePreps = new Set(['aus', 'außer', 'bei', 'mit', 'nach', 'seit', 'von', 'zu', 'gegenüber']);
+        const accusativePreps = new Set(['bis', 'durch', 'für', 'gegen', 'ohne', 'um', 'entlang']);
+        const twoWayPreps = new Set(['an', 'auf', 'hinter', 'in', 'neben', 'über', 'unter', 'vor', 'zwischen']);
+
+        // Contractions
+        const dativeContractions = new Set(['im', 'am', 'beim', 'vom', 'zum', 'zur']);
+        const accusativeContractions = new Set(['ins', 'ans']);
+
+        // Helper to check if a word is an article
+        const isArticle = (word) => /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)$/i.test(word);
+
+        // Helper to check if a word is a preposition
+        const isPreposition = (word) => {
+            const lower = word.toLowerCase();
+            return dativePreps.has(lower) || accusativePreps.has(lower) || twoWayPreps.has(lower) ||
+                dativeContractions.has(lower) || accusativeContractions.has(lower);
         };
 
-        listsDiv.appendChild(select);
+        for (let i = 0; i < spans.length; i++) {
+            const span = spans[i];
+            const word = span.textContent.trim().replace(/[.,!?;:]/g, ''); // Remove punctuation
+            const lowerWord = word.toLowerCase();
 
-        document.getElementById('add-flashcard-status').textContent = '';
-        document.getElementById('new-list-name').value = '';
+            let caseType = null;
+            let highlightLength = 0;
 
-        // Mobile: focus on new list input
-        setTimeout(() => {
-            document.getElementById('new-list-name').focus();
-        }, 300);
+            if (dativePreps.has(lowerWord) || dativeContractions.has(lowerWord)) {
+                caseType = 'dative';
+            } else if (accusativePreps.has(lowerWord) || accusativeContractions.has(lowerWord)) {
+                caseType = 'accusative';
+            } else if (twoWayPreps.has(lowerWord)) {
+                // Check next word for article to determine case
+                if (i + 1 < spans.length) {
+                    const nextSpan = spans[i + 1];
+                    const nextWord = nextSpan.textContent.trim().replace(/[.,!?;:]/g, '').toLowerCase();
+
+                    if (isArticle(nextWord)) {
+                        if (['dem', 'der'].includes(nextWord)) {
+                            caseType = 'dative';
+                        } else if (['die', 'das'].includes(nextWord)) {
+                            caseType = 'accusative';
+                        } else if (nextWord === 'den') {
+                            caseType = 'accusative'; // Heuristic
+                        }
+                    }
+                }
+            }
+
+            if (caseType) {
+                highlightLength = 1; // Include preposition
+
+                // Extend highlight to include article, adjectives, and noun
+                let j = i + 1;
+                let hasNoun = false;
+
+                while (j < spans.length) {
+                    const currentSpan = spans[j];
+                    const currentWord = currentSpan.textContent.trim().replace(/[.,!?;:]/g, '');
+                    const originalWord = currentSpan.textContent.trim();
+
+                    // Stop if we hit another preposition
+                    if (isPreposition(currentWord)) break;
+
+                    highlightLength++;
+
+                    const hasSentenceEnd = /[.!?;:]$/.test(originalWord);
+
+                    // Check if it's a noun (Capitalized)
+                    if (/^[A-ZÄÖÜ]/.test(currentWord) && !isArticle(currentWord)) {
+                        hasNoun = true;
+                        break;
+                    }
+
+                    if (hasSentenceEnd) break;
+                    j++;
+                }
+
+                // Apply highlights
+                const colorClass = caseType === 'dative' ? 'text-red-600' : 'text-blue-600';
+
+                for (let k = 0; k < highlightLength; k++) {
+                    if (i + k < spans.length) {
+                        const s = spans[i + k];
+                        s.classList.add(colorClass, 'font-bold');
+                        s.title = caseType.charAt(0).toUpperCase() + caseType.slice(1) + ' Case';
+                    }
+                }
+
+                // Skip the processed words
+                i += highlightLength - 1;
+            }
+        }
+
+        this.showNotification("Cases analyzed! Red = Dative, Blue = Accusative");
     }
 
     populateBatchListsDropdown() {
@@ -1667,12 +1727,6 @@ export class VocabularyTool {
             option.textContent = listName;
             select.appendChild(option);
         });
-    }
-
-    setupAddToFlashcardModal() {
-        this.createAddToFlashcardButton();
-        this.createModal();
-        this.createBatchAddModal();
     }
 
     // Focus Mode functionality
