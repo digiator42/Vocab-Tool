@@ -78,7 +78,7 @@ export class VocabularyTool {
     showNotification(message, time = 3500) {
         if (document.getElementById('focus-controls')) return;
         const notif = document.createElement('div');
-        notif.innerHTML = message;
+        notif.innerHTML = this.decodeOutput(message);
         notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), time);
@@ -86,6 +86,25 @@ export class VocabularyTool {
 
     decodeSanitizedInput(input) {
         return input.replace(/(&amp;)?#x2F;/g, ',');
+    }
+
+    decodeOutput(output) {
+        // Handle double-encoded entities (like &amp;#x2F;)
+        let decoded = output.replace(/&amp;(#x2F;)/g, '&$1');
+
+        // Now decode normally
+        const substitutions = {
+            '&amp;': '&',
+            '&lt;': '<',
+            '&gt;': '>',
+            '&quot;': '"',
+            '&#x27;': "'",
+            '&#x2F;': '/'
+        };
+
+        decoded = decoded.replace(/&(amp|lt|gt|quot|#x27|#x2F);/g, (match) => substitutions[match] || match);
+
+        return decoded;
     }
 
     setupSelectionSystem() {

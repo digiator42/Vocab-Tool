@@ -75,7 +75,7 @@ export class FlashcardListService {
             const list = customLists[listName];
             const button = document.createElement('button');
             button.className = 'px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium';
-            button.textContent = `${listName} (${list.length})`;
+            button.textContent = `${this.vocabTool.decodeOutput(listName)} (${list.length})`;
             button.dataset.listName = listName;
 
             listsContainer.appendChild(button);
@@ -128,7 +128,7 @@ export class FlashcardListService {
 
         if (!list) return;
 
-        selectedListName.textContent = listName;
+        selectedListName.textContent = this.vocabTool.decodeOutput(listName);
         selectedListCount.textContent = `${list.length} flashcards`;
         selectedListInfo.classList.remove('hidden');
 
