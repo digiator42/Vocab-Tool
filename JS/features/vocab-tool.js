@@ -73,6 +73,9 @@ export class VocabularyTool {
         if (!this.isTouchDevice) {
             this.vocabSection.style.marginRight = 'calc(50% - 425px)';
         }
+        if (this.isTouchDevice) {
+            document.querySelector('.fc-hint').textContent = '💡 Touch with 3 fingers for focus mode';
+        }
         this.processBtn.click();
     }
 
@@ -1885,47 +1888,54 @@ export class VocabularyTool {
 
         const focusControls = document.createElement('div');
         focusControls.id = 'focus-controls';
-        focusControls.className = 'fixed top-10 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg flex gap-3 items-center min-w-[320px] justify-center z-50';
-
+        focusControls.className = `
+  fixed top-10 left-1/2 transform -translate-x-1/2 
+  bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg 
+  flex flex-wrap gap-3 justify-center min-w-[320px] z-50
+`;
         focusControls.innerHTML = `
-        <button id="focus-go-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
-            ${originalProcessBtn.innerText}
-        </button>
-        
-        <button id="focus-play-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors">
-            ${originalPlayBtn.innerText}
-        </button>
-        
-        <button id="focus-stop-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors">
-            Stop Speech
-        </button>
-        
-        <button id="focus-add-flash-btn" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">
-            ${originalAddToFlashBtn ? originalAddToFlashBtn.innerText : 'Add Flash'}
-        </button>
+            <div class="flex flex-wrap gap-3 justify-center">
+                <button id="focus-go-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
+                ${originalProcessBtn.innerText}
+                </button>
+                <button id="focus-play-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors">
+                ${originalPlayBtn.innerText}
+                </button>
+                <button id="focus-stop-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors">
+                Stop Speech
+                </button>
+            </div>
 
-        <button id="focus-panel-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
-            Hide Panel
-        </button>
+            <div class="flex flex-wrap gap-3 justify-center mt-2">
+                <button id="focus-add-flash-btn" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">
+                ${originalAddToFlashBtn ? originalAddToFlashBtn.innerText : 'Add Flash'}
+                </button>
+                <button id="focus-panel-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
+                Hide Panel
+                </button>
+                <button id="focus-exit-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
+                ❌ Exit
+                </button>
+            </div>
 
-        <select id="focus-lang-selector" class="px-3 py-2 bg-gray-100 rounded-lg text-sm">
-            ${Array.from(originalLangSelector.options).map(option => `<option value="${option.value}" ${option.selected ? 'selected' : ''}>${option.text}</option>`).join('')}
-        </select>
-        
-        <div class="flex items-center gap-2">
-            <span id="focus-rate-span" class="text-sm text-gray-700">${originalRateSpan.textContent}</span>
-            <input id="focus-rate-slider" type="range" min="${originalRateSlider.min}" max="${originalRateSlider.max}" step="${originalRateSlider.step}" value="${originalRateSlider.value}" class="w-20">
-        </div>
-        
-        <div class="flex items-center gap-2">
-            <input id="focus-offline-checkbox" type="checkbox" ${originalOfflineCheckbox.checked ? 'checked' : ''} class="rounded">
-            <label for="focus-offline-checkbox" class="text-sm font-medium text-gray-700">Offline</label>
-        </div>
+            <!-- Keep your select, sliders, and checkbox below -->
+            <select id="focus-lang-selector" class="px-3 py-2 bg-gray-100 rounded-lg text-sm">
+                ${Array.from(originalLangSelector.options).map(option =>
+            `<option value="${option.value}" ${option.selected ? 'selected' : ''}>${option.text}</option>`
+        ).join('')}
+            </select>
+            
+            <div class="flex items-center gap-2 mt-2">
+                <span id="focus-rate-span" class="text-sm text-gray-700">${originalRateSpan.textContent}</span>
+                <input id="focus-rate-slider" type="range" min="${originalRateSlider.min}" max="${originalRateSlider.max}" step="${originalRateSlider.step}" value="${originalRateSlider.value}" class="w-20">
+            </div>
+            
+            <div class="flex items-center gap-2 mt-2">
+                <input id="focus-offline-checkbox" type="checkbox" ${originalOfflineCheckbox.checked ? 'checked' : ''} class="rounded">
+                <label for="focus-offline-checkbox" class="text-sm font-medium text-gray-700">Offline</label>
+            </div>
+            `;
 
-        <button id="focus-exit-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
-            ❌ Exit
-        </button>
-    `;
 
         const focusGoBtn = focusControls.querySelector('#focus-go-btn');
         const focusPlayBtn = focusControls.querySelector('#focus-play-btn');
@@ -1936,7 +1946,7 @@ export class VocabularyTool {
         const focusOfflineCheckbox = focusControls.querySelector('#focus-offline-checkbox');
         const focusExitBtn = focusControls.querySelector('#focus-exit-btn');
         const focusLangSelector = focusControls.querySelector('#focus-lang-selector');
-        const focusPanelBtn = focusControls.querySelector('#focus-panel-btn'); 
+        const focusPanelBtn = focusControls.querySelector('#focus-panel-btn');
 
         focusPanelBtn.onclick = () => {
             this.hideFocusPanel = !this.hideFocusPanel;
@@ -2049,7 +2059,7 @@ export class VocabularyTool {
     }
 
     applyFocusModeStyles() {
-        this.output.className = 'focus-mode-output absolute top-28 mt-12 mx-10 left-4 right-4 z-30 bg-inherit text-inherit font-inherit p-8 text-[1.5rem] leading-loose min-h-screen';
+        this.output.className = `focus-mode-output absolute top-28 ${this.isTouchDevice ? 'mt-32' : 'mt-16'} mx-10 left-4 right-4 z-30 bg-inherit text-inherit font-inherit p-8 text-[1.5rem] leading-loose min-h-screen`;
         this.output.style.cssText = '';
 
         if (this.selectionTooltip) {
