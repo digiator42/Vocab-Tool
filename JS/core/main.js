@@ -227,4 +227,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initial check
     checkFlashcardToolActive();
+
+    document.getElementById('formatTxtBtn').addEventListener('click', function () {
+        const text = document.getElementById('input').value;
+        const formattedText = formatStoryText(text);
+        document.getElementById('input').value = formattedText;
+    });
 });
