@@ -134,6 +134,21 @@ body.dark-mode {
     border: 1px solid #928f8f !important;
 }
 
+.dark-mode .passive-learning-modal {
+    background-color: #1f2937 !important;
+    color: white !important;
+    border: 1px solid #444 !important;
+}
+
+.dark-mode .passive-learning-modal h2,
+.dark-mode .passive-learning-modal .text-sm {
+    color: rgb(207, 207, 207) !important;
+}
+
+.dark-mode #pl-current-sentence {
+    background-color: #d6d7d8 !important;
+}
+
 .dark-mode label,
 .dark-mode nav>a,
 .dark-mode p,

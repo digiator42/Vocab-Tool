@@ -234,12 +234,11 @@ export class FlashcardListService {
             let content = this.vocabTool.decodeSanitizedInput(card.german);
             if (card.sentence) {
                 const sentence = this.vocabTool.decodeSanitizedInput(card.sentence);
-                // Ensure proper punctuation between word and sentence if needed
-                if (!content.endsWith('.') && !content.endsWith('!') && !content.endsWith('?')) {
-                    content += '.';
-                }
-                content += ' ' + sentence;
+                // Remove trailing punctuation from the word to avoid splitting
+                content = content.replace(/[.!?]+$/, '');
+                content += ', ' + sentence;
             }
+            console.log(content);
             return content;
         }).join('. ');
 

@@ -72,7 +72,7 @@ export class PassiveLearningService {
         this.modal = document.createElement('div');
         this.modal.className = 'fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50';
         this.modal.innerHTML = `
-            <div class="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 shadow-2xl">
+            <div class="passive-learning-modal bg-white rounded-xl p-6 max-w-2xl w-full mx-4 shadow-2xl">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-800">🎧 Passive Learning</h2>
                     <button id="pl-close-btn" class="text-gray-500 hover:text-gray-700">
