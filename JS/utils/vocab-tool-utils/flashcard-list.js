@@ -32,6 +32,9 @@ export class FlashcardListService {
                 <button id="load-flashcards-btn" class="mt-2 w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
                     🎯 Load for Active Recall
                 </button>
+                <button id="passive-learning-list-btn" class="mt-2 w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors">
+                    🎧 Start Passive Learning
+                </button>
             </div>
             <div id="no-lists-message" class="hidden p-4 text-center text-gray-500 bg-gray-50 rounded-lg">
                 No flashcard lists found. Create some lists first!
@@ -114,6 +117,14 @@ export class FlashcardListService {
             loadFlashcardsBtn.addEventListener('click', () => {
                 this.isFlashCardLoadRequested = true;
                 this.loadFlashcardsIntoActiveRecall();
+            });
+        }
+
+        // Handle passive learning button
+        const passiveLearningBtn = document.getElementById('passive-learning-list-btn');
+        if (passiveLearningBtn) {
+            passiveLearningBtn.addEventListener('click', () => {
+                this.startPassiveLearningForList();
             });
         }
     }
@@ -202,6 +213,37 @@ export class FlashcardListService {
                 activeRecallBtn.click();
             }
         }, 100);
+    }
+
+    startPassiveLearningForList() {
+        if (!this.selectedFlashcardList) {
+            alert('Please select a flashcard list first!');
+            return;
+        }
+
+        const customLists = this.getFlashcardLists();
+        const list = customLists[this.selectedFlashcardList];
+
+        if (!list || list.length === 0) {
+            alert('Selected list is empty!');
+            return;
+        }
+
+        // Combine German words and sentences
+        const sentences = list.map(card => {
+            let content = this.vocabTool.decodeSanitizedInput(card.german);
+            if (card.sentence) {
+                const sentence = this.vocabTool.decodeSanitizedInput(card.sentence);
+                // Ensure proper punctuation between word and sentence if needed
+                if (!content.endsWith('.') && !content.endsWith('!') && !content.endsWith('?')) {
+                    content += '.';
+                }
+                content += ' ' + sentence;
+            }
+            return content;
+        }).join('. ');
+
+        this.vocabTool.passiveLearning.startPassiveLearning(sentences);
     }
 
     // Get flashcard lists from localStorage

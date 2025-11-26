@@ -4,6 +4,7 @@ import { VocabPanelManager } from '../utils/vocab-tool-utils/vocab-panel.js';
 import { ActiveRecallModule } from '../utils/vocab-tool-utils/active-recall.js';
 import { ArticleService } from '../utils/vocab-tool-utils/article-service.js';
 import { FlashcardListService } from '../utils/vocab-tool-utils/flashcard-list.js';
+import { PassiveLearningService } from '../utils/vocab-tool-utils/passive-learning.js';
 
 // Vocabulary Tool Module
 export class VocabularyTool {
@@ -57,6 +58,7 @@ export class VocabularyTool {
         this.AR = new ActiveRecallModule(this);
         this.article = new ArticleService(this);
         this.FCL = new FlashcardListService(this);
+        this.passiveLearning = new PassiveLearningService(this);
         this.init();
     }
 
@@ -140,6 +142,18 @@ export class VocabularyTool {
             <option value="ar">AR</option>
         `;
         this.stopSpeechBtn.parentNode.insertBefore(langSelector, this.stopSpeechBtn.nextSibling);
+
+        // Add Passive Learning Button
+        const passiveBtn = document.createElement('button');
+        passiveBtn.textContent = '🎧 Passive Learning';
+        passiveBtn.className = 'px-4 py-4 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 w-1/2';
+        passiveBtn.onclick = () => {
+            const text = this.input.value;
+            this.passiveLearning.startPassiveLearning(text);
+        };
+        // this.stopSpeechBtn.parentNode.insertBefore(passiveBtn, langSelector.nextSibling);
+        const extraToolsContainer = document.getElementById('extra-tools-container');
+        extraToolsContainer.appendChild(passiveBtn);
 
         langSelector.addEventListener('change', () => {
             this.selectedLang = langSelector.value;
