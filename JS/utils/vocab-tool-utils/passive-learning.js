@@ -131,22 +131,24 @@ export class PassiveLearningService {
                     </button>
                 </div>
 
-                <div class="mb-6 text-center">
-                    <div class="text-sm text-gray-500 mb-2">Sentence <span id="pl-progress">1</span> of <span id="pl-total">0</span></div>
-                    <div id="pl-current-sentence" class="text-xl font-medium text-gray-800 min-h-[3em] flex items-center justify-center p-4 bg-gray-50 rounded-lg mb-2">
-                        Ready to start...
+                <div class="mb-6 text-center relative">
+                    <div class="text-sm text-gray-500">
+                        Sentence <span id="pl-progress">1</span> of <span id="pl-total">0</span>
                     </div>
-                    <div id="pl-translation" class="text-md text-gray-600 italic min-h-[1.5em]"></div>
+
+                    <div id="pl-current-sentence"
+                        class="text-xl font-medium text-gray-800 min-h-[3em] flex items-center justify-center p-4 bg-gray-50 rounded-lg mt-2 relative">
+                        <span id="pl-sentence-text">Ready to start...</span>
+                        <!-- Tooltip lives inside here -->
+                        <div id="pl-translation"
+                            class="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-300 text-gray-800 text-xs italic px-2 py-1 border border-gray-300 rounded opacity-0 transition-opacity duration-200">
+                            Translation goes here
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex flex-col items-center gap-4">
                     <div id="pl-status" class="text-sm font-medium text-blue-600 h-6"></div>
-                    
-                    <div class="w-full max-w-md min-h-[3rem] flex items-center justify-center">
-                        <div id="pl-transcript-display" class="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-center text-lg text-gray-700 min-h-[3rem] flex items-center justify-center transition-all">
-                            <span class="text-gray-400 italic">Spoken text will appear here...</span>
-                        </div>
-                    </div>
 
                     <div class="flex gap-4">
                         <button id="pl-mic-btn" class="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
@@ -157,6 +159,12 @@ export class PassiveLearningService {
                         <button id="pl-skip-btn" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                             Skip
                         </button>
+                    </div>
+
+                    <div class="w-full max-w-md min-h-[3rem] flex items-center justify-center">
+                        <div id="pl-transcript-display" class="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-center text-lg text-gray-700 min-h-[3rem] flex items-center justify-center transition-all">
+                            <span class="text-gray-400 italic">Spoken text will appear here...</span>
+                        </div>
                     </div>
 
                     <div id="pl-feedback" class="mt-4 p-3 rounded-lg w-full text-center hidden"></div>
@@ -330,7 +338,10 @@ export class PassiveLearningService {
         document.getElementById('pl-total').textContent = this.sentences.length;
 
         if (sentence) {
-            document.getElementById('pl-current-sentence').textContent = sentence;
+            const sentenceTextEl = document.getElementById('pl-sentence-text');
+            if (sentenceTextEl) {
+                sentenceTextEl.textContent = sentence;
+            }
         }
 
         if (this.currentTranslation) {

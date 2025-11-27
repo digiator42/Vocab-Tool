@@ -967,3 +967,7 @@ span.multi-highlighted {
     word-wrap: break-word !important;
     overflow-wrap: break-word !important;
 }
+
+#pl-current-sentence:hover #pl-translation {
+    opacity: 1;
+}
