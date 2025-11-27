@@ -176,10 +176,10 @@ export class FlashcardsTool {
             Hard (10 min) [H]
         </button>
         <button class="sr-good-btn px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600" title="Shortcut: G">
-            Good (1 day) [G]
+            Good (4 days) [G]
         </button>
         <button class="sr-easy-btn px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600" title="Shortcut: E">
-            Easy (4 days) [E]
+            Easy (9 days) [E]
         </button>
     `;
 
@@ -210,7 +210,7 @@ export class FlashcardsTool {
             goodBtn.addEventListener('click', (e) => {
                 console.log('SR Good button clicked');
                 e.stopPropagation();
-                this.handleSRRating(card, 1440); // 1 day in minutes
+                this.handleSRRating(card, 5760); // 4 days in minutes
             });
         }
 
@@ -219,7 +219,7 @@ export class FlashcardsTool {
             easyBtn.addEventListener('click', (e) => {
                 console.log('SR Easy button clicked');
                 e.stopPropagation();
-                this.handleSRRating(card, 5760); // 4 days in minutes
+                this.handleSRRating(card, 12960); // 9 days in minutes
             });
         }
 
