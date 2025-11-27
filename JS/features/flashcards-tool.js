@@ -1561,7 +1561,7 @@ export class FlashcardsTool {
                     const currentCard = currentCards[idx];
 
                     if (currentCard) {
-                        this.handleSRRating(currentCard, 1440);
+                        this.handleSRRating(currentCard, 5760);
                     }
                 });
             }
@@ -1577,7 +1577,7 @@ export class FlashcardsTool {
                     const currentCard = currentCards[idx];
 
                     if (currentCard) {
-                        this.handleSRRating(currentCard, 5760);
+                        this.handleSRRating(currentCard, 12960);
                     }
                 });
             }
