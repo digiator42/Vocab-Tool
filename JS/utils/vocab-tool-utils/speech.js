@@ -9,6 +9,7 @@ export class SpeechService {
         return new Promise((resolve) => {
             console.log('Loading speech for:', text, 'in', lang, 'Full text:', isFullText);
             if (lang === null || text === '' || this.main.isStopSpeechRequested) {
+                console.log(lang, text, this.main.isStopSpeechRequested);
                 resolve();
                 return;
             }

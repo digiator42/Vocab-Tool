@@ -50,6 +50,12 @@ export class PassiveLearningService {
             return;
         }
 
+        if (this.vocabTool.isStopSpeechRequested) {
+            const stopSpeechBtn = document.getElementById("stopSpeechBtn");
+            this.vocabTool.isStopSpeechRequested = false;
+            stopSpeechBtn.innerHTML = 'Activate Speech';
+        }
+
         // Split text into sentences (basic splitting by .!?)
         this.sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
         this.sentences = this.sentences.map(s => s.trim()).filter(s => s.length > 0);
@@ -115,6 +121,7 @@ export class PassiveLearningService {
 
     async processNextSentence() {
         if (this.currentIndex >= this.sentences.length) {
+            console.log('--> ', this.currentIndex, this.sentences.length);
             this.finish();
             return;
         }
