@@ -581,7 +581,7 @@ export class FlashcardsTool {
 
                 if (this.currentPage < totalPages) {
                     this.currentPage++;
-                    this.renderFlashcards();
+                    this.renderFlashcards(this.isFiltered ? true : false);
                 }
             }
         });
@@ -597,7 +597,7 @@ export class FlashcardsTool {
                 // Normal mode pagination
                 if (this.currentPage > 1) {
                     this.currentPage--;
-                    this.renderFlashcards();
+                    this.renderFlashcards(this.isFiltered ? true : false);
                 }
             }
         });
@@ -705,10 +705,10 @@ export class FlashcardsTool {
             return 0;
         });
 
-        this.isFiltered = true;
+        this.isFiltered = results.length > 0 ? true : false;
         this.filteredFlashcards = results;
         this.currentPage = 1;
-        this.renderFlashcards();
+        this.renderFlashcards(true);
     }
 
     // Add method to get SR statistics
@@ -985,7 +985,7 @@ export class FlashcardsTool {
         console.log('=====================');
     }
 
-    renderFlashcards() {
+    renderFlashcards(isSearching) {
         const container = document.getElementById('flashcards-container');
         container.innerHTML = '';
 
@@ -1000,16 +1000,16 @@ export class FlashcardsTool {
         }
 
         if (this.singleCardMode) {
-            this.renderSingleCardMode(container, cardsToRender);
+            this.renderSingleCardMode(container, cardsToRender, isSearching);
         } else {
-            this.renderGridMode(container, cardsToRender);
+            this.renderGridMode(container, cardsToRender, isSearching);
         }
 
         feather.replace();
         this.updateProgress();
     }
 
-    renderSingleCardMode(container, cardsToRender = this.flashcards) {
+    renderSingleCardMode(container, cardsToRender = this.flashcards, isSearching) {
         console.log('renderSingleCardMode called with:', cardsToRender.length, 'cards');
 
         container.className = "flex items-center justify-center mx-auto max-w-3xl";
@@ -1124,13 +1124,13 @@ export class FlashcardsTool {
         }
 
         // Create heading display (only show if heading exists)
-        const headingDisplay = currentHeading ?
+        const headingDisplay = currentHeading || isSearching && card.listName ?
             `<div class="absolute top-4 right-4 z-30 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full shadow-lg border border-white border-opacity-30">
                 <div class="flex items-center space-x-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-folder">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <span class="text-sm font-medium">${currentHeading}</span>
+                    <span class="text-sm font-medium">${currentHeading || card.listName}</span>
                 </div>
             </div>` : '';
 
@@ -1162,7 +1162,7 @@ export class FlashcardsTool {
         this.updatePaginationControls();
     }
 
-    renderGridMode(container, cardsToRender = this.flashcards) {
+    renderGridMode(container, cardsToRender = this.flashcards, isSearching = false) {
         container.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 mx-auto max-w-5xl";
         const startIndex = (this.currentPage - 1) * this.cardsPerPage;
         const endIndex = Math.min(startIndex + this.cardsPerPage, cardsToRender.length);
@@ -1173,17 +1173,25 @@ export class FlashcardsTool {
             const actualIndex = startIndex + idx;
 
             // Add heading if it exists and is different from previous
-            if (card.heading && card.heading !== lastHeading) {
+            if (isSearching && card.listName !== lastHeading || card.heading && card.heading !== lastHeading) {
+                console.log(isSearching, card.listName, card.heading, lastHeading);
+
+                if (!card.heading && !isSearching) {
+                    return;
+                }
+
                 const headingElement = document.createElement('div');
                 headingElement.className = 'col-span-full bg-gray-200 p-3 rounded-lg border-l-4 border-blue-500 mb-2';
                 headingElement.innerHTML = `
                 <h3 class="text-lg font-semibold text-gray-800 flex items-center">
                     <i data-feather="folder" class="mr-2 w-4 h-4"></i>
-                    ${card.heading}
+                    ${ card.listName || card.heading}
                 </h3>
             `;
                 container.appendChild(headingElement);
-                lastHeading = card.heading;
+                console.log(card.listName === lastHeading);
+
+                lastHeading = card.listName || card.heading;
             }
 
             const flashcard = document.createElement('div');
@@ -1679,6 +1687,7 @@ export class FlashcardsTool {
             document.getElementById('prev-page-btn').disabled = this.currentSRCardIndex === 0;
             document.getElementById('next-page-btn').disabled = this.currentSRCardIndex >= totalPages - 1;
         } else {
+            console.log('----->> console log');
             // Determine which cards to use for pagination
             const totalCards = this.isFiltered ? this.filteredFlashcards.length : this.flashcards.length;
             const totalPages = this.singleCardMode
