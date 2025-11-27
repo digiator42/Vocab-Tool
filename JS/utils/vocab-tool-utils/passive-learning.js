@@ -11,13 +11,14 @@ export class PassiveLearningService {
         this.isPlaying = false;
         this.currentTranslation = '';
         this.transcriptBuffer = '';
+        this.successFound = false;
         this.setupRecognition();
     }
 
     setupRecognition() {
         if ('webkitSpeechRecognition' in window) {
             this.recognition = new webkitSpeechRecognition();
-            this.recognition.continuous = false;
+            this.recognition.continuous = true;
             this.recognition.interimResults = true; // Enable interim results
             this.recognition.lang = 'de-DE';
 
@@ -25,7 +26,8 @@ export class PassiveLearningService {
                 let interimTranscript = '';
                 let finalTranscript = '';
 
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                // Rebuild transcript from all results in the session
+                for (let i = 0; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript;
                     } else {
@@ -33,23 +35,24 @@ export class PassiveLearningService {
                     }
                 }
 
+                this.transcriptBuffer = finalTranscript;
+                const fullText = finalTranscript + interimTranscript;
+
                 const displayEl = document.getElementById('pl-transcript-display');
                 if (displayEl) {
-                    if (finalTranscript) {
-                        displayEl.textContent = finalTranscript;
-                        displayEl.classList.remove('text-gray-400', 'italic');
+                    displayEl.textContent = fullText;
+                    displayEl.classList.remove('text-gray-400', 'italic');
+                    if (finalTranscript && !interimTranscript) {
                         displayEl.classList.add('text-gray-800');
-                        this.validateInput(finalTranscript);
-                    } else if (interimTranscript) {
-                        displayEl.textContent = interimTranscript;
-                        displayEl.classList.remove('text-gray-400', 'italic');
-                        displayEl.classList.add('text-gray-500'); // Visual cue for interim
+                        displayEl.classList.remove('text-gray-500');
+                    } else {
+                        displayEl.classList.add('text-gray-500');
+                        displayEl.classList.remove('text-gray-800');
                     }
                 }
 
-                if (finalTranscript) {
-                    this.transcriptBuffer = finalTranscript;
-                }
+                // Check for success immediately, but don't fail yet
+                this.checkInput(fullText, false);
             };
 
             this.recognition.onerror = (event) => {
@@ -60,7 +63,7 @@ export class PassiveLearningService {
                 // Or if it's just a timeout.
                 if (event.error === 'no-speech' && this.transcriptBuffer) {
                     console.log("Recovering from no-speech with buffer:", this.transcriptBuffer);
-                    this.validateInput(this.transcriptBuffer);
+                    this.checkInput(this.transcriptBuffer, true);
                     return;
                 }
 
@@ -81,8 +84,10 @@ export class PassiveLearningService {
                 this.isListening = false;
                 this.updateUI();
 
-                // If we have a buffer and stopped, maybe validate?
-                // But usually onresult handles final.
+                // If we haven't found success yet, validate what we have as final
+                if (!this.successFound && this.transcriptBuffer) {
+                    this.checkInput(this.transcriptBuffer, true);
+                }
             };
         } else {
             console.warn('Speech recognition not supported');
@@ -242,6 +247,7 @@ export class PassiveLearningService {
         }
 
         this.transcriptBuffer = '';
+        this.successFound = false;
         const displayEl = document.getElementById('pl-transcript-display');
         if (displayEl) {
             displayEl.innerHTML = '<span class="text-gray-400 italic">Listening...</span>';
@@ -253,7 +259,7 @@ export class PassiveLearningService {
         this.updateUI();
     }
 
-    validateInput(transcript) {
+    checkInput(transcript, isFinalCheck) {
         if (!transcript) return;
 
         const target = this.sentences[this.currentIndex];
@@ -272,6 +278,9 @@ export class PassiveLearningService {
         feedbackEl.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
 
         if (isCorrect) {
+            this.successFound = true;
+            this.recognition.stop(); // Stop listening
+
             feedbackEl.textContent = `Correct! You said: "${transcript}"`;
             feedbackEl.classList.add('bg-green-100', 'text-green-800');
             this.updateStatus('Great job!', 'text-green-600');
@@ -279,7 +288,8 @@ export class PassiveLearningService {
             setTimeout(() => {
                 this.nextSentence();
             }, 1500);
-        } else {
+        } else if (isFinalCheck) {
+            // Only show error if this is a final check (user stopped or timeout)
             feedbackEl.innerHTML = `
                 <div>Not quite. You said: "${transcript}"</div>
                 <div class="text-sm mt-1">Target: "${target}"</div>
@@ -287,6 +297,7 @@ export class PassiveLearningService {
             feedbackEl.classList.add('bg-red-100', 'text-red-800');
             this.updateStatus('Try again', 'text-red-600');
         }
+        // If not correct and not final check, do nothing (keep listening)
     }
 
     levenshteinDistance(a, b) {
