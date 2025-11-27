@@ -1299,11 +1299,11 @@ export class FlashcardsTool {
                                 break;
                             case 'g': // Good
                                 console.log('Keyboard shortcut: Good');
-                                this.handleSRRating(currentCard, 1440);
+                                this.handleSRRating(currentCard, 5760);
                                 break;
                             case 'e': // Easy
                                 console.log('Keyboard shortcut: Easy');
-                                this.handleSRRating(currentCard, 5760);
+                                this.handleSRRating(currentCard, 12960);
                                 break;
                         }
                     }
