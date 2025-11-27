@@ -9,6 +9,8 @@ export class PassiveLearningService {
         this.playCount = 0;
         this.maxPlays = 3;
         this.isPlaying = false;
+        this.currentTranslation = '';
+        this.transcriptBuffer = '';
         this.setupRecognition();
     }
 
@@ -16,21 +18,61 @@ export class PassiveLearningService {
         if ('webkitSpeechRecognition' in window) {
             this.recognition = new webkitSpeechRecognition();
             this.recognition.continuous = false;
-            this.recognition.interimResults = false;
+            this.recognition.interimResults = true; // Enable interim results
             this.recognition.lang = 'de-DE';
 
             this.recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                this.validateInput(transcript);
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                const displayEl = document.getElementById('pl-transcript-display');
+                if (displayEl) {
+                    if (finalTranscript) {
+                        displayEl.textContent = finalTranscript;
+                        displayEl.classList.remove('text-gray-400', 'italic');
+                        displayEl.classList.add('text-gray-800');
+                        this.validateInput(finalTranscript);
+                    } else if (interimTranscript) {
+                        displayEl.textContent = interimTranscript;
+                        displayEl.classList.remove('text-gray-400', 'italic');
+                        displayEl.classList.add('text-gray-500'); // Visual cue for interim
+                    }
+                }
+
+                if (finalTranscript) {
+                    this.transcriptBuffer = finalTranscript;
+                }
             };
 
             this.recognition.onerror = (event) => {
                 console.error('Speech recognition error', event.error);
                 let msg = 'Error: ' + event.error;
+
+                // If it's a no-speech error but we have some buffer, maybe we can use it?
+                // Or if it's just a timeout.
+                if (event.error === 'no-speech' && this.transcriptBuffer) {
+                    console.log("Recovering from no-speech with buffer:", this.transcriptBuffer);
+                    this.validateInput(this.transcriptBuffer);
+                    return;
+                }
+
                 if (event.error === 'not-allowed') {
                     msg = 'Microphone access denied. Please allow microphone access.';
                 }
-                this.updateStatus(msg, 'text-red-500');
+
+                // Don't show error if we just stopped listening manually or if we successfully validated
+                if (event.error !== 'aborted') {
+                    this.updateStatus(msg, 'text-red-500');
+                }
+
                 this.isListening = false;
                 this.updateUI();
             };
@@ -38,6 +80,9 @@ export class PassiveLearningService {
             this.recognition.onend = () => {
                 this.isListening = false;
                 this.updateUI();
+
+                // If we have a buffer and stopped, maybe validate?
+                // But usually onresult handles final.
             };
         } else {
             console.warn('Speech recognition not supported');
@@ -53,7 +98,7 @@ export class PassiveLearningService {
         if (this.vocabTool.isStopSpeechRequested) {
             const stopSpeechBtn = document.getElementById("stopSpeechBtn");
             this.vocabTool.isStopSpeechRequested = false;
-            stopSpeechBtn.innerHTML = 'Activate Speech';
+            stopSpeechBtn.innerHTML = 'Stop Speech';
         }
 
         // Split text into sentences (basic splitting by .!?)
@@ -86,16 +131,23 @@ export class PassiveLearningService {
                     </button>
                 </div>
 
-                <div class="mb-8 text-center">
+                <div class="mb-6 text-center">
                     <div class="text-sm text-gray-500 mb-2">Sentence <span id="pl-progress">1</span> of <span id="pl-total">0</span></div>
-                    <div id="pl-current-sentence" class="text-xl font-medium text-gray-800 min-h-[3em] flex items-center justify-center p-4 bg-gray-50 rounded-lg">
+                    <div id="pl-current-sentence" class="text-xl font-medium text-gray-800 min-h-[3em] flex items-center justify-center p-4 bg-gray-50 rounded-lg mb-2">
                         Ready to start...
                     </div>
+                    <div id="pl-translation" class="text-md text-gray-600 italic min-h-[1.5em]"></div>
                 </div>
 
                 <div class="flex flex-col items-center gap-4">
                     <div id="pl-status" class="text-sm font-medium text-blue-600 h-6"></div>
                     
+                    <div class="w-full max-w-md min-h-[3rem] flex items-center justify-center">
+                        <div id="pl-transcript-display" class="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-center text-lg text-gray-700 min-h-[3rem] flex items-center justify-center transition-all">
+                            <span class="text-gray-400 italic">Spoken text will appear here...</span>
+                        </div>
+                    </div>
+
                     <div class="flex gap-4">
                         <button id="pl-mic-btn" class="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="text-xl">🎤</span>
@@ -121,16 +173,31 @@ export class PassiveLearningService {
 
     async processNextSentence() {
         if (this.currentIndex >= this.sentences.length) {
-            console.log('--> ', this.currentIndex, this.sentences.length);
             this.finish();
             return;
         }
 
         const sentence = this.sentences[this.currentIndex];
+
+        // Get translation
+        try {
+            this.currentTranslation = await this.vocabTool.translate(sentence);
+        } catch (e) {
+            console.error("Translation failed", e);
+            this.currentTranslation = "Translation unavailable";
+        }
+
         this.updateUI(sentence);
 
         // Reset state for new sentence
         this.playCount = 0;
+        this.transcriptBuffer = '';
+        const displayEl = document.getElementById('pl-transcript-display');
+        if (displayEl) {
+            displayEl.innerHTML = '<span class="text-gray-400 italic">Spoken text will appear here...</span>';
+            displayEl.classList.remove('text-gray-800', 'text-gray-500');
+        }
+
         this.updateStatus('Listen carefully...');
 
         await this.playSequence(sentence);
@@ -154,10 +221,6 @@ export class PassiveLearningService {
         this.isPlaying = false;
         this.updateStatus('Now repeat the sentence!');
         this.updateUI();
-
-        // Auto-start listening after plays? Maybe better to let user click button to avoid awkward timing
-        // But user asked "allowing the user to say it along after the voice play"
-        // Let's enable the mic button and maybe highlight it
     }
 
     startListening() {
@@ -170,6 +233,12 @@ export class PassiveLearningService {
             return;
         }
 
+        this.transcriptBuffer = '';
+        const displayEl = document.getElementById('pl-transcript-display');
+        if (displayEl) {
+            displayEl.innerHTML = '<span class="text-gray-400 italic">Listening...</span>';
+            displayEl.classList.remove('text-gray-800', 'text-gray-500');
+        }
         this.recognition.start();
         this.isListening = true;
         this.updateStatus('Listening...', 'text-red-600');
@@ -177,6 +246,8 @@ export class PassiveLearningService {
     }
 
     validateInput(transcript) {
+        if (!transcript) return;
+
         const target = this.sentences[this.currentIndex];
         const normalizedTranscript = transcript.toLowerCase().replace(/[.,!?]/g, '').trim();
         const normalizedTarget = target.toLowerCase().replace(/[.,!?]/g, '').trim();
@@ -260,6 +331,10 @@ export class PassiveLearningService {
 
         if (sentence) {
             document.getElementById('pl-current-sentence').textContent = sentence;
+        }
+
+        if (this.currentTranslation) {
+            document.getElementById('pl-translation').textContent = this.currentTranslation;
         }
 
         const micBtn = document.getElementById('pl-mic-btn');
