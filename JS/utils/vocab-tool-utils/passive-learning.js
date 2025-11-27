@@ -278,10 +278,10 @@ export class PassiveLearningService {
 
             setTimeout(() => {
                 this.nextSentence();
-            }, 1500);
+            }, 2500);
         } else {
             feedbackEl.innerHTML = `
-                <div>Not quite. You said: "${transcript}"</div>
+                <div>You said: "${transcript}"</div>
                 <div class="text-sm mt-1">Target: "${target}"</div>
             `;
             feedbackEl.classList.add('bg-red-100', 'text-red-800');
