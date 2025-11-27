@@ -34,7 +34,8 @@ export class FlashcardsTool {
         this.renderCustomListButtons(false);
         this.updatePaginationControls();
         this.updateSRButton();
-        this.syncCurrentListName(); // Add this line
+        this.syncCurrentListName();
+        this.setupSearch();
         this.speech.loadVoices();
         feather.replace();
         AOS.init();
@@ -81,6 +82,7 @@ export class FlashcardsTool {
     }
 
     decodeOutput(output) {
+        if (!output) return '';
         // Handle double-encoded entities (like &amp;#x2F;)
         let decoded = output.replace(/&amp;(#x2F;)/g, '&$1');
 
@@ -642,6 +644,71 @@ export class FlashcardsTool {
         });
 
         this.setupAddFlashcardsModal();
+    }
+
+    setupSearch() {
+        const searchInput = document.getElementById('flashcard-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.handleSearch(e.target.value);
+            });
+        }
+    }
+
+    handleSearch(query) {
+        query = query.trim().toLowerCase();
+
+        if (!query) {
+            // If query is empty, reset to normal view
+            this.isFiltered = false;
+            this.filteredFlashcards = [];
+            this.currentPage = 1;
+            this.renderFlashcards();
+            return;
+        }
+
+        // Get all flashcards from all lists
+        const allFlashcards = [];
+
+        // Add flashcards from all custom lists
+        const customLists = JSON.parse(localStorage.getItem('customGermanLists') || '{}');
+
+        // Iterate over the object keys
+        Object.keys(customLists).forEach(key => {
+            const list = customLists[key];
+            if (Array.isArray(list)) {
+                list.forEach(card => {
+                    allFlashcards.push({
+                        ...card,
+                        listName: key // Add list name (the key) for reference
+                    });
+                });
+            }
+        });
+
+        // Filter cards across all lists
+        const results = allFlashcards.filter(card => {
+            const german = (card.german || '').toLowerCase();
+            const english = (card.english || '').toLowerCase();
+            return german.includes(query) || english.includes(query);
+        });
+
+        // Sort results: German matches first
+        results.sort((a, b) => {
+            const aGerman = (a.german || '').toLowerCase();
+            const bGerman = (b.german || '').toLowerCase();
+            const aMatch = aGerman.includes(query);
+            const bMatch = bGerman.includes(query);
+
+            if (aMatch && !bMatch) return -1;
+            if (!aMatch && bMatch) return 1;
+            return 0;
+        });
+
+        this.isFiltered = true;
+        this.filteredFlashcards = results;
+        this.currentPage = 1;
+        this.renderFlashcards();
     }
 
     // Add method to get SR statistics
