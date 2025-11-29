@@ -20,7 +20,7 @@ export class FlashcardListService {
         selectorContainer.innerHTML = `
         <h3 class="text-lg font-semibold mb-3">📚 Practice with Flashcards</h3>
         <div class="flex flex-col gap-3">
-            <label class="text-sm font-medium text-gray-700">Choose a flashcard list:</label>
+            <span class="text-sm font-medium text-gray-700">Choose a flashcard list:</span>
             <div id="flashcard-lists-container" class="flex flex-wrap gap-2 mb-3">
                 <!-- Lists will be populated here -->
             </div>

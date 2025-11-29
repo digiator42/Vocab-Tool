@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <link rel="stylesheet" href="./css/style.css">
     <link rel="icon" href="favicon.png" type="image/png">
+
 </head>
 
 <body class="bg-gray-100 min-h-screen p-6">
@@ -69,8 +70,9 @@
                     <button id="stopSpeechBtn" class="px-3 py-3 bg-red-500 text-white rounded-lg text-sm">Stop
                         Speech</button>
                     <div class="flex flex-row items-center space-x-1">
-                        <input type="checkbox" id="offline-speak" class="rounded">
-                        <label for="offline-speak" class="text-sm font-medium">Offline Mode</label>
+                        <input type="checkbox" id="offline-speak" class="switch-input">
+                        <label for="offline-speak" class="text-sm font-medium"></label>
+                        <span>Offline Mode</span>
                     </div>
                     <div class="flex flex-col md:flex-row md:items-start lg:items-start justify-between items-center">
                         <span id="rateSliderSpan" class="text-sm text-gray-700">0.8</span>
@@ -165,6 +167,7 @@
                     </div>
 
                     <div class="flex items-center space-x-4">
+
                         <button id="spaced-repetition-btn"
                             class="text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:bg-gradient-to-l focus:ring-4 focus:outline-none focus:ring-purple-200 dark:focus:ring-purple-800 font-medium rounded-lg text-sm px-5 py-3 text-center me-2">
                             Spaced Repetition
@@ -176,8 +179,18 @@
                             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                             Switch to English → German
                         </button>
-                        <input type="checkbox" id="slow-speak" class="rounded">
-                        <label for="slow-speak" class="text-sm font-medium">Slow Speak</label>
+                    </div>
+                    <div class="flex flex-row gap-6">
+                        <div class="flex flex-col">
+                            <input type="checkbox" id="not-mastered-sr" class="switch-input" />
+                            <label class="switch-label mx-auto" for="not-mastered-sr"></label>
+                            <span>Exclude Mastered (SR)</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <input type="checkbox" id="slow-speak" class="switch-input mx-auto">
+                            <label class="mx-auto" for="slow-speak" class="text-sm font-medium"></label>
+                            <span>Slow Speak</span>
+                        </div>
                     </div>
                 </div>
 

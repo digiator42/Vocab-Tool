@@ -20,6 +20,7 @@ export class FlashcardsTool {
         this.voiceSelect = document.getElementById("voiceSelect");
         this.currentListName = null;
         this.hasAttachedFlashcardListener = false;
+        this.isNotMasteredSR = false;
 
         this.speechSynth = window.speechSynthesis;
         this.speech = new SpeechService(this);
@@ -128,7 +129,14 @@ export class FlashcardsTool {
 
         // Get cards that are due for review
         const now = Date.now();
-        const dueCards = this.flashcards.filter(card => {
+
+        const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
+        if (notMasteredSRCards.length === 0) {
+            this.showNotification('All words mastered!');
+            return;
+        }
+
+        const dueCards = notMasteredSRCards.filter(card => {
             const cardKey = `${card.german}|${card.english}`;
             const cardData = this.srSessionData[cardKey];
 
@@ -470,6 +478,12 @@ export class FlashcardsTool {
             console.log("On Off set to:", !this.useSlowSpeak ? "Normal" : "Slow");
         });
 
+        document.getElementById('not-mastered-sr').addEventListener('change', (e) => {
+            this.isNotMasteredSR = e.target.checked;
+            this.updateSRButton();
+            console.log("set to:", !this.isNotMasteredSR ? "Normal SR" : "!mastered SR");
+        });
+
         this.setupEditModal();
 
         // Control buttons
@@ -717,7 +731,17 @@ export class FlashcardsTool {
         let dueCount = 0;
         let totalCards = 0;
 
-        this.flashcards.forEach(card => {
+        let SRList = [];
+
+        const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
+        if (notMasteredSRCards.length === 0) {
+            this.showNotification('All words mastered!');
+            return;
+        }
+
+        this.isNotMasteredSR ? SRList = notMasteredSRCards : SRList = this.flashcards;
+
+        SRList.forEach(card => {
             const cardKey = `${card.german}|${card.english}`;
             totalCards++;
 
@@ -1185,7 +1209,7 @@ export class FlashcardsTool {
                 headingElement.innerHTML = `
                 <h3 class="text-lg font-semibold text-gray-800 flex items-center">
                     <i data-feather="folder" class="mr-2 w-4 h-4"></i>
-                    ${ card.listName || card.heading}
+                    ${card.listName || card.heading}
                 </h3>
             `;
                 container.appendChild(headingElement);
