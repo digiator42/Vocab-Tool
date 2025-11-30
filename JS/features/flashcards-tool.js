@@ -1138,7 +1138,7 @@ export class FlashcardsTool {
             const srControls = this.renderSpacedRepetitionControls(flashcard, card);
             backContentDiv.appendChild(srControls);
             backContentDiv.innerHTML += `<button class="master-btn-sr mt-3 px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
-                ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
+                ${card.mastered ? 'Not Mastered' : 'Mastered'} (30 days) [M]
                 </button>`;
         } else {
             // Regular controls for non-SR mode
