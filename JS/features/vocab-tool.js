@@ -1257,7 +1257,7 @@ export class VocabularyTool {
                 <h3 class="text-lg font-bold text-indigo-700 mb-2">Add to Flashcards</h3>
                 <div id="selected-word-preview" class="mb-4 text-center text-lg font-semibold text-gray-800"></div>
                 <div class="mb-2">
-                    <label class="block text-sm font-medium mb-1">Choose a list:</label>
+                    <span class="block text-sm font-medium mb-1">Choose a list:</span>
                     <div id="flashcard-lists" class="flex flex-col gap-2"></div>
                 </div>
                 <div class="my-2 text-center text-gray-500">or</div>
@@ -1508,7 +1508,7 @@ export class VocabularyTool {
     createBatchAddModal() {
         const modal = document.createElement('div');
         modal.id = "batch-add-to-flash-modal";
-        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-40 hidden";
+        modal.className = "fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[52] hidden";
         modal.innerHTML = `
         <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
             <button id="close-batch-add-modal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">&times;</button>
@@ -1519,7 +1519,7 @@ export class VocabularyTool {
             </div>
             
             <div class="mt-4">
-                <label class="block text-sm font-medium mb-2">Add to list:</label>
+                <span class="block text-sm font-medium mb-2">Add to list:</span>
                 <div class="flex gap-2">
                     <select id="batch-list-select" class="flex-1 p-2 border rounded max-w-[50%]">
                         <option value="">Select a list...</option>
@@ -1860,7 +1860,7 @@ export class VocabularyTool {
 
         this.createFocusControls();
         this.applyFocusModeStyles();
-        this.addFocusModeIndicator();
+        // this.addFocusModeIndicator();
         this.setupTooltipObserver();
     }
 
@@ -1903,12 +1903,13 @@ export class VocabularyTool {
         const focusControls = document.createElement('div');
         focusControls.id = 'focus-controls';
         focusControls.className = `
-  fixed top-10 left-1/2 transform -translate-x-1/2 
-  bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg 
-  flex flex-wrap gap-3 justify-center min-w-[320px] z-50
-`;
+            fixed top-5 left-1/2 -translate-x-1/2
+            bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg 
+            flex flex-wrap mb-30 lg:flex-nowrap gap-3 justify-center w-fit z-[51]
+            
+        `;
         focusControls.innerHTML = `
-            <div class="flex flex-wrap gap-3 justify-center">
+            <div class="flex flex-row gap-3 justify-center">
                 <button id="focus-go-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
                 ${originalProcessBtn.innerText}
                 </button>
@@ -1920,7 +1921,7 @@ export class VocabularyTool {
                 </button>
             </div>
 
-            <div class="flex flex-wrap gap-3 justify-center mt-2">
+            <div class="flex flex-row gap-3 justify-center">
                 <button id="focus-add-flash-btn" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">
                 ${originalAddToFlashBtn ? originalAddToFlashBtn.innerText : 'Add Flash'}
                 </button>
@@ -1939,14 +1940,15 @@ export class VocabularyTool {
         ).join('')}
             </select>
             
-            <div class="flex items-center gap-2 mt-2">
+            <div class="flex items-center gap-2">
                 <span id="focus-rate-span" class="text-sm text-gray-700">${originalRateSpan.textContent}</span>
                 <input id="focus-rate-slider" type="range" min="${originalRateSlider.min}" max="${originalRateSlider.max}" step="${originalRateSlider.step}" value="${originalRateSlider.value}" class="w-20">
             </div>
             
-            <div class="flex items-center gap-2 mt-2">
-                <input id="focus-offline-checkbox" type="checkbox" ${originalOfflineCheckbox.checked ? 'checked' : ''} class="rounded">
-                <label for="focus-offline-checkbox" class="text-sm font-medium text-gray-700">Offline</label>
+            <div class="flex items-center gap-2">
+                <input id="focus-offline-checkbox" type="checkbox" ${originalOfflineCheckbox.checked ? 'checked' : ''} class="switch-input mx-auto">
+                <label for="focus-offline-checkbox" class="text-sm font-medium text-gray-700"></label>
+                <span>Offline</span>
             </div>
             `;
 
@@ -2073,7 +2075,7 @@ export class VocabularyTool {
     }
 
     applyFocusModeStyles() {
-        this.output.className = `focus-mode-output absolute top-28 ${this.isTouchDevice ? 'mt-32' : 'mt-16'} mx-10 left-4 right-4 z-30 bg-inherit text-inherit font-inherit p-8 text-[1.5rem] leading-loose min-h-screen`;
+        this.output.className = `focus-mode-output absolute top-28 ${this.isTouchDevice ? 'mt-48' : 'mt-16'} mx-1 left-4 right-4 z-30 bg-inherit text-inherit font-inherit p-8 text-[1.5rem] leading-loose min-h-screen`;
         this.output.style.cssText = '';
 
         if (this.selectionTooltip) {
