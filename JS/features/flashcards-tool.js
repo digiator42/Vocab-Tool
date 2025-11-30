@@ -130,13 +130,17 @@ export class FlashcardsTool {
         // Get cards that are due for review
         const now = Date.now();
 
+        let SRList = [];
+
         const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
         if (notMasteredSRCards.length === 0) {
             this.showNotification('All words mastered!');
             return;
         }
 
-        const dueCards = notMasteredSRCards.filter(card => {
+        this.isNotMasteredSR ? SRList = notMasteredSRCards : SRList = this.flashcards;
+
+        const dueCards = SRList.filter(card => {
             const cardKey = `${card.german}|${card.english}`;
             const cardData = this.srSessionData[cardKey];
 
@@ -307,7 +311,11 @@ export class FlashcardsTool {
                 cardData.interval = Math.round(cardData.interval * cardData.easeFactor);
             }
 
-            if (minutesUntilNext === 1440) { // Good
+            if (minutesUntilNext === 43200) { // Mastered
+                cardData.easeFactor = Math.min(2.5, cardData.easeFactor + 0.5);
+            }
+
+            if (minutesUntilNext === 5760) { // Good
                 cardData.easeFactor = Math.max(1.3, cardData.easeFactor - 0.15);
             } else { // Easy
                 cardData.easeFactor = Math.min(2.5, cardData.easeFactor + 0.1);
@@ -1129,6 +1137,9 @@ export class FlashcardsTool {
         if (this.spacedRepetitionMode) {
             const srControls = this.renderSpacedRepetitionControls(flashcard, card);
             backContentDiv.appendChild(srControls);
+            backContentDiv.innerHTML += `<button class="master-btn-sr mt-3 px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
+                ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
+                </button>`;
         } else {
             // Regular controls for non-SR mode
             const regularControls = document.createElement('div');
@@ -1282,6 +1293,54 @@ export class FlashcardsTool {
         feather.replace();
     }
 
+    handleMasterBtn() {
+        console.log('Keyboard shortcut: Mastered');
+        const currentCards = this.getCurrentCards();
+        const currentIndex = this.getCurrentCardIndex();
+
+        if (currentIndex >= 0 && currentIndex < currentCards.length) {
+            const currentCard = currentCards[currentIndex];
+            currentCard.mastered = !currentCard.mastered;
+
+            // Update the ORIGINAL list in customGermanLists
+            const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
+            if (originalListName && this.customLists[originalListName]) {
+                const originalList = this.customLists[originalListName];
+
+                // Find the matching card in the original list
+                const originalCardIndex = originalList.findIndex(card =>
+                    card.german === currentCard.german && card.english === currentCard.english
+                );
+
+                if (originalCardIndex !== -1) {
+                    originalList[originalCardIndex].mastered = currentCard.mastered;
+                    localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+                }
+            }
+
+            // Also update main flashcards
+            const mainCardIndex = this.flashcards.findIndex(card =>
+                card.german === currentCard.german && card.english === currentCard.english
+            );
+            if (mainCardIndex !== -1) {
+                this.flashcards[mainCardIndex].mastered = currentCard.mastered;
+            }
+
+            localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
+            this.updateProgress();
+            this.refreshCustomListButtons();
+            if (this.spacedRepetitionMode && this.singleCardMode) {
+                console.log('Keyboard shortcut: Mastered');
+                this.handleSRRating(currentCard, 43200);
+                return;
+            };
+            this.renderFlashcards();
+
+            const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
+            // this.showNotification(`Card ${action}!`);
+        }
+    }
+
     setupFlashcardEventListeners(flashcard) {
         // In the setupFlashcardEventListeners method, replace the document keydown event listener with:
         if (!window.hasAttachedFlashcardListener) {
@@ -1333,48 +1392,17 @@ export class FlashcardsTool {
                     }
                 }
 
+                const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
+                if (masterSRBtn) {
+                    masterSRBtn.addEventListener('click', () => {
+                        console.log("===========>>>>>>>>><<<<<<<<")
+                        this.handleMasterBtn();
+                    });
+                }
+
                 // Mastered shortcut (works in both normal and SR mode)
                 if (e.key.toLowerCase() === 'm' && this.singleCardMode) {
-                    console.log('Keyboard shortcut: Mastered');
-                    const currentCards = this.getCurrentCards();
-                    const currentIndex = this.getCurrentCardIndex();
-
-                    if (currentIndex >= 0 && currentIndex < currentCards.length) {
-                        const currentCard = currentCards[currentIndex];
-                        currentCard.mastered = !currentCard.mastered;
-
-                        // Update the ORIGINAL list in customGermanLists
-                        const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
-                        if (originalListName && this.customLists[originalListName]) {
-                            const originalList = this.customLists[originalListName];
-
-                            // Find the matching card in the original list
-                            const originalCardIndex = originalList.findIndex(card =>
-                                card.german === currentCard.german && card.english === currentCard.english
-                            );
-
-                            if (originalCardIndex !== -1) {
-                                originalList[originalCardIndex].mastered = currentCard.mastered;
-                                localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
-                            }
-                        }
-
-                        // Also update main flashcards
-                        const mainCardIndex = this.flashcards.findIndex(card =>
-                            card.german === currentCard.german && card.english === currentCard.english
-                        );
-                        if (mainCardIndex !== -1) {
-                            this.flashcards[mainCardIndex].mastered = currentCard.mastered;
-                        }
-
-                        localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
-                        this.updateProgress();
-                        this.renderFlashcards();
-                        this.refreshCustomListButtons();
-
-                        const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
-                        // this.showNotification(`Card ${action}!`);
-                    }
+                    this.handleMasterBtn();
                 }
 
                 // Left/Right arrows for navigation - only when container is visible
@@ -1430,7 +1458,7 @@ export class FlashcardsTool {
 
                 // Get the ORIGINAL list name
                 const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
-                console.log('Master toggle - originalListName:', originalListName);
+                console.log('Master toggle - originalListName:', originalListName, this.isFiltered);
 
                 // Determine which card was clicked based on filtered state
                 let clickedCard;
@@ -1491,8 +1519,8 @@ export class FlashcardsTool {
                         this.isFiltered = false;
                     }
                 }
-                this.renderFlashcards();
                 this.renderCustomListButtons();
+                this.renderFlashcards();
 
                 this.showNotification('Mastery status updated!');
             });
@@ -1538,6 +1566,13 @@ export class FlashcardsTool {
             const hardBtn = flashcard.querySelector('.sr-hard-btn');
             const goodBtn = flashcard.querySelector('.sr-good-btn');
             const easyBtn = flashcard.querySelector('.sr-easy-btn');
+
+            const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
+            if (masterSRBtn) {
+                masterSRBtn.addEventListener('click', () => {
+                    this.handleMasterBtn();
+                });
+            }
 
             if (againBtn) {
                 console.log('Setting up SR Again button in setupFlashcardEventListeners');
