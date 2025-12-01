@@ -1028,7 +1028,7 @@ export class VocabularyTool {
         console.log("All selections for flashcards:", allSelections);
 
         // Small delay for better mobile UX
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // await new Promise(resolve => setTimeout(resolve, 100));
 
         // if (allSelections.length === 1) {
         //     // Single selection - show normal modal

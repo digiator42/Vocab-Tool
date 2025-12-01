@@ -1145,15 +1145,22 @@ export class FlashcardsTool {
             const regularControls = document.createElement('div');
             regularControls.className = 'mt-4 flex space-x-2';
             regularControls.innerHTML = `
-            <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
-                ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
-            </button>
-            <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
-                Edit
-            </button>
-            <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
-                Remove
-            </button>
+            <div class="mt-1 flex flex-col space-x-1">
+                <div class="mt-1 flex space-x-2">
+                    <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
+                        ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
+                    </button>
+                    <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
+                        Edit
+                    </button>
+                    <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
+                        Remove
+                    </button>
+                </div>
+                <button class="add-dark-btn px-2 py-3 mt-5 bg-black text-white rounded text-xs">
+                    Add to Dark List
+                </button>
+            </div>
         `;
             backContentDiv.appendChild(regularControls);
         }
@@ -1273,16 +1280,19 @@ export class FlashcardsTool {
                 <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col gap-6 items-center justify-center cursor-pointer h-full">
                     ${backContent}
                     <div class="mt-1 flex space-x-1">
-                        <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
+                        <button class="master-btn px-2 py-1 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
                             ${card.mastered ? 'Not Mastered' : 'Mastered'}
                         </button>
-                        <button class="edit-btn px-2 py-0.5 bg-blue-500 text-white rounded text-xs">
+                        <button class="edit-btn px-2 py-1 bg-blue-500 text-white rounded text-xs">
                             Edit
                         </button>
-                        <button class="remove-btn px-2 py-0.5 bg-red-500 text-white rounded text-xs">
+                        <button class="remove-btn px-2 py-1 bg-red-500 text-white rounded text-xs">
                             Remove
                         </button>
                     </div>
+                    <button class="add-dark-btn px-2 py-1 bg-black text-white rounded text-xs">
+                        Add to Dark List
+                    </button>
                 </div>
             </div>`;
             container.appendChild(flashcard);
@@ -1291,6 +1301,46 @@ export class FlashcardsTool {
 
         this.updatePaginationControls();
         feather.replace();
+    }
+
+    handleAddToDarkList() {
+
+        const listName = 'Dark List';
+        let currentCard = '';
+
+        const currentCards = this.getCurrentCards();
+        const currentIndex = this.getCurrentCardIndex();
+
+        if (currentIndex >= 0 && currentIndex < currentCards.length) {
+            currentCard = currentCards[currentIndex];
+        }
+
+
+        let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        // Create new list if it doesn't exist
+        if (!customLists[listName]) {
+            customLists[listName] = [];
+        }
+
+        const exists = customLists[listName].some(card =>
+            card.german === currentCard.german && card.english === currentCard.english
+        );
+
+        if (!exists) {
+            customLists[listName].push({
+                german: currentCard.german,
+                sentence: currentCard.sentence,
+                english: currentCard.english,
+                mastered: false
+            });
+            this.showNotification('Card Added');
+        } else {
+            this.showNotification('Card Already Exists!');
+        }
+        localStorage.setItem('customGermanLists', JSON.stringify(customLists));
+        // Refresh flashcard lists
+        // this.FCL.refreshFlashcardLists();
     }
 
     handleMasterBtn() {
@@ -1395,7 +1445,6 @@ export class FlashcardsTool {
                 const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
                 if (masterSRBtn) {
                     masterSRBtn.addEventListener('click', () => {
-                        console.log("===========>>>>>>>>><<<<<<<<")
                         this.handleMasterBtn();
                     });
                 }
@@ -1556,11 +1605,23 @@ export class FlashcardsTool {
         const removeBtn = flashcard.querySelector('.remove-btn');
         if (removeBtn) {
             removeBtn.addEventListener('click', (e) => {
+                console.log('-------->>> ', removeBtn);
                 e.stopPropagation();
                 const idx = parseInt(flashcard.dataset.index);
                 this.handleRemoveFlashcard(idx);
             });
         }
+
+        const addToDarkList = flashcard.querySelector('.add-dark-btn');
+        if (addToDarkList) {
+            addToDarkList.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('-------->>> ', addToDarkList);
+                this.handleAddToDarkList();
+                this.refreshCustomListButtons();
+            });
+        }
+
         setTimeout(() => {
             const againBtn = flashcard.querySelector('.sr-again-btn');
             const hardBtn = flashcard.querySelector('.sr-hard-btn');
@@ -1862,7 +1923,11 @@ export class FlashcardsTool {
                 listIcon = 'list';
                 listTitle = ''; // 'No cards mastered yet';
             }
-
+            
+            if (listName == 'Dark List') {
+                listColor = 'bg-gray-800 hover:bg-gray-900';
+                listIcon = 'list';
+            }
 
 
             // List button with dynamic color and icon

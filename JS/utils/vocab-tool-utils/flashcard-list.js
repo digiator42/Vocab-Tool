@@ -78,6 +78,9 @@ export class FlashcardListService {
             const list = customLists[listName];
             const button = document.createElement('button');
             button.className = 'px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium';
+            if (listName == 'Dark List') {
+                button.className = 'px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium';
+            }
             button.textContent = `${this.vocabTool.decodeOutput(listName)} (${list.length})`;
             button.dataset.listName = listName;
 

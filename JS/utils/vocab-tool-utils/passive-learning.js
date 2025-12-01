@@ -110,9 +110,105 @@ export class PassiveLearningService {
             return;
         }
 
+        if (this.sentences.length > 50) {
+            // Split sentences into chunks of max 50 sentences each
+            const chunks = [];
+            for (let i = 0; i < this.sentences.length; i += 50) {
+                chunks.push(this.sentences.slice(i, i + 50));
+            }
+            this.createChoiceModal(chunks);
+            return;
+        }
+
         this.currentIndex = 0;
         this.createModal();
         this.processNextSentence();
+    }
+
+    createChoiceModal(chunks) {
+        if (this.modal) {
+            this.modal.remove();
+        }
+
+        this.modal = document.createElement('div');
+        this.modal.className = 'fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50';
+
+        let optionsHTML = '';
+        chunks.forEach((chunk, index) => {
+            const startIndex = index * 50 + 1;
+            const endIndex = Math.min((index + 1) * 50, this.sentences.length);
+            optionsHTML += `
+                <div class="mb-4">
+                    <button data-chunk-index="${index}" 
+                            class="pl-chunk-btn w-full px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-left transition-colors group">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-gray-800 text-lg">Part ${index + 1}</div>
+                                <div class="text-sm text-gray-500 mt-1">Sentences ${startIndex} - ${endIndex}</div>
+                            </div>
+                            <div class="text-gray-400 group-hover:text-blue-500 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-sm text-gray-600 italic truncate">
+                            "${chunk[0].substring(0, 60)}${chunk[0].length > 60 ? '...' : ''}"
+                        </div>
+                    </button>
+                </div>
+            `;
+        });
+
+        this.modal.innerHTML = `
+            <div class="passive-learning-modal bg-white rounded-xl p-6 max-w-2xl w-full mx-4 shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">🎧 Passive Learning - Select a Part</h2>
+                    <button id="pl-close-btn" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <div class="mb-4 text-gray-600">
+                    <p class="mb-2">Your text contains ${this.sentences.length} sentences, which is too many for one session.</p>
+                    <p>Please select a part to practice (max 50 sentences per session):</p>
+                </div>
+
+                <div class="max-h-[400px] overflow-y-auto pr-2">
+                    ${optionsHTML}
+                </div>
+
+                <div class="mt-6 text-center text-sm text-gray-500">
+                    You can come back later to practice other parts.
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(this.modal);
+
+        // Add event listeners to chunk buttons
+        document.getElementById('pl-close-btn').onclick = () => this.close();
+
+        const chunkButtons = this.modal.querySelectorAll('.pl-chunk-btn');
+        chunkButtons.forEach(btn => {
+            btn.onclick = () => {
+                const chunkIndex = parseInt(btn.getAttribute('data-chunk-index'));
+                const selectedChunk = chunks[chunkIndex];
+
+                // Set the sentences to the selected chunk
+                this.sentences = selectedChunk;
+                this.currentIndex = 0;
+
+                // Remove the choice modal and create the practice modal
+                if (this.modal) {
+                    this.modal.remove();
+                    this.modal = null;
+                }
+
+                this.createModal();
+                this.processNextSentence();
+            };
+        });
     }
 
     createModal() {
