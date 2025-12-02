@@ -4,6 +4,7 @@ export class FlashcardListService {
         this.vocabTool = vocabTool;
         this.selectedFlashcardList = null;
         this.isFlashCardLoadRequested = false;
+        this.isNotMasteredFC = false;
     }
 
     // Setup flashcard list selection UI
@@ -18,7 +19,14 @@ export class FlashcardListService {
         selectorContainer.className = 'mt-4 p-4 bg-white rounded-lg border border-gray-200';
 
         selectorContainer.innerHTML = `
-        <h3 class="text-lg font-semibold mb-3">📚 Practice with Flashcards</h3>
+        <div class="flex flex-row justify-between">
+            <h3 class="text-lg font-semibold mb-3">📚 Practice with Flashcards</h3>
+            <div class="flex flex-col">
+                <input type="checkbox" id="not-mastered-fc" class="switch-input" />
+                <label class="switch-label mx-auto" for="not-mastered-fc"></label>
+                <span>Exclude Mastered</span>
+            </div>
+        </div>
         <div class="flex flex-col gap-3">
             <span class="text-sm font-medium text-gray-700">Choose a flashcard list:</span>
             <div id="flashcard-lists-container" class="flex flex-wrap gap-2 mb-3">
@@ -113,6 +121,12 @@ export class FlashcardListService {
                 const listName = e.target.dataset.listName;
                 this.selectFlashcardList(listName);
             }
+        });
+
+        document.getElementById('not-mastered-fc').addEventListener('change', (e) => {
+            this.isNotMasteredFC = e.target.checked;
+            this.populateFlashcardLists();
+            console.log("set to:", !this.isNotMasteredFC ? "Normal FC" : "!mastered FC");
         });
 
         // Handle load flashcards button
@@ -250,7 +264,32 @@ export class FlashcardListService {
 
     // Get flashcard lists from localStorage
     getFlashcardLists() {
-        return JSON.parse(localStorage.getItem('customGermanLists')) || {};
+        let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        if (this.isNotMasteredFC) {
+            let unmasteredByList = this.getUnmasteredItems(customLists);
+            console.log("Unmastered items:", Object.keys(unmasteredByList).length);
+            return unmasteredByList;
+        }
+        console.log("All items:", Object.keys(customLists).length);
+        return customLists;
+    }
+
+    getUnmasteredItems(customLists) {
+        const allLists = customLists;
+        const unmasteredByList = {};
+
+        for (const [listName, listData] of Object.entries(allLists)) {
+            // Filter items where mastered is false
+            const unmasteredItems = listData.filter(item => !item.mastered);
+
+            // Only add to result if there are unmastered items
+            if (unmasteredItems.length > 0) {
+                unmasteredByList[listName] = unmasteredItems;
+            }
+        }
+
+        return unmasteredByList;
     }
 
     // Save flashcard lists to localStorage

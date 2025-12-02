@@ -38,7 +38,6 @@ export class VocabularyTool {
         this.selectedLang = "en";
         this.isStopSpeechRequested = false;
         this.activeRecallMode = 'normal';
-        this.useFuzzyMatching = true;
         this.originalText = '';
         this.useSlowVoice = false;
         this.isSelecting = false;
@@ -146,6 +145,7 @@ export class VocabularyTool {
         // Add Passive Learning Button
         const passiveBtn = document.createElement('button');
         passiveBtn.textContent = '🎧 Passive Learning';
+        passiveBtn.id = 'passive-learning-btn';
         passiveBtn.className = 'px-4 py-4 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 w-1/2';
         passiveBtn.onclick = () => {
             const text = this.input.value;

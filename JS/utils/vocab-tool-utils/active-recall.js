@@ -4,6 +4,7 @@ export class ActiveRecallModule {
         this.main = main;
         this.activeRecallBtn = null;
         this.extraToolsContainer = document.getElementById('extra-tools-container');
+        this.useFuzzyMatching = false;
     }
 
     setupActiveRecall() {
@@ -56,8 +57,8 @@ export class ActiveRecallModule {
         const fuzzyMatch = document.getElementById('ar-fuzzy-match');
         if (fuzzyMatch) {
             fuzzyMatch.addEventListener('change', (e) => {
-                this.main.useFuzzyMatching = e.target.checked;
-                console.log("Fuzzy matching set to:", this.main.useFuzzyMatching);
+                this.useFuzzyMatching = e.target.checked;
+                console.log("Fuzzy matching set to:", this.useFuzzyMatching);
             });
             if (this.main.isTouchDevice) {
                 fuzzyMatch.addEventListener('touchend', (e) => {
@@ -138,7 +139,7 @@ export class ActiveRecallModule {
                     fuzzyMatch.checked = !fuzzyMatch.checked;
                     fuzzyMatch.dispatchEvent(new Event('change'));
                 } else {
-                    this.main.useFuzzyMatching = !this.main.useFuzzyMatching;
+                    this.useFuzzyMatching = !this.useFuzzyMatching;
                 }
                 e.preventDefault();
             }
@@ -261,13 +262,16 @@ export class ActiveRecallModule {
             }
         }
         const hintDisplay = document.getElementById('ar-hint-display');
+        const fuzzyMatch = document.getElementById('ar-fuzzy-match');
         if (hintDisplay) {
             if (this.main.activeRecallMode === 'beginner') {
                 hintDisplay.classList.remove('hidden');
                 hintDisplay.style.display = 'block';
+                fuzzyMatch.click();
             } else {
                 hintDisplay.classList.add('hidden');
                 hintDisplay.style.display = 'none';
+                fuzzyMatch.click();
             }
         }
     }
@@ -312,7 +316,7 @@ export class ActiveRecallModule {
     }
 
     wordsMatch(userWord, correctWord, threshold = 0.7) {
-        if (!this.main.useFuzzyMatching) return userWord === correctWord;
+        if (!this.useFuzzyMatching) return userWord === correctWord;
         if (userWord === correctWord) return true;
         if (userWord.toLowerCase() === correctWord.toLowerCase()) return true;
         const distance = this.levenshteinDistance(userWord.toLowerCase(), correctWord.toLowerCase());
@@ -410,6 +414,7 @@ export class ActiveRecallModule {
                 vocabToolContainer.dataset.originalDisplay = vocabToolContainer.style.display || '';
                 vocabToolContainer.style.display = 'none';
             }
+            document.getElementById('passive-learning-btn').classList.add('hidden');
             this.activeRecallBtn.innerHTML = '❌ Exit Active Recall';
             console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
         } else {
@@ -454,7 +459,7 @@ export class ActiveRecallModule {
                 <h3 class="text-lg font-semibold mb-4">🎯 Active Recall Practice</h3>
                 
                 <!-- Custom Dropdown for Mode Selection -->
-                <div class="mb-4 flex flex-wrap gap-4 items-center">
+                <div class="mb-4 flex flex-wrap gap-4 justify-between">
                     <div class="flex items-center space-x-2">
                         <span class="text-sm font-medium">Mode:</span>
                         <div id="ative-recall-dropdown" class="relative">
@@ -469,20 +474,30 @@ export class ActiveRecallModule {
                         </div>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <input type="checkbox" id="ar-fuzzy-match" class="rounded">
-                        <label for="ar-fuzzy-match" class="text-sm font-medium">Fuzzy Word Matching</label>
+                        <div class="flex flex-col">
+                            <input type="checkbox" id="ar-fuzzy-match" class="switch-input">
+                            <label for="ar-fuzzy-match" class="mx-auto switch-label text-sm font-medium"></label>
+                            <span class="mx-auto">Fuzzy Word Matching</span>
+                        </div>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <input type="checkbox" id="ar-slow-voice" class="rounded">
-                        <label for="ar-slow-voice" class="text-sm font-medium">Slow Voice</label>
+                        <div class="flex flex-col">
+                            <input type="checkbox" id="ar-slow-voice" class="switch-input">
+                            <label for="ar-slow-voice" class="mx-auto switch-label text-sm font-medium"></label>
+                            <span class="mx-auto">Slow Voice</span>
+                        </div>
                     </div>
                     <div class="flex flex-row items-center space-x-1">
-                        <input type="checkbox" id="offline-speak-recall" class="rounded">
-                        <label for="offline-speak-recall" class="text-sm font-medium">Offline Mode</label>
+                        <div class="flex flex-col">
+                            <input type="checkbox" id="offline-speak-recall" class="switch-input">
+                            <label for="offline-speak-recall" class="mx-auto switch-label text-sm font-medium"></label>
+                            <span class="mx-auto">Offline Mode</span>
+                        </div>
                     </div>
-                    <input type="range" id="rateSliderActiveRecall" min="0.5" max="1.5" step="0.1" value="0.8">
-                    <label for="rateSliderActiveRecall"></label>
-                    <span id="rateSliderSpanActiveRecall" class="text-sm text-gray-700">0.8</span>
+                    <div class="flex flex-row items-center space-x-1">
+                        <input type="range" id="rateSliderActiveRecall" min="0.5" max="1.5" step="0.1" value="0.8">
+                        <span id="rateSliderSpanActiveRecall" class="text-sm text-gray-700 my-auto">0.8</span>
+                    </div>
                 </div>
                 
                 ${this.getActiveRecallUIBody()}
@@ -1053,5 +1068,6 @@ export class ActiveRecallModule {
         document.getElementById('ar-back-btn').classList.add('hidden');
         document.getElementById('ar-repeat-btn').classList.add('hidden');
         document.getElementById('ar-finish-btn').classList.add('hidden');
+        document.getElementById('passive-learning-btn').classList.remove('hidden');
     }
 }
