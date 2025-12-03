@@ -187,7 +187,7 @@ export class FlashcardsTool {
             Again (1 min) [A]
         </button>
         <button class="sr-hard-btn px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600" title="Shortcut: H">
-            Hard (10 min) [H]
+            Hard (30 min) [H]
         </button>
         <button class="sr-good-btn px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600" title="Shortcut: G">
             Good (4 days) [G]
@@ -215,7 +215,7 @@ export class FlashcardsTool {
             hardBtn.addEventListener('click', (e) => {
                 console.log('SR Hard button clicked');
                 e.stopPropagation();
-                this.handleSRRating(card, 10); // 10 minutes
+                this.handleSRRating(card, 30); // 10 minutes
             });
         }
 
@@ -284,23 +284,36 @@ export class FlashcardsTool {
 
         const cardData = this.srSessionData[cardKey];
 
-        if (minutesUntilNext === 1) { // Again
-            cardData.repetitions = 0;
-            cardData.interval = 1;
-            console.log('Rescheduling card for current session (Again):', card.german);
-            const pos = this.calculateInsertPosition(this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext);
-            console.log('=====>>> ', this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext, pos);
-            this.rescheduleCardForCurrentSession(card, pos);
+        // Define rating constants
+        const AGAIN = 1; // 1 minute
+        const HARD = 30; // 30 minutes (changed from 10)
+        const GOOD = 5760; // 4 days
+        const EASY = 12960; // 9 days
+        const MASTERED = 43200; // 30 days
 
-        } else if (minutesUntilNext === 10) { // Hard
-            cardData.repetitions += 1;
-            cardData.interval = Math.max(1, cardData.interval * 1.2);
-            console.log('Rescheduling card for current session (Hard):', card.german);
-            const pos = this.calculateInsertPosition(this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext);
-            console.log('=====>>> ', this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext, pos);
-            this.rescheduleCardForCurrentSession(card, pos);
+        // Update SR algorithm parameters
+        if (minutesUntilNext === AGAIN) {
+            setTimeout(() => {
+                if (this.spacedRepetitionMode && this.spacedRepetitionCards.length > 0) {
+                    // this.showNotification(`"${card.german}" is ready for review again!`, 3000);
+                    console.log(`"${card.german}" is ready for review again!`, 3000);
 
-        } else { // Good or Easy
+                    this.spacedRepetitionCards.splice(this.currentSRCardIndex + 1, 0, card);
+                    this.renderFlashcards();
+                }
+            }, 1 * 60 * 1000);
+        } else if (minutesUntilNext === HARD) {
+            setTimeout(() => {
+                if (this.spacedRepetitionMode && this.spacedRepetitionCards.length > 0) {
+                    this.showNotification(`"${card.german}" is ready for review again!`, 3000);
+                    console.log(`"${card.german}" is ready for review again!`, 3000);
+
+                    this.spacedRepetitionCards.splice(this.currentSRCardIndex + 1, 0, card);
+                    this.renderFlashcards();
+                }
+            }, 30 * 60 * 1000);
+        } else {
+            // GOOD, EASY, or MASTERED
             cardData.repetitions += 1;
 
             if (cardData.repetitions === 1) {
@@ -311,49 +324,69 @@ export class FlashcardsTool {
                 cardData.interval = Math.round(cardData.interval * cardData.easeFactor);
             }
 
-            if (minutesUntilNext === 43200) { // Mastered
+            if (minutesUntilNext === MASTERED) {
                 cardData.easeFactor = Math.min(2.5, cardData.easeFactor + 0.5);
             }
 
-            if (minutesUntilNext === 5760) { // Good
+            if (minutesUntilNext === GOOD) {
                 cardData.easeFactor = Math.max(1.3, cardData.easeFactor - 0.15);
-            } else { // Easy
+            } else if (minutesUntilNext === EASY) {
                 cardData.easeFactor = Math.min(2.5, cardData.easeFactor + 0.1);
             }
         }
 
+        // Set the next review time
         cardData.nextReview = now + (minutesUntilNext * 60 * 1000);
         cardData.lastReviewed = now;
+        cardData.humanTime = this.getHumanReadableTime(new Date(cardData.nextReview));
 
+        // Save to localStorage
         localStorage.setItem('srSessionData', JSON.stringify(this.srSessionData));
 
-        // Move to next card FIRST
         this.currentSRCardIndex++;
-        console.log('Moved to next card:', {
-            newSRCardIndex: this.currentSRCardIndex,
-            totalSRCards: this.spacedRepetitionCards.length
-        });
 
-        // THEN process rescheduled cards - this is crucial!
-        this.processRescheduledCardsIfNeeded();
+        console.log('Current SR state:', {
+            remainingCards: this.spacedRepetitionCards.length,
+            currentIndex: this.currentSRCardIndex
+        });
 
         // Check if session is completed AFTER processing rescheduled cards
         if (this.currentSRCardIndex >= this.spacedRepetitionCards.length) {
-            if (this.hasRescheduledCards()) {
-                console.log('Main session completed, processing rescheduled cards');
-                this.processRescheduledCards();
-            } else {
-                console.log('SR session completed');
-                this.spacedRepetitionMode = false;
-                this.currentSRCardIndex = 0;
-                this.spacedRepetitionCards = [];
-                this.clearRescheduledCards();
-                this.showNotification('Spaced repetition session completed! Great job!');
-            }
+            console.log('SR session completed');
+            this.spacedRepetitionMode = false;
+            this.currentSRCardIndex = 0;
+            this.spacedRepetitionCards = [];
+            // this.clearRescheduledCards();
+            this.showNotification('Spaced repetition session completed! Great job!');
         }
 
         console.log('Calling renderFlashcards');
         this.renderFlashcards();
+    }
+
+    getHumanReadableTime(date) {
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        const seconds = date.getSeconds();
+
+        // Pad single-digit numbers with a leading zero
+        const pad = (num) => String(num).padStart(2, '0');
+
+        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    // Helper method to end SR session
+    endSpacedRepetitionSession() {
+        this.spacedRepetitionMode = false;
+        this.currentSRCardIndex = 0;
+        this.spacedRepetitionCards = [];
+        this.sessionStartTime = null; // Reset session timer
+        this.showNotification('Spaced repetition session completed! Great job!');
+
+        // If in single card mode, switch back
+        if (this.singleCardMode) {
+            this.singleCardMode = false;
+        }
     }
 
     rescheduleCardForCurrentSession(card, insertAfterCards = 3) {
@@ -1428,7 +1461,7 @@ export class FlashcardsTool {
                                 break;
                             case 'h': // Hard
                                 console.log('Keyboard shortcut: Hard');
-                                this.handleSRRating(currentCard, 10);
+                                this.handleSRRating(currentCard, 30);
                                 break;
                             case 'g': // Good
                                 console.log('Keyboard shortcut: Good');
@@ -1665,7 +1698,7 @@ export class FlashcardsTool {
                     const currentCard = currentCards[idx];
 
                     if (currentCard) {
-                        this.handleSRRating(currentCard, 10);
+                        this.handleSRRating(currentCard, 30);
                     }
                 });
             }
@@ -1923,7 +1956,7 @@ export class FlashcardsTool {
                 listIcon = 'list';
                 listTitle = ''; // 'No cards mastered yet';
             }
-            
+
             if (listName == 'Dark List') {
                 listColor = 'bg-gray-800 hover:bg-gray-900';
                 listIcon = 'list';
