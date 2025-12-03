@@ -48,13 +48,30 @@ export class SyncManager {
 
         try {
             const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+            const srSessionData = JSON.parse(localStorage.getItem('srSessionData')) || {};
+            const futureScheduledCards = JSON.parse(localStorage.getItem('futureScheduledCards')) || [];
 
-            if (Object.keys(customLists).length === 0) {
+            if (Object.keys(customLists).length === 0 &&
+                Object.keys(srSessionData).length === 0 &&
+                futureScheduledCards.length === 0) {
                 this.showNotification('No data to upload!');
                 return;
             }
 
             this.showNotification('Uploading data...');
+
+            const uploadData = {
+                customLists: customLists,
+                srSessionData: srSessionData,
+                futureScheduledCards: futureScheduledCards,
+                metadata: {
+                    totalLists: Object.keys(customLists).length,
+                    totalCards: this.calculateTotalCards(customLists),
+                    totalSRSessions: Object.keys(srSessionData).length,
+                    totalFutureScheduled: futureScheduledCards.length,
+                    timestamp: new Date().toISOString()
+                }
+            };
 
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
@@ -63,8 +80,8 @@ export class SyncManager {
                 },
                 body: JSON.stringify({
                     action: 'upload',
-                    data: customLists,
-                    password: password, // Send actual password over HTTPS
+                    data: uploadData,
+                    password: password,
                     timestamp: new Date().toISOString()
                 })
             });
@@ -72,9 +89,20 @@ export class SyncManager {
             const result = await response.json();
 
             if (result.success) {
-                this.showNotification(
-                    `✅ Upload successful! ${result.listsCount} lists, ${result.totalCards} cards.`
-                );
+                const stats = result.stats || {};
+                let message = '✅ Upload successful! ';
+
+                if (stats.totalCards > 0) {
+                    message += `${stats.totalLists || 0} lists, ${stats.totalCards || 0} cards. `;
+                }
+                if (stats.totalSRSessions > 0) {
+                    message += `${stats.totalSRSessions || 0} spaced repetition sessions. `;
+                }
+                if (stats.totalFutureScheduled > 0) {
+                    message += `${stats.totalFutureScheduled || 0} scheduled reviews.`;
+                }
+
+                this.showNotification(message);
             } else {
                 this.showNotification(`❌ Upload failed: ${result.error}`);
                 // Clear stored password if it's wrong
@@ -109,14 +137,41 @@ export class SyncManager {
             const result = await response.json();
 
             if (result.success) {
-                const existingData = JSON.parse(localStorage.getItem('customGermanLists')) || {};
-                const mergedData = { ...existingData, ...result.data };
+                const existingLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+                const existingSRData = JSON.parse(localStorage.getItem('srSessionData')) || {};
+                const existingFutureCards = JSON.parse(localStorage.getItem('futureScheduledCards')) || [];
 
-                localStorage.setItem('customGermanLists', JSON.stringify(mergedData));
+                // Merge flashcard lists (server data takes priority)
+                const mergedLists = { ...existingLists, ...result.data.customLists };
 
-                this.showNotification(
-                    `✅ Download successful! ${result.listsCount} lists, ${result.totalCards} cards downloaded.`
+                // Merge SR session data (careful merge to preserve progress)
+                const mergedSRData = this.mergeSRData(existingSRData, result.data.srSessionData);
+
+                // Merge future scheduled cards (remove duplicates)
+                const mergedFutureCards = this.mergeFutureScheduledCards(
+                    existingFutureCards,
+                    result.data.futureScheduledCards
                 );
+
+                // Save merged data
+                localStorage.setItem('customGermanLists', JSON.stringify(mergedLists));
+                localStorage.setItem('srSessionData', JSON.stringify(mergedSRData));
+                localStorage.setItem('futureScheduledCards', JSON.stringify(mergedFutureCards));
+
+                const stats = result.stats || {};
+                let message = '✅ Download successful! ';
+
+                if (stats.totalCards > 0) {
+                    message += `${stats.totalLists || 0} lists, ${stats.totalCards || 0} cards downloaded. `;
+                }
+                if (stats.totalSRSessions > 0) {
+                    message += `${stats.totalSRSessions || 0} spaced repetition sessions. `;
+                }
+                if (stats.totalFutureScheduled > 0) {
+                    message += `${stats.totalFutureScheduled || 0} scheduled reviews.`;
+                }
+
+                this.showNotification(message);
 
                 setTimeout(() => location.reload(), 1500);
             } else {
@@ -151,10 +206,24 @@ export class SyncManager {
 
             if (result.success) {
                 if (result.hasData) {
-                    this.showNotification(
-                        `📊 Server has ${result.listsCount} lists with ${result.totalCards} cards. ` +
-                        `Last update: ${new Date(result.timestamp).toLocaleString()}`
-                    );
+                    const stats = result.stats || {};
+                    let message = '📊 Server has: ';
+
+                    const parts = [];
+                    if (stats.totalLists > 0) {
+                        parts.push(`${stats.totalLists} lists with ${stats.totalCards} cards`);
+                    }
+                    if (stats.totalSRSessions > 0) {
+                        parts.push(`${stats.totalSRSessions} spaced repetition sessions`);
+                    }
+                    if (stats.totalFutureScheduled > 0) {
+                        parts.push(`${stats.totalFutureScheduled} scheduled reviews`);
+                    }
+
+                    message += parts.join(', ');
+                    message += `. Last update: ${new Date(result.timestamp).toLocaleString()}`;
+
+                    this.showNotification(message);
                 } else {
                     this.showNotification('📊 No data found on server.');
                 }
@@ -181,5 +250,79 @@ export class SyncManager {
         notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded shadow z-50 text-sm";
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 5000);
+    }
+
+    // Helper methods
+
+    calculateTotalCards(customLists) {
+        let total = 0;
+        for (const listName in customLists) {
+            if (Array.isArray(customLists[listName])) {
+                total += customLists[listName].length;
+            }
+        }
+        return total;
+    }
+
+    mergeSRData(existing, downloaded) {
+        const merged = { ...downloaded };
+
+        // For each SR entry, keep the most recent progress
+        for (const cardKey in existing) {
+            const existingData = existing[cardKey];
+            const downloadedData = downloaded[cardKey];
+
+            if (downloadedData) {
+                // Both exist - keep the one with the most recent review
+                const existingLastReview = existingData.lastReviewed || 0;
+                const downloadedLastReview = downloadedData.lastReviewed || 0;
+
+                if (existingLastReview > downloadedLastReview) {
+                    merged[cardKey] = existingData;
+                }
+            } else {
+                // Only exists locally - add it
+                merged[cardKey] = existingData;
+            }
+        }
+
+        return merged;
+    }
+
+    mergeFutureScheduledCards(existing, downloaded) {
+        const seen = new Set();
+        const merged = [];
+
+        // Helper function to create a unique key for a scheduled card
+        const getCardKey = (item) => {
+            return `${item.card?.german}|${item.card?.english}|${item.scheduledTime}`;
+        };
+
+        // Add downloaded cards first (server data takes priority)
+        if (Array.isArray(downloaded)) {
+            downloaded.forEach(item => {
+                const key = getCardKey(item);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    merged.push(item);
+                }
+            });
+        }
+
+        // Add local cards that don't conflict
+        if (Array.isArray(existing)) {
+            existing.forEach(item => {
+                const key = getCardKey(item);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    merged.push(item);
+                }
+            });
+        }
+
+        // Sort by scheduled time
+        merged.sort((a, b) => a.scheduledTime - b.scheduledTime);
+
+        return merged;
     }
 }
