@@ -175,8 +175,6 @@ export class SyncManager {
         if (!password) return;
 
         try {
-            // Hash the password before sending
-            const passwordHash = await this.hashPassword(password);
 
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
