@@ -17,27 +17,25 @@ export default async function handler(req, res) {
 
     try {
         // Vercel automatically parses JSON bodies, so req.body is already an object
-        const { action, password, data, srSessionData } = req.body;
+        const { action, passwordHash, data, srSessionData } = req.body;
 
-        console.log('Received request:', { action, hasPassword: !!password, hasData: !!data });
+        console.log('Received request:', { action, hasPasswordHash: !!passwordHash, hasData: !!data });
 
         // Verify environment variables
-        const SYNC_PASSWORD = process.env.SYNC_PASSWORD;
         const SUPABASE_URL = process.env.SUPABASE_URL;
         const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-        if (!SYNC_PASSWORD || !SUPABASE_URL || !SUPABASE_KEY) {
+        if (!SUPABASE_URL || !SUPABASE_KEY) {
             console.log('Missing env vars:', {
-                SYNC_PASSWORD: !!SYNC_PASSWORD,
                 SUPABASE_URL: !!SUPABASE_URL,
                 SUPABASE_KEY: !!SUPABASE_KEY
             });
             return res.status(500).json({ error: 'Server configuration error' });
         }
 
-        // Verify password
-        if (password !== SYNC_PASSWORD) {
-            console.log('Password mismatch');
+        // Verify password hash is provided
+        if (!passwordHash) {
+            console.log('No password hash provided');
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -56,8 +54,9 @@ export default async function handler(req, res) {
 
             console.log('Uploading data to Supabase...', Object.keys(data).length, 'lists');
 
-            // Upload data to Supabase
+            // Upload data to Supabase with password hash
             const uploadData = {
+                password_hash: passwordHash,
                 data: data,
                 srSessionData: srSessionData || {},
                 timestamp: new Date().toISOString(),
@@ -92,9 +91,9 @@ export default async function handler(req, res) {
         else if (action === 'download') {
             console.log('Downloading data from Supabase...');
 
-            // Download latest data from Supabase
+            // Download latest data for this user (by password hash)
             const response = await fetch(
-                `${SUPABASE_URL}/rest/v1/flashcards_sync?select=*&order=id.desc&limit=1`,
+                `${SUPABASE_URL}/rest/v1/flashcards_sync?password_hash=eq.${passwordHash}&select=*&order=id.desc&limit=1`,
                 {
                     method: 'GET',
                     headers: {
@@ -114,7 +113,10 @@ export default async function handler(req, res) {
             console.log('Download result:', result.length, 'records found');
 
             if (!result || result.length === 0) {
-                return res.status(404).json({ error: 'No data found' });
+                return res.status(404).json({
+                    success: false,
+                    error: 'No data found for this user'
+                });
             }
 
             const latest = result[0];
@@ -131,9 +133,9 @@ export default async function handler(req, res) {
         else if (action === 'info') {
             console.log('Getting server info...');
 
-            // Get server info
+            // Get server info for this user (by password hash)
             const response = await fetch(
-                `${SUPABASE_URL}/rest/v1/flashcards_sync?select=*&order=id.desc&limit=1`,
+                `${SUPABASE_URL}/rest/v1/flashcards_sync?password_hash=eq.${passwordHash}&select=*&order=id.desc&limit=1`,
                 {
                     method: 'GET',
                     headers: {

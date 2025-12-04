@@ -25,17 +25,48 @@ export class SyncManager {
         }
     }
 
+    validatePassword(password) {
+        if (!password || password.length < 8) {
+            return false;
+        }
+        return true;
+    }
+
+    async hashPassword(password) {
+        // Use SHA-256 to hash the password
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+    }
+
     async getPassword() {
         // Get password from localStorage or prompt
         let password = localStorage.getItem('syncPassword');
 
         if (!password) {
-            password = prompt('Enter your sync password:');
-            if (password) {
+            while (true) {
+                password = prompt('Enter your sync password (minimum 8 characters):');
+
+                if (!password) {
+                    // User cancelled
+                    return null;
+                }
+
+                if (!this.validatePassword(password)) {
+                    alert('❌ Password must be at least 8 characters long. Please try again.');
+                    password = null;
+                    continue;
+                }
+
+                // Valid password
                 const remember = confirm('Remember password for this session?');
                 if (remember) {
                     localStorage.setItem('syncPassword', password);
                 }
+                break;
             }
         }
 
@@ -57,6 +88,9 @@ export class SyncManager {
 
             this.showNotification('Uploading data...');
 
+            // Hash the password before sending
+            const passwordHash = await this.hashPassword(password);
+
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
@@ -66,7 +100,7 @@ export class SyncManager {
                     action: 'upload',
                     data: customLists,
                     srSessionData: srSessionData,
-                    password: password, // Send actual password over HTTPS
+                    passwordHash: passwordHash,
                     timestamp: new Date().toISOString()
                 })
             });
@@ -97,6 +131,9 @@ export class SyncManager {
         try {
             this.showNotification('Downloading data...');
 
+            // Hash the password before sending
+            const passwordHash = await this.hashPassword(password);
+
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
@@ -104,7 +141,7 @@ export class SyncManager {
                 },
                 body: JSON.stringify({
                     action: 'download',
-                    password: password
+                    passwordHash: passwordHash
                 })
             });
 
@@ -142,6 +179,9 @@ export class SyncManager {
         if (!password) return;
 
         try {
+            // Hash the password before sending
+            const passwordHash = await this.hashPassword(password);
+
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
@@ -149,7 +189,7 @@ export class SyncManager {
                 },
                 body: JSON.stringify({
                     action: 'info',
-                    password: password
+                    passwordHash: passwordHash
                 })
             });
 
