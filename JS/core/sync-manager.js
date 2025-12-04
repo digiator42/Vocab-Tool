@@ -204,18 +204,30 @@ export class SyncManager {
 
             const result = await response.json();
 
-            // Debug log
-            console.log('Server info response:', result);
-
             if (result.success) {
                 if (result.hasData) {
-                    // Debug: Show what keys are available
-                    console.log('Available keys:', Object.keys(result));
+                    const listsCount = result.listsCount || 0;
+                    const totalCards = result.totalCards || 0;
 
-                    this.showNotification(
-                        `📊 Server has ${result.listsCount} lists with ${result.totalCards} cards. ` +
-                        `Last update: ${new Date(result.timestamp).toLocaleString()}`
-                    );
+                    let message;
+
+                    if (listsCount > 0) {
+                        // Try to calculate cards if server returned null
+                        if (totalCards === null || totalCards === 0) {
+                            message = `📊 Server has ${listsCount} lists`;
+                        } else {
+                            message = `📊 Server has ${listsCount} lists with ${totalCards} cards`;
+                        }
+                    } else {
+                        message = '📊 Server has data';
+                    }
+
+                    // Add timestamp if available
+                    if (result.timestamp) {
+                        message += `. Last update: ${new Date(result.timestamp).toLocaleString()}`;
+                    }
+
+                    this.showNotification(message);
                 } else {
                     this.showNotification('📊 No data found on server.');
                 }
