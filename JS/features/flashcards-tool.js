@@ -106,8 +106,8 @@ export class FlashcardsTool {
         const srBtn = document.getElementById('spaced-repetition-btn');
         if (srBtn) {
             const stats = this.getSRStatistics();
-            srBtn.textContent = `Spaced Repetition (${stats.due} due)`;
-            srBtn.title = `${stats.due} cards due for review out of ${stats.total} total cards`;
+            srBtn.textContent = `Spaced Repetition (${stats ? stats.due : 0} due)`;
+            srBtn.title = `${stats ? stats.due : 0} cards due for review out of ${stats ? stats.total : 0} total cards`;
         }
     }
 
