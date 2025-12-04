@@ -49,11 +49,8 @@ export class SyncManager {
         try {
             const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
             const srSessionData = JSON.parse(localStorage.getItem('srSessionData')) || {};
-            const futureScheduledCards = JSON.parse(localStorage.getItem('futureScheduledCards')) || [];
 
-            if (Object.keys(customLists).length === 0 &&
-                Object.keys(srSessionData).length === 0 &&
-                futureScheduledCards.length === 0) {
+            if (Object.keys(customLists).length === 0) {
                 this.showNotification('No data to upload!');
                 return;
             }
@@ -67,11 +64,8 @@ export class SyncManager {
                 },
                 body: JSON.stringify({
                     action: 'upload',
-                    data: {
-                        customLists: customLists,
-                        srSessionData: srSessionData,
-                        futureScheduledCards: futureScheduledCards
-                    },
+                    data: customLists,
+                    srSessionData: srSessionData,
                     password: password, // Send actual password over HTTPS
                     timestamp: new Date().toISOString()
                 })
@@ -81,7 +75,7 @@ export class SyncManager {
 
             if (result.success) {
                 this.showNotification(
-                    `✅ Upload successful! ${result.listsCount} lists, ${result.totalCards} cards uploaded.`
+                    `✅ Upload successful! ${result.listsCount} lists, ${result.totalCards} cards, ${result.totalSRSessions} SR sessions.`
                 );
             } else {
                 this.showNotification(`❌ Upload failed: ${result.error}`);
@@ -117,21 +111,17 @@ export class SyncManager {
             const result = await response.json();
 
             if (result.success) {
-                const existingLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+                const existingData = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+                const mergedData = { ...existingData, ...result.data };
+
                 const existingSRData = JSON.parse(localStorage.getItem('srSessionData')) || {};
-                const existingFutureCards = JSON.parse(localStorage.getItem('futureScheduledCards')) || [];
+                const mergedSRData = { ...existingSRData, ...result.srSessionData };
 
-                // Merge data (server data takes priority for lists)
-                const mergedLists = { ...existingLists, ...result.data.customLists };
-                const mergedSRData = { ...existingSRData, ...result.data.srSessionData };
-                const mergedFutureCards = result.data.futureScheduledCards || existingFutureCards;
-
-                localStorage.setItem('customGermanLists', JSON.stringify(mergedLists));
+                localStorage.setItem('customGermanLists', JSON.stringify(mergedData));
                 localStorage.setItem('srSessionData', JSON.stringify(mergedSRData));
-                localStorage.setItem('futureScheduledCards', JSON.stringify(mergedFutureCards));
 
                 this.showNotification(
-                    `✅ Download successful! ${result.listsCount} lists, ${result.totalCards} cards downloaded.`
+                    `✅ Download successful! ${result.listsCount} lists, ${result.totalCards} cards, ${result.totalSRSessions} SR sessions downloaded.`
                 );
 
                 setTimeout(() => location.reload(), 1500);
@@ -167,21 +157,8 @@ export class SyncManager {
 
             if (result.success) {
                 if (result.hasData) {
-                    const parts = [];
-
-                    if (result.listsCount > 0) {
-                        parts.push(`${result.listsCount} lists with ${result.totalCards} cards`);
-                    }
-                    if (result.srSessionsCount > 0) {
-                        parts.push(`${result.srSessionsCount} SR sessions`);
-                    }
-                    if (result.futureScheduledCount > 0) {
-                        parts.push(`${result.futureScheduledCount} scheduled reviews`);
-                    }
-
-                    const dataInfo = parts.length > 0 ? parts.join(', ') : 'data';
                     this.showNotification(
-                        `📊 Server has ${dataInfo}. ` +
+                        `📊 Server has ${result.listsCount} lists with ${result.totalCards} cards and ${result.totalSRSessions} SR sessions. ` +
                         `Last update: ${new Date(result.timestamp).toLocaleString()}`
                     );
                 } else {
