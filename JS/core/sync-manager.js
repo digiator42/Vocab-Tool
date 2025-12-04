@@ -51,6 +51,15 @@ export class SyncManager {
             const srSessionData = JSON.parse(localStorage.getItem('srSessionData')) || {};
             const futureScheduledCards = JSON.parse(localStorage.getItem('futureScheduledCards')) || [];
 
+            // Debug: Log what we're uploading
+            console.log('Uploading data:', {
+                customListsCount: Object.keys(customLists).length,
+                customListsKeys: Object.keys(customLists),
+                totalCards: this.calculateTotalCards(customLists),
+                srSessionDataCount: Object.keys(srSessionData).length,
+                futureScheduledCardsCount: futureScheduledCards.length
+            });
+
             if (Object.keys(customLists).length === 0 &&
                 Object.keys(srSessionData).length === 0 &&
                 futureScheduledCards.length === 0) {
@@ -73,6 +82,8 @@ export class SyncManager {
                 }
             };
 
+            console.log('Full upload data structure:', uploadData);
+
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
@@ -88,9 +99,15 @@ export class SyncManager {
 
             const result = await response.json();
 
+            // Debug: Log server response
+            console.log('Server upload response:', result);
+
             if (result.success) {
                 const stats = result.stats || {};
                 let message = '✅ Upload successful! ';
+
+                // Check what the server actually saved
+                console.log('Server saved stats:', stats);
 
                 if (stats.totalCards > 0) {
                     message += `${stats.totalLists || 0} lists, ${stats.totalCards || 0} cards. `;
@@ -204,6 +221,9 @@ export class SyncManager {
 
             const result = await response.json();
 
+            // Debug log
+            console.log('Server info response:', result);
+
             if (result.success) {
                 if (result.hasData) {
                     const listsCount = result.listsCount || 0;
@@ -228,6 +248,12 @@ export class SyncManager {
                     }
 
                     this.showNotification(message);
+
+                    // Also show debug info in console
+                    console.log('Local data for comparison:', {
+                        localListsCount: Object.keys(JSON.parse(localStorage.getItem('customGermanLists') || '{}')).length,
+                        localLists: Object.keys(JSON.parse(localStorage.getItem('customGermanLists') || '{}'))
+                    });
                 } else {
                     this.showNotification('📊 No data found on server.');
                 }
