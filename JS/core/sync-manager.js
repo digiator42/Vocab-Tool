@@ -42,13 +42,13 @@ export class SyncManager {
         return hashHex;
     }
 
-    async getPassword() {
-        // Get password from localStorage or prompt
-        let password = localStorage.getItem('syncPassword');
+    async getPasswordHash() {
+        // Get hashed password from localStorage or prompt for password and hash it
+        let passwordHash = localStorage.getItem('syncPasswordHash');
 
-        if (!password) {
+        if (!passwordHash) {
             while (true) {
-                password = prompt('Enter your sync password (minimum 8 characters):');
+                const password = prompt('Enter your sync password (minimum 8 characters):');
 
                 if (!password) {
                     // User cancelled
@@ -57,25 +57,27 @@ export class SyncManager {
 
                 if (!this.validatePassword(password)) {
                     alert('❌ Password must be at least 8 characters long. Please try again.');
-                    password = null;
                     continue;
                 }
 
-                // Valid password
+                // Hash the password
+                passwordHash = await this.hashPassword(password);
+
+                // Valid password - ask if they want to remember it
                 const remember = confirm('Remember password for this session?');
                 if (remember) {
-                    localStorage.setItem('syncPassword', password);
+                    localStorage.setItem('syncPasswordHash', passwordHash);
                 }
                 break;
             }
         }
 
-        return password;
+        return passwordHash;
     }
 
     async uploadData() {
-        const password = await this.getPassword();
-        if (!password) return;
+        const passwordHash = await this.getPasswordHash();
+        if (!passwordHash) return;
 
         try {
             const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
@@ -87,9 +89,6 @@ export class SyncManager {
             }
 
             this.showNotification('Uploading data...');
-
-            // Hash the password before sending
-            const passwordHash = await this.hashPassword(password);
 
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
@@ -113,9 +112,9 @@ export class SyncManager {
                 );
             } else {
                 this.showNotification(`❌ Upload failed: ${result.error}`);
-                // Clear stored password if it's wrong
+                // Clear stored password hash if it's wrong
                 if (result.error === 'Unauthorized') {
-                    localStorage.removeItem('syncPassword');
+                    localStorage.removeItem('syncPasswordHash');
                 }
             }
         } catch (error) {
@@ -125,14 +124,11 @@ export class SyncManager {
     }
 
     async downloadData() {
-        const password = await this.getPassword();
-        if (!password) return;
+        const passwordHash = await this.getPasswordHash();
+        if (!passwordHash) return;
 
         try {
             this.showNotification('Downloading data...');
-
-            // Hash the password before sending
-            const passwordHash = await this.hashPassword(password);
 
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
@@ -165,7 +161,7 @@ export class SyncManager {
             } else {
                 this.showNotification(`❌ Download failed: ${result.error}`);
                 if (result.error === 'Unauthorized') {
-                    localStorage.removeItem('syncPassword');
+                    localStorage.removeItem('syncPasswordHash');
                 }
             }
         } catch (error) {
@@ -207,7 +203,7 @@ export class SyncManager {
             } else {
                 this.showNotification(`❌ Info check failed: ${result.error}`);
                 if (result.error === 'Unauthorized') {
-                    localStorage.removeItem('syncPassword');
+                    localStorage.removeItem('syncPasswordHash');
                 }
             }
         } catch (error) {

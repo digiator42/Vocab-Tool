@@ -5,6 +5,10 @@ export class FlashcardsTool {
     constructor() {
         this.flashcards = JSON.parse(localStorage.getItem('germanFlashcards')) || [];
         this.customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        // Sanitize customLists to fix any corrupted data structures
+        this.sanitizeCustomLists();
+
         this.isFiltered = false;
         this.filteredFlashcards = [];
         this.originalListName = null;
@@ -27,6 +31,36 @@ export class FlashcardsTool {
 
 
         this.init();
+    }
+
+    // Sanitize customLists to ensure all lists are arrays
+    sanitizeCustomLists() {
+        let needsSave = false;
+
+        Object.entries(this.customLists).forEach(([listName, listCards]) => {
+            // Check if listCards is not an array
+            if (!Array.isArray(listCards)) {
+                console.warn(`⚠️ List "${listName}" is not an array, attempting to fix...`);
+
+                if (listCards && typeof listCards === 'object') {
+                    // Convert object to array
+                    this.customLists[listName] = Object.values(listCards);
+                    console.log(`✅ Converted "${listName}" to array with ${this.customLists[listName].length} items`);
+                    needsSave = true;
+                } else {
+                    // Invalid data, remove it
+                    console.error(`❌ List "${listName}" has invalid data, removing...`);
+                    delete this.customLists[listName];
+                    needsSave = true;
+                }
+            }
+        });
+
+        // Save the fixed data back to localStorage
+        if (needsSave) {
+            localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+            console.log('✅ Fixed and saved customGermanLists');
+        }
     }
 
     init() {
@@ -1929,6 +1963,7 @@ export class FlashcardsTool {
             // Calculate mastery statistics for this list
             const listCards = this.customLists[listName];
             if (listCards === undefined || listCards === null) return;
+            console.log('------------>><>>>>> ', listCards);
             const masteredCount = listCards.filter(card => card.mastered).length;
             const totalCount = listCards.length;
             const masteryPercentage = totalCount > 0 ? Math.round((masteredCount / totalCount) * 100) : 0;
