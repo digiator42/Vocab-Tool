@@ -1928,6 +1928,7 @@ export class FlashcardsTool {
 
             // Calculate mastery statistics for this list
             const listCards = this.customLists[listName];
+            if (listCards === undefined) return;
             const masteredCount = listCards?.filter(card => card.mastered).length;
             const totalCount = listCards?.length;
             const masteryPercentage = totalCount > 0 ? Math.round((masteredCount / totalCount) * 100) : 0;
