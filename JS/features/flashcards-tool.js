@@ -74,6 +74,7 @@ export class FlashcardsTool {
         this.speech.loadVoices();
         feather.replace();
         AOS.init();
+        window.flashcardsTool = this;
     }
 
     debugListState(listName) {
@@ -167,7 +168,7 @@ export class FlashcardsTool {
         let SRList = [];
 
         const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
-        if (notMasteredSRCards.length === 0) {
+        if (notMasteredSRCards.length === 0 && this.isNotMasteredSR) {
             this.showNotification('All words mastered!');
             return;
         }
@@ -809,7 +810,7 @@ export class FlashcardsTool {
         let SRList = [];
 
         const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
-        if (notMasteredSRCards.length === 0) {
+        if (notMasteredSRCards.length === 0 && this.isNotMasteredSR) {
             this.showNotification('All words mastered!');
             return;
         }
@@ -2164,11 +2165,11 @@ export class FlashcardsTool {
         });
     }
 
-    handleAddFlashcards() {
+    handleAddFlashcards(text, initialDataName) {
         const raw = document.getElementById('new-flashcards-input').value.trim();
         const listName = document.getElementById('list-name-input').value.trim();
 
-        if (!raw || !listName) {
+        if ((!raw || !listName) && !text) {
             this.showNotification('Please enter both list name and flashcards!');
             return;
         }
@@ -2176,7 +2177,7 @@ export class FlashcardsTool {
         const newCards = [];
         let currentHeading = ''; // Track current heading for grouping
 
-        this.sanitizeInput(raw).split('\n').forEach(line => {
+        this.sanitizeInput(raw || text).split('\n').forEach(line => {
             line = line.trim();
             if (!line) return;
 
@@ -2230,7 +2231,7 @@ export class FlashcardsTool {
         });
 
         if (newCards.length > 0) {
-            const sanitizedListName = this.sanitizeInput(listName);
+            const sanitizedListName = this.sanitizeInput(listName || initialDataName);
             this.customLists[sanitizedListName] = newCards;
             localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
 
@@ -2245,7 +2246,7 @@ export class FlashcardsTool {
             this.renderFlashcards();
             this.refreshCustomListButtons(); // Change this line
 
-            this.showNotification(`Added ${newCards.length} flashcards to "${listName}"`);
+            this.showNotification(`Added ${newCards.length} flashcards to "${listName || initialDataName}"`);
 
             // Close the modal
             document.getElementById('add-flashcards-modal').classList.add('hidden');

@@ -1,7 +1,9 @@
+import { FlashcardsTool } from '../features/flashcards-tool.js';
 // Import/Export Module
 export class ImportExportManager {
     constructor() {
         this.init();
+        this.FCT = new FlashcardsTool();
     }
 
     async init() {
@@ -54,13 +56,11 @@ export class ImportExportManager {
         let customLists = JSON.parse(localStorage.getItem('customGermanLists') || '{}');
         if (!customLists || Object.keys(customLists).length === 0) {
             try {
-                const res = await fetch('/data.json');
+                const res = await fetch('/data/data.text');
                 if (res.ok) {
-                    const data = await res.json();
-                    if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) {
-                        localStorage.setItem('customGermanLists', JSON.stringify(data));
-                        location.reload();
-                    }
+                    const data = await res.text();
+                    this.FCT.handleAddFlashcards(data, 'Initial Data');
+                    this.FCT.refreshCustomListButtons();
                 }
             } catch (e) {
                 // Ignore fetch errors
