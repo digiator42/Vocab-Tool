@@ -60,7 +60,6 @@ export class ImportExportManager {
                 if (res.ok) {
                     const data = await res.text();
                     this.FCT.handleAddFlashcards(data, 'Initial Data');
-                    this.FCT.refreshCustomListButtons();
                 }
             } catch (e) {
                 // Ignore fetch errors

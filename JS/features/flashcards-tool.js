@@ -33,6 +33,20 @@ export class FlashcardsTool {
         this.init();
     }
 
+    async init() {
+        this.setupEventListeners();
+        this.renderFlashcards();
+        this.renderCustomListButtons(false);
+        this.updatePaginationControls();
+        this.updateSRButton();
+        this.syncCurrentListName();
+        this.setupSearch();
+        this.speech.loadVoices();
+        feather.replace();
+        AOS.init();
+        window.flashcardsTool = this;
+    }
+
     // Sanitize customLists to ensure all lists are arrays
     sanitizeCustomLists() {
         let needsSave = false;
@@ -61,20 +75,6 @@ export class FlashcardsTool {
             localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
             console.log('✅ Fixed and saved customGermanLists');
         }
-    }
-
-    init() {
-        this.setupEventListeners();
-        this.renderFlashcards();
-        this.renderCustomListButtons(false);
-        this.updatePaginationControls();
-        this.updateSRButton();
-        this.syncCurrentListName();
-        this.setupSearch();
-        this.speech.loadVoices();
-        feather.replace();
-        AOS.init();
-        window.flashcardsTool = this;
     }
 
     debugListState(listName) {
@@ -2165,7 +2165,8 @@ export class FlashcardsTool {
         });
     }
 
-    handleAddFlashcards(text, initialDataName) {
+    handleAddFlashcards(text = null, initialDataName = null) {
+        console.log("handleAddFlashcards called with:", text, initialDataName);
         let raw, listName
 
         if (!text) {
@@ -2176,8 +2177,10 @@ export class FlashcardsTool {
             listName = initialDataName;
         }
 
-        if (!raw || !listName) {
-            this.showNotification('Please enter both list name and flashcards!');
+        if (raw == null || listName == null || raw.trim() === "" || listName.trim() === "") {
+            console.log("raw:", raw, "length:", raw.length);
+            console.log("listName:", listName, "length:", listName.length);
+            document.getElementById('add-flashcards-error').textContent = 'Please enter both list name and flashcards!';
             return;
         }
 
