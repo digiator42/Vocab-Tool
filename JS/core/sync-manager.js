@@ -171,8 +171,8 @@ export class SyncManager {
     }
 
     async getServerInfo() {
-        const password = await this.getPasswordHash();
-        if (!password) return;
+        const passwordHash = await this.getPasswordHash();
+        if (!passwordHash) return;
 
         try {
 
