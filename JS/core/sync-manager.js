@@ -204,45 +204,37 @@ export class SyncManager {
 
             const result = await response.json();
 
+            // Debug log
+            console.log('Server info response:', result);
+
             if (result.success) {
                 if (result.hasData) {
-                    const stats = result.stats || {};
-                    let message = '📊 Server has: ';
+                    // Debug: Show what keys are available
+                    console.log('Available keys:', Object.keys(result));
 
+                    let message = '📊 Server has: ';
                     const parts = [];
 
-                    // Check for lists data
-                    if (stats.totalLists > 0) {
-                        parts.push(`${stats.totalLists} lists with ${stats.totalCards} cards`);
-                    } else if (result.listsCount > 0) {
-                        // Fallback to old response format
-                        parts.push(`${result.listsCount} lists with ${result.totalCards} cards`);
+                    // Check all possible data formats
+                    if (result.listsCount > 0) {
+                        parts.push(`${result.listsCount} lists with ${result.totalCards || 0} cards`);
+                    }
+                    if (result.stats?.totalLists > 0) {
+                        parts.push(`${result.stats.totalLists} lists with ${result.stats.totalCards} cards`);
+                    }
+                    if (result.stats?.totalSRSessions > 0) {
+                        parts.push(`${result.stats.totalSRSessions} spaced repetition sessions`);
                     }
 
-                    // Check for SR data
-                    if (stats.totalSRSessions > 0) {
-                        parts.push(`${stats.totalSRSessions} spaced repetition sessions`);
-                    }
-
-                    // Check for future scheduled cards
-                    if (stats.totalFutureScheduled > 0) {
-                        parts.push(`${stats.totalFutureScheduled} scheduled reviews`);
-                    }
-
-                    // If no parts were added, show generic message
+                    // If still no parts, show generic
                     if (parts.length === 0) {
-                        if (result.listsCount > 0) {
-                            // Old format with just list info
-                            message = `📊 Server has ${result.listsCount} lists with ${result.totalCards} cards`;
-                        } else {
-                            message = '📊 Server has data (no details available)';
-                        }
+                        message = '📊 Server has data';
                     } else {
                         message += parts.join(', ');
                     }
 
-                    // Add timestamp
-                    const timestamp = result.timestamp || result.lastUpdate;
+                    // Add timestamp from any possible location
+                    const timestamp = result.timestamp || result.lastUpdate || result.metadata?.timestamp || result.stats?.timestamp;
                     if (timestamp) {
                         message += `. Last update: ${new Date(timestamp).toLocaleString()}`;
                     }
