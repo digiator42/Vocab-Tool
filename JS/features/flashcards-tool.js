@@ -2166,10 +2166,17 @@ export class FlashcardsTool {
     }
 
     handleAddFlashcards(text, initialDataName) {
-        const raw = document.getElementById('new-flashcards-input').value.trim();
-        const listName = document.getElementById('list-name-input').value.trim();
+        let raw, listName
 
-        if ((!raw || !listName) && !text) {
+        if (!text) {
+            raw = document.getElementById('new-flashcards-input').value.trim();
+            listName = document.getElementById('list-name-input').value.trim();
+        } else {
+            raw = text;
+            listName = initialDataName;
+        }
+
+        if (!raw || !listName) {
             this.showNotification('Please enter both list name and flashcards!');
             return;
         }
@@ -2177,7 +2184,7 @@ export class FlashcardsTool {
         const newCards = [];
         let currentHeading = ''; // Track current heading for grouping
 
-        this.sanitizeInput(raw || text).split('\n').forEach(line => {
+        this.sanitizeInput(raw).split('\n').forEach(line => {
             line = line.trim();
             if (!line) return;
 
@@ -2231,7 +2238,7 @@ export class FlashcardsTool {
         });
 
         if (newCards.length > 0) {
-            const sanitizedListName = this.sanitizeInput(listName || initialDataName);
+            const sanitizedListName = this.sanitizeInput(listName);
             this.customLists[sanitizedListName] = newCards;
             localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
 
@@ -2246,7 +2253,7 @@ export class FlashcardsTool {
             this.renderFlashcards();
             this.refreshCustomListButtons(); // Change this line
 
-            this.showNotification(`Added ${newCards.length} flashcards to "${listName || initialDataName}"`);
+            this.showNotification(`Added ${newCards.length} flashcards to "${listName}"`);
 
             // Close the modal
             document.getElementById('add-flashcards-modal').classList.add('hidden');
