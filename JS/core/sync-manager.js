@@ -51,29 +51,22 @@ export class SyncManager {
             const srSessionData = JSON.parse(localStorage.getItem('srSessionData')) || {};
             const futureScheduledCards = JSON.parse(localStorage.getItem('futureScheduledCards')) || [];
 
-            // Debug: Log what we're uploading
-            console.log('Uploading data:', {
-                customListsCount: Object.keys(customLists).length,
-                customListsKeys: Object.keys(customLists),
-                totalCards: this.calculateTotalCards(customLists),
-                srSessionDataCount: Object.keys(srSessionData).length,
-                futureScheduledCardsCount: futureScheduledCards.length
-            });
-
-            if (Object.keys(customLists).length === 0 &&
-                Object.keys(srSessionData).length === 0 &&
-                futureScheduledCards.length === 0) {
+            if (Object.keys(customLists).length === 0) {
                 this.showNotification('No data to upload!');
                 return;
             }
 
             this.showNotification('Uploading data...');
 
+            // For backward compatibility with the server,
+            // we need to send the data in the format the server expects
             const uploadData = {
-                customLists: customLists,
-                srSessionData: srSessionData,
-                futureScheduledCards: futureScheduledCards,
-                metadata: {
+                // Main data (what server expects)
+                ...customLists,
+                // Add SR data as a special key (won't break old server)
+                __srSessionData: srSessionData,
+                __futureScheduledCards: futureScheduledCards,
+                __metadata: {
                     totalLists: Object.keys(customLists).length,
                     totalCards: this.calculateTotalCards(customLists),
                     totalSRSessions: Object.keys(srSessionData).length,
@@ -82,8 +75,6 @@ export class SyncManager {
                 }
             };
 
-            console.log('Full upload data structure:', uploadData);
-
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
@@ -91,7 +82,7 @@ export class SyncManager {
                 },
                 body: JSON.stringify({
                     action: 'upload',
-                    data: uploadData,
+                    data: uploadData,  // Send as flat object for compatibility
                     password: password,
                     timestamp: new Date().toISOString()
                 })
@@ -99,27 +90,17 @@ export class SyncManager {
 
             const result = await response.json();
 
-            // Debug: Log server response
-            console.log('Server upload response:', result);
-
             if (result.success) {
-                const stats = result.stats || {};
-                let message = '✅ Upload successful! ';
+                // Store local copy of what we uploaded for reference
+                localStorage.setItem('lastUploadStats', JSON.stringify({
+                    totalLists: Object.keys(customLists).length,
+                    totalCards: this.calculateTotalCards(customLists),
+                    timestamp: new Date().toISOString()
+                }));
 
-                // Check what the server actually saved
-                console.log('Server saved stats:', stats);
-
-                if (stats.totalCards > 0) {
-                    message += `${stats.totalLists || 0} lists, ${stats.totalCards || 0} cards. `;
-                }
-                if (stats.totalSRSessions > 0) {
-                    message += `${stats.totalSRSessions || 0} spaced repetition sessions. `;
-                }
-                if (stats.totalFutureScheduled > 0) {
-                    message += `${stats.totalFutureScheduled || 0} scheduled reviews.`;
-                }
-
-                this.showNotification(message);
+                this.showNotification(
+                    `✅ Upload successful! ${result.listsCount} lists, ${result.totalCards} cards.`
+                );
             } else {
                 this.showNotification(`❌ Upload failed: ${result.error}`);
                 // Clear stored password if it's wrong
@@ -158,16 +139,36 @@ export class SyncManager {
                 const existingSRData = JSON.parse(localStorage.getItem('srSessionData')) || {};
                 const existingFutureCards = JSON.parse(localStorage.getItem('futureScheduledCards')) || [];
 
+                // Extract data from server response
+                const serverLists = {};
+                let serverSRData = {};
+                let serverFutureCards = [];
+
+                // Separate regular lists from special data
+                for (const key in result.data) {
+                    if (key === '__srSessionData') {
+                        serverSRData = result.data[key] || {};
+                    } else if (key === '__futureScheduledCards') {
+                        serverFutureCards = result.data[key] || [];
+                    } else if (key === '__metadata') {
+                        // Ignore metadata for now
+                        continue;
+                    } else {
+                        // This is a regular flashcard list
+                        serverLists[key] = result.data[key];
+                    }
+                }
+
                 // Merge flashcard lists (server data takes priority)
-                const mergedLists = { ...existingLists, ...result.data.customLists };
+                const mergedLists = { ...existingLists, ...serverLists };
 
-                // Merge SR session data (careful merge to preserve progress)
-                const mergedSRData = this.mergeSRData(existingSRData, result.data.srSessionData);
+                // Merge SR session data
+                const mergedSRData = this.mergeSRData(existingSRData, serverSRData);
 
-                // Merge future scheduled cards (remove duplicates)
+                // Merge future scheduled cards
                 const mergedFutureCards = this.mergeFutureScheduledCards(
                     existingFutureCards,
-                    result.data.futureScheduledCards
+                    serverFutureCards
                 );
 
                 // Save merged data
@@ -175,20 +176,9 @@ export class SyncManager {
                 localStorage.setItem('srSessionData', JSON.stringify(mergedSRData));
                 localStorage.setItem('futureScheduledCards', JSON.stringify(mergedFutureCards));
 
-                const stats = result.stats || {};
-                let message = '✅ Download successful! ';
-
-                if (stats.totalCards > 0) {
-                    message += `${stats.totalLists || 0} lists, ${stats.totalCards || 0} cards downloaded. `;
-                }
-                if (stats.totalSRSessions > 0) {
-                    message += `${stats.totalSRSessions || 0} spaced repetition sessions. `;
-                }
-                if (stats.totalFutureScheduled > 0) {
-                    message += `${stats.totalFutureScheduled || 0} scheduled reviews.`;
-                }
-
-                this.showNotification(message);
+                this.showNotification(
+                    `✅ Download successful! ${result.listsCount} lists, ${result.totalCards} cards downloaded.`
+                );
 
                 setTimeout(() => location.reload(), 1500);
             } else {
@@ -221,39 +211,22 @@ export class SyncManager {
 
             const result = await response.json();
 
-            // Debug log
-            console.log('Server info response:', result);
-
             if (result.success) {
                 if (result.hasData) {
-                    const listsCount = result.listsCount || 0;
-                    const totalCards = result.totalCards || 0;
+                    // Check if we have local upload stats for more accuracy
+                    const lastUploadStats = localStorage.getItem('lastUploadStats');
 
                     let message;
-
-                    if (listsCount > 0) {
-                        // Try to calculate cards if server returned null
-                        if (totalCards === null || totalCards === 0) {
-                            message = `📊 Server has ${listsCount} lists`;
-                        } else {
-                            message = `📊 Server has ${listsCount} lists with ${totalCards} cards`;
-                        }
+                    if (lastUploadStats) {
+                        const stats = JSON.parse(lastUploadStats);
+                        message = `📊 Server has ${stats.totalLists} lists with ${stats.totalCards} cards`;
                     } else {
-                        message = '📊 Server has data';
+                        message = `📊 Server has ${result.listsCount} lists with ${result.totalCards} cards`;
                     }
 
-                    // Add timestamp if available
-                    if (result.timestamp) {
-                        message += `. Last update: ${new Date(result.timestamp).toLocaleString()}`;
-                    }
+                    message += `. Last update: ${new Date(result.timestamp).toLocaleString()}`;
 
                     this.showNotification(message);
-
-                    // Also show debug info in console
-                    console.log('Local data for comparison:', {
-                        localListsCount: Object.keys(JSON.parse(localStorage.getItem('customGermanLists') || '{}')).length,
-                        localLists: Object.keys(JSON.parse(localStorage.getItem('customGermanLists') || '{}'))
-                    });
                 } else {
                     this.showNotification('📊 No data found on server.');
                 }
