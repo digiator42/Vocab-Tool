@@ -206,22 +206,38 @@ export class SyncManager {
 
             if (result.success) {
                 if (result.hasData) {
-                    const stats = result.stats || {};
                     let message = '📊 Server has: ';
-
                     const parts = [];
-                    if (stats.totalLists > 0) {
-                        parts.push(`${stats.totalLists} lists with ${stats.totalCards} cards`);
-                    }
-                    if (stats.totalSRSessions > 0) {
-                        parts.push(`${stats.totalSRSessions} spaced repetition sessions`);
-                    }
-                    if (stats.totalFutureScheduled > 0) {
-                        parts.push(`${stats.totalFutureScheduled} scheduled reviews`);
+
+                    // Try multiple possible response formats
+                    if (result.stats) {
+                        // New format with stats object
+                        if (result.stats.totalLists > 0) {
+                            parts.push(`${result.stats.totalLists} lists with ${result.stats.totalCards} cards`);
+                        }
+                        if (result.stats.totalSRSessions > 0) {
+                            parts.push(`${result.stats.totalSRSessions} spaced repetition sessions`);
+                        }
+                        if (result.stats.totalFutureScheduled > 0) {
+                            parts.push(`${result.stats.totalFutureScheduled} scheduled reviews`);
+                        }
+                    } else if (result.listsCount > 0) {
+                        // Old format
+                        parts.push(`${result.listsCount} lists with ${result.totalCards} cards`);
                     }
 
-                    message += parts.join(', ');
-                    message += `. Last update: ${new Date(result.timestamp).toLocaleString()}`;
+                    // Build final message
+                    if (parts.length > 0) {
+                        message += parts.join(', ');
+                    } else {
+                        message = '📊 Server has data';
+                    }
+
+                    // Add timestamp if available
+                    const timestamp = result.timestamp || result.lastUpdate || result.metadata?.timestamp;
+                    if (timestamp) {
+                        message += `. Last update: ${new Date(timestamp).toLocaleString()}`;
+                    }
 
                     this.showNotification(message);
                 } else {
