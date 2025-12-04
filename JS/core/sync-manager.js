@@ -210,18 +210,42 @@ export class SyncManager {
                     let message = '📊 Server has: ';
 
                     const parts = [];
+
+                    // Check for lists data
                     if (stats.totalLists > 0) {
                         parts.push(`${stats.totalLists} lists with ${stats.totalCards} cards`);
+                    } else if (result.listsCount > 0) {
+                        // Fallback to old response format
+                        parts.push(`${result.listsCount} lists with ${result.totalCards} cards`);
                     }
+
+                    // Check for SR data
                     if (stats.totalSRSessions > 0) {
                         parts.push(`${stats.totalSRSessions} spaced repetition sessions`);
                     }
+
+                    // Check for future scheduled cards
                     if (stats.totalFutureScheduled > 0) {
                         parts.push(`${stats.totalFutureScheduled} scheduled reviews`);
                     }
 
-                    message += parts.join(', ');
-                    message += `. Last update: ${new Date(result.timestamp).toLocaleString()}`;
+                    // If no parts were added, show generic message
+                    if (parts.length === 0) {
+                        if (result.listsCount > 0) {
+                            // Old format with just list info
+                            message = `📊 Server has ${result.listsCount} lists with ${result.totalCards} cards`;
+                        } else {
+                            message = '📊 Server has data (no details available)';
+                        }
+                    } else {
+                        message += parts.join(', ');
+                    }
+
+                    // Add timestamp
+                    const timestamp = result.timestamp || result.lastUpdate;
+                    if (timestamp) {
+                        message += `. Last update: ${new Date(timestamp).toLocaleString()}`;
+                    }
 
                     this.showNotification(message);
                 } else {
