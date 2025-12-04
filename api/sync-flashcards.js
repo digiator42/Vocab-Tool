@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
     try {
         // Vercel automatically parses JSON bodies, so req.body is already an object
-        const { action, password, data } = req.body;
+        const { action, password, data, srSessionData } = req.body;
 
         console.log('Received request:', { action, hasPassword: !!password, hasData: !!data });
 
@@ -59,6 +59,7 @@ export default async function handler(req, res) {
             // Upload data to Supabase
             const uploadData = {
                 data: data,
+                srSessionData: srSessionData || {},
                 timestamp: new Date().toISOString(),
                 created_at: new Date().toISOString()
             };
@@ -84,7 +85,8 @@ export default async function handler(req, res) {
                 id: result[0].id,
                 timestamp: result[0].timestamp,
                 listsCount: Object.keys(data).length,
-                totalCards: Object.values(data).reduce((sum, cards) => sum + cards.length, 0)
+                totalCards: Object.values(data).reduce((sum, cards) => sum + cards.length, 0),
+                totalSRSessions: srSessionData ? Object.keys(srSessionData).length : 0
             });
         }
         else if (action === 'download') {
@@ -119,9 +121,11 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 success: true,
                 data: latest.data,
+                srSessionData: latest.srSessionData || {},
                 timestamp: latest.timestamp,
                 listsCount: Object.keys(latest.data).length,
-                totalCards: Object.values(latest.data).reduce((sum, cards) => sum + cards.length, 0)
+                totalCards: Object.values(latest.data).reduce((sum, cards) => sum + cards.length, 0),
+                totalSRSessions: latest.srSessionData ? Object.keys(latest.srSessionData).length : 0
             });
         }
         else if (action === 'info') {
@@ -154,7 +158,8 @@ export default async function handler(req, res) {
                 hasData: hasData,
                 timestamp: hasData ? result[0].timestamp : null,
                 listsCount: hasData ? Object.keys(result[0].data).length : 0,
-                totalCards: hasData ? Object.values(result[0].data).reduce((sum, cards) => sum + cards.length, 0) : 0
+                totalCards: hasData ? Object.values(result[0].data).reduce((sum, cards) => sum + cards.length, 0) : 0,
+                totalSRSessions: hasData && result[0].srSessionData ? Object.keys(result[0].srSessionData).length : 0
             });
         }
         else {
