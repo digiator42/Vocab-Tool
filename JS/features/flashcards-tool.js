@@ -124,8 +124,8 @@ export class FlashcardsTool {
 
     exitSpacedRepetitionMode() {
         this.endSpacedRepetitionSession();
-        this.renderFlashcards();
         this.updateSRButton();
+        this.renderFlashcards();
     }
 
     // Helper method to end SR session
@@ -177,6 +177,9 @@ export class FlashcardsTool {
 
         if (dueCards.length === 0) {
             this.showNotification('No cards due for review right now! Great job!');
+            if (this.spacedRepetitionMode) {
+                this.exitSpacedRepetitionMode();
+            }
             return;
         }
 
@@ -376,11 +379,8 @@ export class FlashcardsTool {
         // Check if session is completed AFTER processing rescheduled cards
         if (this.currentSRCardIndex >= this.spacedRepetitionCards.length) {
             console.log('SR session completed');
-            this.spacedRepetitionMode = false;
-            this.currentSRCardIndex = 0;
-            this.spacedRepetitionCards = [];
-            // this.clearRescheduledCards();
-            this.showNotification('Spaced repetition session completed! Great job!');
+            this.exitSpacedRepetitionMode();
+            this.toggleFlashcardButtons(false);
         }
 
         console.log('Calling renderFlashcards');
@@ -524,6 +524,7 @@ export class FlashcardsTool {
             if (this.spacedRepetitionMode) {
                 // If already in SR mode, exit it
                 this.exitSpacedRepetitionMode();
+                this.toggleFlashcardButtons(false);
                 this.showNotification('Exited spaced repetition mode');
             } else {
                 // Start SR mode - check if there are due cards
@@ -534,6 +535,7 @@ export class FlashcardsTool {
                 }
                 // Start SR mode
                 this.setupSpacedRepetition();
+                this.toggleFlashcardButtons(true);
             }
         });
 
@@ -1096,8 +1098,37 @@ export class FlashcardsTool {
 
         feather.replace();
         this.updateProgress();
-        this.updateSRButton();
     }
+
+    toggleFlashcardButtons(disable) {
+        // List of all button IDs
+        const buttonIds = [
+            "import-json-btn",
+            "import-json-text-btn",
+            "export-json-btn",
+            "open-sync-modal",
+            "shuffle-btn",
+            "reset-btn",
+            "show-original-btn",
+            "show-not-mastered-btn",
+            "toggle-view-btn",
+            "flip-list-btn",
+            "open-add-flashcards-modal",
+            "flashcard-search-input",
+            "import-export-json-area"
+        ];
+
+        // Loop through each ID and disable the button
+        buttonIds.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.classList.toggle('hidden', disable);
+            }
+        });
+        const btn = document.getElementById('spaced-repetition-btn');
+        btn.innerHTML = disable ? '❌ Exit ' + btn.textContent : btn.textContent;
+    }
+
 
     renderSingleCardMode(container, cardsToRender = this.flashcards, isSearching) {
         console.log('renderSingleCardMode called with:', cardsToRender.length, 'cards');
