@@ -775,6 +775,7 @@ export class FlashcardsTool {
         let SRList = [];
 
         const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
+        console.log("notMasteredSRCards", notMasteredSRCards.length);
         if (notMasteredSRCards.length === 0) {
             this.showNotification('All words mastered!');
             return;
@@ -1928,6 +1929,7 @@ export class FlashcardsTool {
 
             // Calculate mastery statistics for this list
             const listCards = this.customLists[listName];
+            if (listCards === undefined || listCards === null) return;
             const masteredCount = listCards.filter(card => card.mastered).length;
             const totalCount = listCards.length;
             const masteryPercentage = totalCount > 0 ? Math.round((masteredCount / totalCount) * 100) : 0;
