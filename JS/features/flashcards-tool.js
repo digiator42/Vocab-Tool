@@ -5,6 +5,10 @@ export class FlashcardsTool {
     constructor() {
         this.flashcards = JSON.parse(localStorage.getItem('germanFlashcards')) || [];
         this.customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        // Sanitize customLists to fix any corrupted data structures
+        this.sanitizeCustomLists();
+
         this.isFiltered = false;
         this.filteredFlashcards = [];
         this.originalListName = null;
@@ -20,6 +24,7 @@ export class FlashcardsTool {
         this.voiceSelect = document.getElementById("voiceSelect");
         this.currentListName = null;
         this.hasAttachedFlashcardListener = false;
+        this.isNotMasteredSR = false;
 
         this.speechSynth = window.speechSynthesis;
         this.speech = new SpeechService(this);
@@ -28,16 +33,48 @@ export class FlashcardsTool {
         this.init();
     }
 
-    init() {
+    async init() {
         this.setupEventListeners();
         this.renderFlashcards();
         this.renderCustomListButtons(false);
         this.updatePaginationControls();
         this.updateSRButton();
-        this.syncCurrentListName(); // Add this line
+        this.syncCurrentListName();
+        this.setupSearch();
         this.speech.loadVoices();
         feather.replace();
         AOS.init();
+        window.flashcardsTool = this;
+    }
+
+    // Sanitize customLists to ensure all lists are arrays
+    sanitizeCustomLists() {
+        let needsSave = false;
+
+        Object.entries(this.customLists).forEach(([listName, listCards]) => {
+            // Check if listCards is not an array
+            if (!Array.isArray(listCards)) {
+                console.warn(`⚠️ List "${listName}" is not an array, attempting to fix...`);
+
+                if (listCards && typeof listCards === 'object') {
+                    // Convert object to array
+                    this.customLists[listName] = Object.values(listCards);
+                    console.log(`✅ Converted "${listName}" to array with ${this.customLists[listName].length} items`);
+                    needsSave = true;
+                } else {
+                    // Invalid data, remove it
+                    console.error(`❌ List "${listName}" has invalid data, removing...`);
+                    delete this.customLists[listName];
+                    needsSave = true;
+                }
+            }
+        });
+
+        // Save the fixed data back to localStorage
+        if (needsSave) {
+            localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+            console.log('✅ Fixed and saved customGermanLists');
+        }
     }
 
     debugListState(listName) {
@@ -81,6 +118,7 @@ export class FlashcardsTool {
     }
 
     decodeOutput(output) {
+        if (!output) return '';
         // Handle double-encoded entities (like &amp;#x2F;)
         let decoded = output.replace(/&amp;(#x2F;)/g, '&$1');
 
@@ -103,8 +141,8 @@ export class FlashcardsTool {
         const srBtn = document.getElementById('spaced-repetition-btn');
         if (srBtn) {
             const stats = this.getSRStatistics();
-            srBtn.textContent = `Spaced Repetition (${stats.due} due)`;
-            srBtn.title = `${stats.due} cards due for review out of ${stats.total} total cards`;
+            srBtn.textContent = `Spaced Repetition (${stats ? stats.due : 0} due)`;
+            srBtn.title = `${stats ? stats.due : 0} cards due for review out of ${stats ? stats.total : 0} total cards`;
         }
     }
 
@@ -126,7 +164,18 @@ export class FlashcardsTool {
 
         // Get cards that are due for review
         const now = Date.now();
-        const dueCards = this.flashcards.filter(card => {
+
+        let SRList = [];
+
+        const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
+        if (notMasteredSRCards.length === 0 && this.isNotMasteredSR) {
+            this.showNotification('All words mastered!');
+            return;
+        }
+
+        this.isNotMasteredSR ? SRList = notMasteredSRCards : SRList = this.flashcards;
+
+        const dueCards = SRList.filter(card => {
             const cardKey = `${card.german}|${card.english}`;
             const cardData = this.srSessionData[cardKey];
 
@@ -173,13 +222,13 @@ export class FlashcardsTool {
             Again (1 min) [A]
         </button>
         <button class="sr-hard-btn px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600" title="Shortcut: H">
-            Hard (10 min) [H]
+            Hard (30 min) [H]
         </button>
         <button class="sr-good-btn px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600" title="Shortcut: G">
-            Good (1 day) [G]
+            Good (4 days) [G]
         </button>
         <button class="sr-easy-btn px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600" title="Shortcut: E">
-            Easy (4 days) [E]
+            Easy (9 days) [E]
         </button>
     `;
 
@@ -201,7 +250,7 @@ export class FlashcardsTool {
             hardBtn.addEventListener('click', (e) => {
                 console.log('SR Hard button clicked');
                 e.stopPropagation();
-                this.handleSRRating(card, 10); // 10 minutes
+                this.handleSRRating(card, 30); // 10 minutes
             });
         }
 
@@ -210,7 +259,7 @@ export class FlashcardsTool {
             goodBtn.addEventListener('click', (e) => {
                 console.log('SR Good button clicked');
                 e.stopPropagation();
-                this.handleSRRating(card, 1440); // 1 day in minutes
+                this.handleSRRating(card, 5760); // 4 days in minutes
             });
         }
 
@@ -219,7 +268,7 @@ export class FlashcardsTool {
             easyBtn.addEventListener('click', (e) => {
                 console.log('SR Easy button clicked');
                 e.stopPropagation();
-                this.handleSRRating(card, 5760); // 4 days in minutes
+                this.handleSRRating(card, 12960); // 9 days in minutes
             });
         }
 
@@ -270,23 +319,36 @@ export class FlashcardsTool {
 
         const cardData = this.srSessionData[cardKey];
 
-        if (minutesUntilNext === 1) { // Again
-            cardData.repetitions = 0;
-            cardData.interval = 1;
-            console.log('Rescheduling card for current session (Again):', card.german);
-            const pos = this.calculateInsertPosition(this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext);
-            console.log('=====>>> ', this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext, pos);
-            this.rescheduleCardForCurrentSession(card, pos);
+        // Define rating constants
+        const AGAIN = 1; // 1 minute
+        const HARD = 30; // 30 minutes (changed from 10)
+        const GOOD = 5760; // 4 days
+        const EASY = 12960; // 9 days
+        const MASTERED = 43200; // 30 days
 
-        } else if (minutesUntilNext === 10) { // Hard
-            cardData.repetitions += 1;
-            cardData.interval = Math.max(1, cardData.interval * 1.2);
-            console.log('Rescheduling card for current session (Hard):', card.german);
-            const pos = this.calculateInsertPosition(this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext);
-            console.log('=====>>> ', this.currentSRCardIndex, this.spacedRepetitionCards.length, minutesUntilNext, pos);
-            this.rescheduleCardForCurrentSession(card, pos);
+        // Update SR algorithm parameters
+        if (minutesUntilNext === AGAIN) {
+            setTimeout(() => {
+                if (this.spacedRepetitionMode && this.spacedRepetitionCards.length > 0) {
+                    // this.showNotification(`"${card.german}" is ready for review again!`, 3000);
+                    console.log(`"${card.german}" is ready for review again!`, 3000);
 
-        } else { // Good or Easy
+                    this.spacedRepetitionCards.splice(this.currentSRCardIndex + 1, 0, card);
+                    this.renderFlashcards();
+                }
+            }, 1 * 60 * 1000);
+        } else if (minutesUntilNext === HARD) {
+            setTimeout(() => {
+                if (this.spacedRepetitionMode && this.spacedRepetitionCards.length > 0) {
+                    this.showNotification(`"${card.german}" is ready for review again!`, 3000);
+                    console.log(`"${card.german}" is ready for review again!`, 3000);
+
+                    this.spacedRepetitionCards.splice(this.currentSRCardIndex + 1, 0, card);
+                    this.renderFlashcards();
+                }
+            }, 30 * 60 * 1000);
+        } else {
+            // GOOD, EASY, or MASTERED
             cardData.repetitions += 1;
 
             if (cardData.repetitions === 1) {
@@ -297,45 +359,69 @@ export class FlashcardsTool {
                 cardData.interval = Math.round(cardData.interval * cardData.easeFactor);
             }
 
-            if (minutesUntilNext === 1440) { // Good
+            if (minutesUntilNext === MASTERED) {
+                cardData.easeFactor = Math.min(2.5, cardData.easeFactor + 0.5);
+            }
+
+            if (minutesUntilNext === GOOD) {
                 cardData.easeFactor = Math.max(1.3, cardData.easeFactor - 0.15);
-            } else { // Easy
+            } else if (minutesUntilNext === EASY) {
                 cardData.easeFactor = Math.min(2.5, cardData.easeFactor + 0.1);
             }
         }
 
+        // Set the next review time
         cardData.nextReview = now + (minutesUntilNext * 60 * 1000);
         cardData.lastReviewed = now;
+        cardData.humanTime = this.getHumanReadableTime(new Date(cardData.nextReview));
 
+        // Save to localStorage
         localStorage.setItem('srSessionData', JSON.stringify(this.srSessionData));
 
-        // Move to next card FIRST
         this.currentSRCardIndex++;
-        console.log('Moved to next card:', {
-            newSRCardIndex: this.currentSRCardIndex,
-            totalSRCards: this.spacedRepetitionCards.length
-        });
 
-        // THEN process rescheduled cards - this is crucial!
-        this.processRescheduledCardsIfNeeded();
+        console.log('Current SR state:', {
+            remainingCards: this.spacedRepetitionCards.length,
+            currentIndex: this.currentSRCardIndex
+        });
 
         // Check if session is completed AFTER processing rescheduled cards
         if (this.currentSRCardIndex >= this.spacedRepetitionCards.length) {
-            if (this.hasRescheduledCards()) {
-                console.log('Main session completed, processing rescheduled cards');
-                this.processRescheduledCards();
-            } else {
-                console.log('SR session completed');
-                this.spacedRepetitionMode = false;
-                this.currentSRCardIndex = 0;
-                this.spacedRepetitionCards = [];
-                this.clearRescheduledCards();
-                this.showNotification('Spaced repetition session completed! Great job!');
-            }
+            console.log('SR session completed');
+            this.spacedRepetitionMode = false;
+            this.currentSRCardIndex = 0;
+            this.spacedRepetitionCards = [];
+            // this.clearRescheduledCards();
+            this.showNotification('Spaced repetition session completed! Great job!');
         }
 
         console.log('Calling renderFlashcards');
         this.renderFlashcards();
+    }
+
+    getHumanReadableTime(date) {
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        const seconds = date.getSeconds();
+
+        // Pad single-digit numbers with a leading zero
+        const pad = (num) => String(num).padStart(2, '0');
+
+        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    // Helper method to end SR session
+    endSpacedRepetitionSession() {
+        this.spacedRepetitionMode = false;
+        this.currentSRCardIndex = 0;
+        this.spacedRepetitionCards = [];
+        this.sessionStartTime = null; // Reset session timer
+        this.showNotification('Spaced repetition session completed! Great job!');
+
+        // If in single card mode, switch back
+        if (this.singleCardMode) {
+            this.singleCardMode = false;
+        }
     }
 
     rescheduleCardForCurrentSession(card, insertAfterCards = 3) {
@@ -468,6 +554,12 @@ export class FlashcardsTool {
             console.log("On Off set to:", !this.useSlowSpeak ? "Normal" : "Slow");
         });
 
+        document.getElementById('not-mastered-sr').addEventListener('change', (e) => {
+            this.isNotMasteredSR = e.target.checked;
+            this.updateSRButton();
+            console.log("set to:", !this.isNotMasteredSR ? "Normal SR" : "!mastered SR");
+        });
+
         this.setupEditModal();
 
         // Control buttons
@@ -579,7 +671,7 @@ export class FlashcardsTool {
 
                 if (this.currentPage < totalPages) {
                     this.currentPage++;
-                    this.renderFlashcards();
+                    this.renderFlashcards(this.isFiltered ? true : false);
                 }
             }
         });
@@ -595,7 +687,7 @@ export class FlashcardsTool {
                 // Normal mode pagination
                 if (this.currentPage > 1) {
                     this.currentPage--;
-                    this.renderFlashcards();
+                    this.renderFlashcards(this.isFiltered ? true : false);
                 }
             }
         });
@@ -644,13 +736,88 @@ export class FlashcardsTool {
         this.setupAddFlashcardsModal();
     }
 
+    setupSearch() {
+        const searchInput = document.getElementById('flashcard-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.handleSearch(e.target.value);
+            });
+        }
+    }
+
+    handleSearch(query) {
+        query = query.trim().toLowerCase();
+
+        if (!query) {
+            // If query is empty, reset to normal view
+            this.isFiltered = false;
+            this.filteredFlashcards = [];
+            this.currentPage = 1;
+            this.renderFlashcards();
+            return;
+        }
+
+        // Get all flashcards from all lists
+        const allFlashcards = [];
+
+        // Add flashcards from all custom lists
+        const customLists = JSON.parse(localStorage.getItem('customGermanLists') || '{}');
+
+        // Iterate over the object keys
+        Object.keys(customLists).forEach(key => {
+            const list = customLists[key];
+            if (Array.isArray(list)) {
+                list.forEach(card => {
+                    allFlashcards.push({
+                        ...card,
+                        listName: key // Add list name (the key) for reference
+                    });
+                });
+            }
+        });
+
+        // Filter cards across all lists
+        const results = allFlashcards.filter(card => {
+            const german = (card.german || '').toLowerCase();
+            const english = (card.english || '').toLowerCase();
+            return german.includes(query) || english.includes(query);
+        });
+
+        // Sort results: German matches first
+        results.sort((a, b) => {
+            const aGerman = (a.german || '').toLowerCase();
+            const bGerman = (b.german || '').toLowerCase();
+            const aMatch = aGerman.includes(query);
+            const bMatch = bGerman.includes(query);
+
+            if (aMatch && !bMatch) return -1;
+            if (!aMatch && bMatch) return 1;
+            return 0;
+        });
+
+        this.isFiltered = results.length > 0 ? true : false;
+        this.filteredFlashcards = results;
+        this.currentPage = 1;
+        this.renderFlashcards(true);
+    }
+
     // Add method to get SR statistics
     getSRStatistics() {
         const now = Date.now();
         let dueCount = 0;
         let totalCards = 0;
 
-        this.flashcards.forEach(card => {
+        let SRList = [];
+
+        const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
+        if (notMasteredSRCards.length === 0 && this.isNotMasteredSR) {
+            this.showNotification('All words mastered!');
+            return;
+        }
+
+        this.isNotMasteredSR ? SRList = notMasteredSRCards : SRList = this.flashcards;
+
+        SRList.forEach(card => {
             const cardKey = `${card.german}|${card.english}`;
             totalCards++;
 
@@ -918,7 +1085,7 @@ export class FlashcardsTool {
         console.log('=====================');
     }
 
-    renderFlashcards() {
+    renderFlashcards(isSearching) {
         const container = document.getElementById('flashcards-container');
         container.innerHTML = '';
 
@@ -933,16 +1100,16 @@ export class FlashcardsTool {
         }
 
         if (this.singleCardMode) {
-            this.renderSingleCardMode(container, cardsToRender);
+            this.renderSingleCardMode(container, cardsToRender, isSearching);
         } else {
-            this.renderGridMode(container, cardsToRender);
+            this.renderGridMode(container, cardsToRender, isSearching);
         }
 
         feather.replace();
         this.updateProgress();
     }
 
-    renderSingleCardMode(container, cardsToRender = this.flashcards) {
+    renderSingleCardMode(container, cardsToRender = this.flashcards, isSearching) {
         console.log('renderSingleCardMode called with:', cardsToRender.length, 'cards');
 
         container.className = "flex items-center justify-center mx-auto max-w-3xl";
@@ -1038,32 +1205,42 @@ export class FlashcardsTool {
         if (this.spacedRepetitionMode) {
             const srControls = this.renderSpacedRepetitionControls(flashcard, card);
             backContentDiv.appendChild(srControls);
+            backContentDiv.innerHTML += `<button class="master-btn-sr mt-3 px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
+                ${card.mastered ? 'Not Mastered' : 'Mastered'} (30 days) [M]
+                </button>`;
         } else {
             // Regular controls for non-SR mode
             const regularControls = document.createElement('div');
             regularControls.className = 'mt-4 flex space-x-2';
             regularControls.innerHTML = `
-            <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
-                ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
-            </button>
-            <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
-                Edit
-            </button>
-            <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
-                Remove
-            </button>
+            <div class="mt-1 flex flex-col space-x-1">
+                <div class="mt-1 flex space-x-2">
+                    <button class="master-btn px-4 py-2 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-sm" title="Shortcut: M">
+                        ${card.mastered ? 'Not Mastered' : 'Mastered'} [M]
+                    </button>
+                    <button class="edit-btn px-4 py-2 bg-blue-500 text-white rounded text-sm">
+                        Edit
+                    </button>
+                    <button class="remove-btn px-4 py-2 bg-red-500 text-white rounded text-sm">
+                        Remove
+                    </button>
+                </div>
+                <button class="add-dark-btn px-2 py-3 mt-5 bg-black text-white rounded text-xs">
+                    Add to Dark List
+                </button>
+            </div>
         `;
             backContentDiv.appendChild(regularControls);
         }
 
         // Create heading display (only show if heading exists)
-        const headingDisplay = currentHeading ?
+        const headingDisplay = currentHeading || isSearching && card.listName ?
             `<div class="absolute top-4 right-4 z-30 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full shadow-lg border border-white border-opacity-30">
                 <div class="flex items-center space-x-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-folder">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    <span class="text-sm font-medium">${currentHeading}</span>
+                    <span class="text-sm font-medium">${currentHeading || card.listName}</span>
                 </div>
             </div>` : '';
 
@@ -1095,7 +1272,7 @@ export class FlashcardsTool {
         this.updatePaginationControls();
     }
 
-    renderGridMode(container, cardsToRender = this.flashcards) {
+    renderGridMode(container, cardsToRender = this.flashcards, isSearching = false) {
         container.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 mx-auto max-w-5xl";
         const startIndex = (this.currentPage - 1) * this.cardsPerPage;
         const endIndex = Math.min(startIndex + this.cardsPerPage, cardsToRender.length);
@@ -1106,17 +1283,25 @@ export class FlashcardsTool {
             const actualIndex = startIndex + idx;
 
             // Add heading if it exists and is different from previous
-            if (card.heading && card.heading !== lastHeading) {
+            if (isSearching && card.listName !== lastHeading || card.heading && card.heading !== lastHeading) {
+                console.log(isSearching, card.listName, card.heading, lastHeading);
+
+                if (!card.heading && !isSearching) {
+                    return;
+                }
+
                 const headingElement = document.createElement('div');
                 headingElement.className = 'col-span-full bg-gray-200 p-3 rounded-lg border-l-4 border-blue-500 mb-2';
                 headingElement.innerHTML = `
                 <h3 class="text-lg font-semibold text-gray-800 flex items-center">
                     <i data-feather="folder" class="mr-2 w-4 h-4"></i>
-                    ${card.heading}
+                    ${card.listName || card.heading}
                 </h3>
             `;
                 container.appendChild(headingElement);
-                lastHeading = card.heading;
+                console.log(card.listName === lastHeading);
+
+                lastHeading = card.listName || card.heading;
             }
 
             const flashcard = document.createElement('div');
@@ -1163,16 +1348,19 @@ export class FlashcardsTool {
                 <div class="flashcard-back bg-indigo-100 rounded-lg shadow-md p-2 flex flex-col gap-6 items-center justify-center cursor-pointer h-full">
                     ${backContent}
                     <div class="mt-1 flex space-x-1">
-                        <button class="master-btn px-2 py-0.5 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
+                        <button class="master-btn px-2 py-1 ${card.mastered ? 'bg-green-500' : 'bg-gray-500'} text-white rounded text-xs">
                             ${card.mastered ? 'Not Mastered' : 'Mastered'}
                         </button>
-                        <button class="edit-btn px-2 py-0.5 bg-blue-500 text-white rounded text-xs">
+                        <button class="edit-btn px-2 py-1 bg-blue-500 text-white rounded text-xs">
                             Edit
                         </button>
-                        <button class="remove-btn px-2 py-0.5 bg-red-500 text-white rounded text-xs">
+                        <button class="remove-btn px-2 py-1 bg-red-500 text-white rounded text-xs">
                             Remove
                         </button>
                     </div>
+                    <button class="add-dark-btn px-2 py-1 bg-black text-white rounded text-xs">
+                        Add to Dark List
+                    </button>
                 </div>
             </div>`;
             container.appendChild(flashcard);
@@ -1181,6 +1369,94 @@ export class FlashcardsTool {
 
         this.updatePaginationControls();
         feather.replace();
+    }
+
+    handleAddToDarkList() {
+
+        const listName = 'Dark List';
+        let currentCard = '';
+
+        const currentCards = this.getCurrentCards();
+        const currentIndex = this.getCurrentCardIndex();
+
+        if (currentIndex >= 0 && currentIndex < currentCards.length) {
+            currentCard = currentCards[currentIndex];
+        }
+
+
+        let customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+
+        // Create new list if it doesn't exist
+        if (!customLists[listName]) {
+            customLists[listName] = [];
+        }
+
+        const exists = customLists[listName].some(card =>
+            card.german === currentCard.german && card.english === currentCard.english
+        );
+
+        if (!exists) {
+            customLists[listName].push({
+                german: currentCard.german,
+                sentence: currentCard.sentence,
+                english: currentCard.english,
+                mastered: false
+            });
+            this.showNotification('Card Added');
+        } else {
+            this.showNotification('Card Already Exists!');
+        }
+        localStorage.setItem('customGermanLists', JSON.stringify(customLists));
+        // Refresh flashcard lists
+        // this.FCL.refreshFlashcardLists();
+    }
+
+    handleMasterBtn() {
+        console.log('Keyboard shortcut: Mastered');
+        const currentCards = this.getCurrentCards();
+        const currentIndex = this.getCurrentCardIndex();
+
+        if (currentIndex >= 0 && currentIndex < currentCards.length) {
+            const currentCard = currentCards[currentIndex];
+            currentCard.mastered = !currentCard.mastered;
+
+            // Update the ORIGINAL list in customGermanLists
+            const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
+            if (originalListName && this.customLists[originalListName]) {
+                const originalList = this.customLists[originalListName];
+
+                // Find the matching card in the original list
+                const originalCardIndex = originalList.findIndex(card =>
+                    card.german === currentCard.german && card.english === currentCard.english
+                );
+
+                if (originalCardIndex !== -1) {
+                    originalList[originalCardIndex].mastered = currentCard.mastered;
+                    localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
+                }
+            }
+
+            // Also update main flashcards
+            const mainCardIndex = this.flashcards.findIndex(card =>
+                card.german === currentCard.german && card.english === currentCard.english
+            );
+            if (mainCardIndex !== -1) {
+                this.flashcards[mainCardIndex].mastered = currentCard.mastered;
+            }
+
+            localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
+            this.updateProgress();
+            this.refreshCustomListButtons();
+            if (this.spacedRepetitionMode && this.singleCardMode) {
+                console.log('Keyboard shortcut: Mastered');
+                this.handleSRRating(currentCard, 43200);
+                return;
+            };
+            this.renderFlashcards();
+
+            const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
+            // this.showNotification(`Card ${action}!`);
+        }
     }
 
     setupFlashcardEventListeners(flashcard) {
@@ -1220,62 +1496,30 @@ export class FlashcardsTool {
                                 break;
                             case 'h': // Hard
                                 console.log('Keyboard shortcut: Hard');
-                                this.handleSRRating(currentCard, 10);
+                                this.handleSRRating(currentCard, 30);
                                 break;
                             case 'g': // Good
                                 console.log('Keyboard shortcut: Good');
-                                this.handleSRRating(currentCard, 1440);
+                                this.handleSRRating(currentCard, 5760);
                                 break;
                             case 'e': // Easy
                                 console.log('Keyboard shortcut: Easy');
-                                this.handleSRRating(currentCard, 5760);
+                                this.handleSRRating(currentCard, 12960);
                                 break;
                         }
                     }
                 }
 
+                const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
+                if (masterSRBtn) {
+                    masterSRBtn.addEventListener('click', () => {
+                        this.handleMasterBtn();
+                    });
+                }
+
                 // Mastered shortcut (works in both normal and SR mode)
                 if (e.key.toLowerCase() === 'm' && this.singleCardMode) {
-                    console.log('Keyboard shortcut: Mastered');
-                    const currentCards = this.getCurrentCards();
-                    const currentIndex = this.getCurrentCardIndex();
-
-                    if (currentIndex >= 0 && currentIndex < currentCards.length) {
-                        const currentCard = currentCards[currentIndex];
-                        currentCard.mastered = !currentCard.mastered;
-
-                        // Update the ORIGINAL list in customGermanLists
-                        const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
-                        if (originalListName && this.customLists[originalListName]) {
-                            const originalList = this.customLists[originalListName];
-
-                            // Find the matching card in the original list
-                            const originalCardIndex = originalList.findIndex(card =>
-                                card.german === currentCard.german && card.english === currentCard.english
-                            );
-
-                            if (originalCardIndex !== -1) {
-                                originalList[originalCardIndex].mastered = currentCard.mastered;
-                                localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
-                            }
-                        }
-
-                        // Also update main flashcards
-                        const mainCardIndex = this.flashcards.findIndex(card =>
-                            card.german === currentCard.german && card.english === currentCard.english
-                        );
-                        if (mainCardIndex !== -1) {
-                            this.flashcards[mainCardIndex].mastered = currentCard.mastered;
-                        }
-
-                        localStorage.setItem('germanFlashcards', JSON.stringify(this.flashcards));
-                        this.updateProgress();
-                        this.renderFlashcards();
-                        this.refreshCustomListButtons();
-
-                        const action = currentCard.mastered ? 'marked as mastered' : 'unmarked as mastered';
-                        // this.showNotification(`Card ${action}!`);
-                    }
+                    this.handleMasterBtn();
                 }
 
                 // Left/Right arrows for navigation - only when container is visible
@@ -1331,7 +1575,7 @@ export class FlashcardsTool {
 
                 // Get the ORIGINAL list name
                 const originalListName = localStorage.getItem('originalListName') || this.getCurrentListName();
-                console.log('Master toggle - originalListName:', originalListName);
+                console.log('Master toggle - originalListName:', originalListName, this.isFiltered);
 
                 // Determine which card was clicked based on filtered state
                 let clickedCard;
@@ -1392,8 +1636,8 @@ export class FlashcardsTool {
                         this.isFiltered = false;
                     }
                 }
-                this.renderFlashcards();
                 this.renderCustomListButtons();
+                this.renderFlashcards();
 
                 this.showNotification('Mastery status updated!');
             });
@@ -1429,16 +1673,35 @@ export class FlashcardsTool {
         const removeBtn = flashcard.querySelector('.remove-btn');
         if (removeBtn) {
             removeBtn.addEventListener('click', (e) => {
+                console.log('-------->>> ', removeBtn);
                 e.stopPropagation();
                 const idx = parseInt(flashcard.dataset.index);
                 this.handleRemoveFlashcard(idx);
             });
         }
+
+        const addToDarkList = flashcard.querySelector('.add-dark-btn');
+        if (addToDarkList) {
+            addToDarkList.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('-------->>> ', addToDarkList);
+                this.handleAddToDarkList();
+                this.refreshCustomListButtons();
+            });
+        }
+
         setTimeout(() => {
             const againBtn = flashcard.querySelector('.sr-again-btn');
             const hardBtn = flashcard.querySelector('.sr-hard-btn');
             const goodBtn = flashcard.querySelector('.sr-good-btn');
             const easyBtn = flashcard.querySelector('.sr-easy-btn');
+
+            const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
+            if (masterSRBtn) {
+                masterSRBtn.addEventListener('click', () => {
+                    this.handleMasterBtn();
+                });
+            }
 
             if (againBtn) {
                 console.log('Setting up SR Again button in setupFlashcardEventListeners');
@@ -1470,7 +1733,7 @@ export class FlashcardsTool {
                     const currentCard = currentCards[idx];
 
                     if (currentCard) {
-                        this.handleSRRating(currentCard, 10);
+                        this.handleSRRating(currentCard, 30);
                     }
                 });
             }
@@ -1486,7 +1749,7 @@ export class FlashcardsTool {
                     const currentCard = currentCards[idx];
 
                     if (currentCard) {
-                        this.handleSRRating(currentCard, 1440);
+                        this.handleSRRating(currentCard, 5760);
                     }
                 });
             }
@@ -1502,7 +1765,7 @@ export class FlashcardsTool {
                     const currentCard = currentCards[idx];
 
                     if (currentCard) {
-                        this.handleSRRating(currentCard, 5760);
+                        this.handleSRRating(currentCard, 12960);
                     }
                 });
             }
@@ -1612,6 +1875,7 @@ export class FlashcardsTool {
             document.getElementById('prev-page-btn').disabled = this.currentSRCardIndex === 0;
             document.getElementById('next-page-btn').disabled = this.currentSRCardIndex >= totalPages - 1;
         } else {
+            console.log('----->> console log');
             // Determine which cards to use for pagination
             const totalCards = this.isFiltered ? this.filteredFlashcards.length : this.flashcards.length;
             const totalPages = this.singleCardMode
@@ -1699,6 +1963,8 @@ export class FlashcardsTool {
 
             // Calculate mastery statistics for this list
             const listCards = this.customLists[listName];
+            if (listCards === undefined || listCards === null) return;
+            console.log('------------>><>>>>> ', listCards);
             const masteredCount = listCards.filter(card => card.mastered).length;
             const totalCount = listCards.length;
             const masteryPercentage = totalCount > 0 ? Math.round((masteredCount / totalCount) * 100) : 0;
@@ -1728,6 +1994,10 @@ export class FlashcardsTool {
                 listTitle = ''; // 'No cards mastered yet';
             }
 
+            if (listName == 'Dark List') {
+                listColor = 'bg-gray-800 hover:bg-gray-900';
+                listIcon = 'list';
+            }
 
 
             // List button with dynamic color and icon
@@ -1895,12 +2165,22 @@ export class FlashcardsTool {
         });
     }
 
-    handleAddFlashcards() {
-        const raw = document.getElementById('new-flashcards-input').value.trim();
-        const listName = document.getElementById('list-name-input').value.trim();
+    handleAddFlashcards(text = null, initialDataName = null) {
+        console.log("handleAddFlashcards called with:", text, initialDataName);
+        let raw, listName
 
-        if (!raw || !listName) {
-            this.showNotification('Please enter both list name and flashcards!');
+        if (!text) {
+            raw = document.getElementById('new-flashcards-input').value.trim();
+            listName = document.getElementById('list-name-input').value.trim();
+        } else {
+            raw = text;
+            listName = initialDataName;
+        }
+
+        if (raw == null || listName == null || raw.trim() === "" || listName.trim() === "") {
+            console.log("raw:", raw, "length:", raw.length);
+            console.log("listName:", listName, "length:", listName.length);
+            document.getElementById('add-flashcards-error').textContent = 'Please enter both list name and flashcards!';
             return;
         }
 

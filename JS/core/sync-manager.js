@@ -25,29 +25,63 @@ export class SyncManager {
         }
     }
 
-    async getPassword() {
-        // Get password from localStorage or prompt
-        let password = localStorage.getItem('syncPassword');
+    validatePassword(password) {
+        if (!password || password.length < 8) {
+            return false;
+        }
+        return true;
+    }
 
-        if (!password) {
-            password = prompt('Enter your sync password:');
-            if (password) {
+    async hashPassword(password) {
+        // Use SHA-256 to hash the password
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+    }
+
+    async getPasswordHash() {
+        // Get hashed password from localStorage or prompt for password and hash it
+        let passwordHash = localStorage.getItem('syncPasswordHash');
+
+        if (!passwordHash) {
+            while (true) {
+                const password = prompt('Enter your sync password (minimum 8 characters):');
+
+                if (!password) {
+                    // User cancelled
+                    return null;
+                }
+
+                if (!this.validatePassword(password)) {
+                    alert('❌ Password must be at least 8 characters long. Please try again.');
+                    continue;
+                }
+
+                // Hash the password
+                passwordHash = await this.hashPassword(password);
+
+                // Valid password - ask if they want to remember it
                 const remember = confirm('Remember password for this session?');
                 if (remember) {
-                    localStorage.setItem('syncPassword', password);
+                    localStorage.setItem('syncPasswordHash', passwordHash);
                 }
+                break;
             }
         }
 
-        return password;
+        return passwordHash;
     }
 
     async uploadData() {
-        const password = await this.getPassword();
-        if (!password) return;
+        const passwordHash = await this.getPasswordHash();
+        if (!passwordHash) return;
 
         try {
             const customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
+            const srSessionData = JSON.parse(localStorage.getItem('srSessionData')) || {};
 
             if (Object.keys(customLists).length === 0) {
                 this.showNotification('No data to upload!');
@@ -64,7 +98,8 @@ export class SyncManager {
                 body: JSON.stringify({
                     action: 'upload',
                     data: customLists,
-                    password: password, // Send actual password over HTTPS
+                    srSessionData: srSessionData,
+                    passwordHash: passwordHash,
                     timestamp: new Date().toISOString()
                 })
             });
@@ -73,13 +108,13 @@ export class SyncManager {
 
             if (result.success) {
                 this.showNotification(
-                    `✅ Upload successful! ${result.listsCount} lists, ${result.totalCards} cards.`
+                    `✅ Upload successful! ${result.listsCount} lists, ${result.totalCards} cards, ${result.totalSRSessions} SR sessions.`
                 );
             } else {
                 this.showNotification(`❌ Upload failed: ${result.error}`);
-                // Clear stored password if it's wrong
+                // Clear stored password hash if it's wrong
                 if (result.error === 'Unauthorized') {
-                    localStorage.removeItem('syncPassword');
+                    localStorage.removeItem('syncPasswordHash');
                 }
             }
         } catch (error) {
@@ -89,8 +124,8 @@ export class SyncManager {
     }
 
     async downloadData() {
-        const password = await this.getPassword();
-        if (!password) return;
+        const passwordHash = await this.getPasswordHash();
+        if (!passwordHash) return;
 
         try {
             this.showNotification('Downloading data...');
@@ -102,7 +137,7 @@ export class SyncManager {
                 },
                 body: JSON.stringify({
                     action: 'download',
-                    password: password
+                    passwordHash: passwordHash
                 })
             });
 
@@ -112,17 +147,21 @@ export class SyncManager {
                 const existingData = JSON.parse(localStorage.getItem('customGermanLists')) || {};
                 const mergedData = { ...existingData, ...result.data };
 
+                const existingSRData = JSON.parse(localStorage.getItem('srSessionData')) || {};
+                const mergedSRData = { ...existingSRData, ...result.srSessionData };
+
                 localStorage.setItem('customGermanLists', JSON.stringify(mergedData));
+                localStorage.setItem('srSessionData', JSON.stringify(mergedSRData));
 
                 this.showNotification(
-                    `✅ Download successful! ${result.listsCount} lists, ${result.totalCards} cards downloaded.`
+                    `✅ Download successful! ${result.listsCount} lists, ${result.totalCards} cards, ${result.totalSRSessions} SR sessions downloaded.`
                 );
 
                 setTimeout(() => location.reload(), 1500);
             } else {
                 this.showNotification(`❌ Download failed: ${result.error}`);
                 if (result.error === 'Unauthorized') {
-                    localStorage.removeItem('syncPassword');
+                    localStorage.removeItem('syncPasswordHash');
                 }
             }
         } catch (error) {
@@ -132,10 +171,11 @@ export class SyncManager {
     }
 
     async getServerInfo() {
-        const password = await this.getPassword();
-        if (!password) return;
+        const passwordHash = await this.getPasswordHash();
+        if (!passwordHash) return;
 
         try {
+
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
@@ -143,7 +183,7 @@ export class SyncManager {
                 },
                 body: JSON.stringify({
                     action: 'info',
-                    password: password
+                    passwordHash: passwordHash
                 })
             });
 
@@ -152,7 +192,7 @@ export class SyncManager {
             if (result.success) {
                 if (result.hasData) {
                     this.showNotification(
-                        `📊 Server has ${result.listsCount} lists with ${result.totalCards} cards. ` +
+                        `📊 Server has ${result.listsCount} lists with ${result.totalCards} cards and ${result.totalSRSessions} SR sessions. ` +
                         `Last update: ${new Date(result.timestamp).toLocaleString()}`
                     );
                 } else {
@@ -161,7 +201,7 @@ export class SyncManager {
             } else {
                 this.showNotification(`❌ Info check failed: ${result.error}`);
                 if (result.error === 'Unauthorized') {
-                    localStorage.removeItem('syncPassword');
+                    localStorage.removeItem('syncPasswordHash');
                 }
             }
         } catch (error) {
