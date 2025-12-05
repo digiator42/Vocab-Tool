@@ -106,18 +106,40 @@ export class FlashcardsTool {
         const srBtn = document.getElementById('spaced-repetition-btn');
         if (srBtn) {
             const stats = this.getSRStatistics();
-            srBtn.textContent = `Spaced Repetition (${stats.due} due)`;
-            srBtn.title = `${stats.due} cards due for review out of ${stats.total} total cards`;
+
+            if (this.spacedRepetitionMode) {
+                // In SR mode, show session progress
+                const remaining = this.spacedRepetitionCards.length - this.currentSRCardIndex;
+                srBtn.textContent = `Spaced Repetition (${remaining} left)`;
+                srBtn.title = `${remaining} cards left in current session | Click to exit SR mode`;
+                srBtn.classList.add('bg-blue-600'); // Highlight when in SR mode
+            } else {
+                // Normal mode, show due count
+                srBtn.textContent = `Spaced Repetition (${stats ? stats.due : 0} due)`;
+                srBtn.title = `${stats ? stats.due : 0} cards due for review out of ${stats ? stats.total : 0} total cards`;
+                srBtn.classList.remove('bg-blue-600'); // Remove highlight
+            }
         }
     }
 
     exitSpacedRepetitionMode() {
+        this.endSpacedRepetitionSession();
+        this.renderFlashcards();
+        this.updateSRButton();
+    }
+
+    // Helper method to end SR session
+    endSpacedRepetitionSession() {
         this.spacedRepetitionMode = false;
         this.currentSRCardIndex = 0;
         this.spacedRepetitionCards = [];
-        this.rescheduledCards = [];
-        this.currentPage = 1;
-        this.renderFlashcards();
+        this.sessionStartTime = null; // Reset session timer
+        this.showNotification('Spaced repetition session completed! Great job!');
+
+        // If in single card mode, switch back
+        if (this.singleCardMode) {
+            this.singleCardMode = false;
+        }
     }
 
     // Add this method to setup spaced repetition
@@ -133,7 +155,7 @@ export class FlashcardsTool {
         let SRList = [];
 
         const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
-        if (notMasteredSRCards.length === 0) {
+        if (notMasteredSRCards.length === 0 && this.isNotMasteredSR) {
             this.showNotification('All words mastered!');
             return;
         }
@@ -171,6 +193,7 @@ export class FlashcardsTool {
 
         // Switch to single card mode for better SR experience
         this.singleCardMode = true;
+        this.updateSRButton();
         this.renderFlashcards();
 
         this.showNotification(`Starting spaced repetition with ${this.spacedRepetitionCards.length} cards! Use A/H/G/E for ratings, M for mastered, Space to flip, Arrows to navigate.`);
@@ -215,7 +238,7 @@ export class FlashcardsTool {
             hardBtn.addEventListener('click', (e) => {
                 console.log('SR Hard button clicked');
                 e.stopPropagation();
-                this.handleSRRating(card, 30); // 10 minutes
+                this.handleSRRating(card, 30); // 30 minutes
             });
         }
 
@@ -364,7 +387,14 @@ export class FlashcardsTool {
         this.renderFlashcards();
     }
 
-    getHumanReadableTime(date) {
+    getHumanReadableTime(timestamp) {
+        // Convert the numeric timestamp into a Date object
+        const date = new Date(timestamp);
+
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1; // Months are zero-based (0 = Jan, 11 = Dec)
+        const day = date.getDate();
+
         const hours = date.getHours();
         const minutes = date.getMinutes();
         const seconds = date.getSeconds();
@@ -372,21 +402,8 @@ export class FlashcardsTool {
         // Pad single-digit numbers with a leading zero
         const pad = (num) => String(num).padStart(2, '0');
 
-        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-    }
-
-    // Helper method to end SR session
-    endSpacedRepetitionSession() {
-        this.spacedRepetitionMode = false;
-        this.currentSRCardIndex = 0;
-        this.spacedRepetitionCards = [];
-        this.sessionStartTime = null; // Reset session timer
-        this.showNotification('Spaced repetition session completed! Great job!');
-
-        // If in single card mode, switch back
-        if (this.singleCardMode) {
-            this.singleCardMode = false;
-        }
+        // Return full human-readable format
+        return `${pad(day)}/${pad(month)}/${year} ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
     }
 
     rescheduleCardForCurrentSession(card, insertAfterCards = 3) {
@@ -509,6 +526,12 @@ export class FlashcardsTool {
                 this.exitSpacedRepetitionMode();
                 this.showNotification('Exited spaced repetition mode');
             } else {
+                // Start SR mode - check if there are due cards
+                const stats = this.getSRStatistics();
+                if (stats.due === 0) {
+                    this.showNotification('No cards due for review right now! Great job!');
+                    return;
+                }
                 // Start SR mode
                 this.setupSpacedRepetition();
             }
@@ -580,7 +603,7 @@ export class FlashcardsTool {
 
             const notMastered = originalFlashcards.filter(c => !c.mastered);
             if (notMastered.length === 0) {
-                this.showNotification('All words mastered!');
+                this.showNotification('All words mastered!++');
                 return;
             }
 
@@ -776,7 +799,7 @@ export class FlashcardsTool {
 
         const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
         console.log("notMasteredSRCards", notMasteredSRCards.length);
-        if (notMasteredSRCards.length === 0) {
+        if (notMasteredSRCards.length === 0 && this.isNotMasteredSR) {
             this.showNotification('All words mastered!');
             return;
         }
@@ -1073,6 +1096,7 @@ export class FlashcardsTool {
 
         feather.replace();
         this.updateProgress();
+        this.updateSRButton();
     }
 
     renderSingleCardMode(container, cardsToRender = this.flashcards, isSearching) {
@@ -2014,6 +2038,7 @@ export class FlashcardsTool {
 
                 this.currentPage = 1;
                 this.updateSRButton();
+                this.exitSpacedRepetitionMode();
                 this.renderFlashcards();
 
                 console.log('Successfully loaded list:', listName, 'with', this.flashcards.length, 'cards');
