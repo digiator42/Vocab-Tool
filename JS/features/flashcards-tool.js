@@ -313,7 +313,7 @@ export class FlashcardsTool {
         const cardData = this.srSessionData[cardKey];
 
         // Define rating constants
-        const AGAIN = 1; // 1 minute
+        const AGAIN = 5; // 1 minute
         const HARD = 30; // 30 minutes
         const GOOD = 5760; // 4 days
         const EASY = 12960; // 9 days
