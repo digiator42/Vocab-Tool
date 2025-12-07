@@ -244,18 +244,18 @@ export class ActiveRecallModule {
         allDropdownBtns.forEach(btn => btn.classList.remove('border-blue-500', 'ring-2', 'ring-blue-200'));
     }
 
-    handleUserInput() {
+    async handleUserInput() {
         if (this.main.activeRecallMode === 'beginner') {
-            this.updateHintDisplay();
+            await this.updateHintDisplay();
         }
     }
 
-    handleModeChange() {
+    async handleModeChange() {
         const modeSelect = document.getElementById('ar-mode-select');
         if (modeSelect) {
             this.main.activeRecallMode = modeSelect.value;
             if (this.main.sentences && this.main.currentSentenceIndex >= 0) {
-                this.updateHintDisplay();
+                await this.updateHintDisplay();
                 setTimeout(() => {
                     window.dispatchEvent(new Event('resize'));
                 }, 100);
@@ -276,7 +276,7 @@ export class ActiveRecallModule {
         }
     }
 
-    updateHintDisplay() {
+    async updateHintDisplay() {
         const hintDisplay = document.getElementById('ar-hint-display');
         const hintText = document.getElementById('ar-hint-text');
         if (!hintDisplay || !hintText) return;
@@ -298,6 +298,8 @@ export class ActiveRecallModule {
             hintText.innerHTML = hintHTML;
             hintDisplay.classList.remove('hidden');
             hintDisplay.style.display = 'block';
+            const translation = await this.main.translate(sentence);
+            document.getElementById('ar-translation').textContent = translation;
             this.fixMobileHintDisplay();
         } else {
             hintDisplay.classList.add('hidden');
@@ -522,7 +524,14 @@ export class ActiveRecallModule {
         <!-- Beginner Mode Display -->
         <div id="ar-hint-display" class="mb-4 p-4 bg-blue-50 rounded border border-blue-200 hidden">
             <div class="text-sm text-blue-800 font-medium mb-2">Sentence Hint:</div>
-            <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
+
+            <!-- wrapper for text + translation -->
+            <div class="relative inline-block group">
+                <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
+                <div id="ar-translation" 
+                    class="absolute -top-8 w-full left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs italic px-2 py-1 border border-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                </div>
+            </div>
         </div>
 
         <div id="ar-current-sentence" class="mb-4 p-4 bg-white rounded border-2 border-blue-200 min-h-20 flex items-center justify-center">
@@ -765,12 +774,12 @@ export class ActiveRecallModule {
         this.updateProgress();
     }
 
-    startActiveRecall() {
+    async startActiveRecall() {
         this.main.currentSentenceIndex = 0;
-        this.showCurrentSentence();
+        await this.showCurrentSentence();
     }
 
-    showCurrentSentence() {
+    async showCurrentSentence() {
         const sentence = this.main.sentences[this.main.currentSentenceIndex].trim();
         const displayArea = document.getElementById('ar-current-sentence');
         const inputArea = document.getElementById('ar-input-area');
@@ -800,15 +809,15 @@ export class ActiveRecallModule {
         this.updateTimer();
         this.main.timerInterval = setInterval(() => this.updateTimer(), 1000);
 
+        displayArea.textContent = '🎧 Listen carefully...';
         this.main.speech.speak(sentence).then(() => {
-            displayArea.textContent = '🎧 Listen carefully...';
             if (this.main.isTouchDevice) {
                 setTimeout(() => {
                     document.body.style.overflow = 'hidden';
                     setTimeout(() => { document.body.style.overflow = 'auto'; }, 50);
                 }, 10);
             }
-            setTimeout(() => {
+            setTimeout(async () => {
                 inputArea.classList.remove('hidden');
                 userInput.value = '';
                 if (this.main.isTouchDevice) {
@@ -827,7 +836,7 @@ export class ActiveRecallModule {
                     <div class="text-sm text-gray-500">Sentence ${this.main.currentSentenceIndex + 1} of ${this.main.sentences.length}</div>
                 </div>`;
                 if (this.main.activeRecallMode === 'beginner') {
-                    this.updateHintDisplay();
+                    await this.updateHintDisplay();
                 } else {
                     hintDisplay.classList.add('hidden');
                     hintDisplay.style.display = 'none';
@@ -933,18 +942,18 @@ export class ActiveRecallModule {
         document.getElementById('ar-input-area').classList.add('hidden');
     }
 
-    nextSentence() {
+    async nextSentence() {
         if (this.main.currentSentenceIndex < this.main.sentences.length - 1) {
             this.main.currentSentenceIndex++;
-            this.showCurrentSentence();
+            await this.showCurrentSentence();
             this.updateProgress();
         }
     }
 
-    previousSentence() {
+    async previousSentence() {
         if (this.main.currentSentenceIndex > 0) {
             this.main.currentSentenceIndex--;
-            this.showCurrentSentence();
+            await this.showCurrentSentence();
             this.updateProgress();
             if (this.main.results[this.main.currentSentenceIndex]) {
                 this.showSentenceFeedback(this.main.currentSentenceIndex);
@@ -982,7 +991,7 @@ export class ActiveRecallModule {
         const totalCorrect = this.main.results.reduce((sum, r) => sum + r.correctCount, 0);
         const totalWords = this.main.results.reduce((sum, r) => sum + r.totalWords, 0);
         document.getElementById('ar-summary').innerHTML = `
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
             <div class="p-3 bg-blue-50 rounded-lg">
                 <div class="text-2xl font-bold text-blue-600">${this.main.sentences.length}</div>
                 <div class="text-sm text-blue-800">Sentences</div>
@@ -998,6 +1007,10 @@ export class ActiveRecallModule {
             <div class="p-3 bg-yellow-50 rounded-lg">
                 <div class="text-2xl font-bold text-yellow-600">${Math.round(totalWords / this.main.sentences.length)}</div>
                 <div class="text-sm text-yellow-800">Avg. Words/Sentence</div>
+            </div>
+            <div class="p-3 bg-red-50 rounded-lg">
+                <div class="text-2xl font-bold text-red-600">${this.formatSecondsToMMSS(Math.floor((Date.now() - this.main.startTimes[0]) / 1000))}</div>
+                <div class="text-sm text-red-800">Total Time</div>
             </div>
         </div>`;
         const detailedResults = document.getElementById('ar-detailed-results');
@@ -1023,6 +1036,12 @@ export class ActiveRecallModule {
         }).join('');
         const resultsContainer = document.getElementById('ar-results');
         if (resultsContainer && resultsContainer.classList) resultsContainer.classList.remove('hidden');
+    }
+
+    formatSecondsToMMSS(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
     }
 
     getSequenceDisplay(result, correctWords) {

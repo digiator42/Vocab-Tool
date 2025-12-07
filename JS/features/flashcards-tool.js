@@ -21,6 +21,7 @@ export class FlashcardsTool {
         this.currentListName = null;
         this.hasAttachedFlashcardListener = false;
         this.isNotMasteredSR = false;
+        this.isClicked = false;
 
         this.speechSynth = window.speechSynthesis;
         this.speech = new SpeechService(this);
@@ -130,16 +131,17 @@ export class FlashcardsTool {
 
     // Helper method to end SR session
     endSpacedRepetitionSession() {
-        this.spacedRepetitionMode = false;
         this.currentSRCardIndex = 0;
         this.spacedRepetitionCards = [];
         this.sessionStartTime = null; // Reset session timer
         this.showNotification('Spaced repetition session completed! Great job!');
 
         // If in single card mode, switch back
-        if (this.singleCardMode) {
+        if (this.singleCardMode && this.spacedRepetitionMode) {
             this.singleCardMode = false;
         }
+        // here for a reason to keep singlemode alive when changing lists
+        this.spacedRepetitionMode = false;
     }
 
     // Add this method to setup spaced repetition
@@ -230,7 +232,7 @@ export class FlashcardsTool {
             againBtn.addEventListener('click', (e) => {
                 console.log('SR Again button clicked - EVENT FIRED');
                 e.stopPropagation();
-                this.handleSRRating(card, 1); // 1 minute
+                this.handleSRRating(card, 5); // 1 minute
             });
         } else {
             console.error('Again button not found!');
@@ -312,7 +314,7 @@ export class FlashcardsTool {
 
         // Define rating constants
         const AGAIN = 1; // 1 minute
-        const HARD = 30; // 30 minutes (changed from 10)
+        const HARD = 30; // 30 minutes
         const GOOD = 5760; // 4 days
         const EASY = 12960; // 9 days
         const MASTERED = 43200; // 30 days
@@ -322,12 +324,18 @@ export class FlashcardsTool {
             setTimeout(() => {
                 if (this.spacedRepetitionMode && this.spacedRepetitionCards.length > 0) {
                     // this.showNotification(`"${card.german}" is ready for review again!`, 3000);
-                    console.log(`"${card.german}" is ready for review again!`, 3000);
+                    console.log(`"${card.german}" is ready for review again!`);
 
                     this.spacedRepetitionCards.splice(this.currentSRCardIndex + 1, 0, card);
                     this.renderFlashcards();
+                    if (this.isClicked) {
+                        const currentFlashcard = document.querySelector('.flashcard');
+                        console.log('=====>> ', currentFlashcard);
+                        currentFlashcard.classList.add('flipped');
+                        this.isClicked = false;
+                    }
                 }
-            }, 1 * 60 * 1000);
+            }, 5 * 60 * 1000);
         } else if (minutesUntilNext === HARD) {
             setTimeout(() => {
                 if (this.spacedRepetitionMode && this.spacedRepetitionCards.length > 0) {
@@ -707,9 +715,11 @@ export class FlashcardsTool {
             });
         }
 
+        const flashcardTool = document.getElementById('flashcard-tool');
+
         // Playing audio event listener with v keyword for speak-btn
         document.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'v' && document.activeElement === document.body) {
+            if (e.key.toLowerCase() === 'v' && document.activeElement === document.body && !flashcardTool.classList.contains('hidden')) {
                 const currentCards = this.getCurrentCards();
                 const currentIndex = this.getCurrentCardIndex();
 
@@ -1090,6 +1100,8 @@ export class FlashcardsTool {
             console.log('Rendering normal cards:', cardsToRender.length);
         }
 
+        console.log('---> singleCardMode', this.singleCardMode);
+
         if (this.singleCardMode) {
             this.renderSingleCardMode(container, cardsToRender, isSearching);
         } else {
@@ -1176,12 +1188,15 @@ export class FlashcardsTool {
         flashcard.className = `flashcard w-full h-96 flex items-center justify-center relative`;
         flashcard.dataset.index = actualIndex;
 
+
         flashcard.addEventListener('click', (e) => {
             console.log('Flashcard clicked:', {
                 target: e.target,
                 classList: e.target.classList,
                 currentSRCardIndex: this.currentSRCardIndex
             });
+            this.isClicked = !this.isClicked;
+            console.log('---> ', this.isClicked);
         });
 
         // Determine front and back content based on flip state
@@ -1504,6 +1519,8 @@ export class FlashcardsTool {
                     const currentFlashcard = document.querySelector('.flashcard');
                     e.preventDefault();
                     currentFlashcard?.classList.toggle('flipped');
+                    this.isClicked = !this.isClicked;
+                    console.log('---> ', this.isClicked);
                 }
 
                 // Spaced Repetition keyboard shortcuts
@@ -1513,7 +1530,7 @@ export class FlashcardsTool {
                         switch (e.key.toLowerCase()) {
                             case 'a': // Again
                                 console.log('Keyboard shortcut: Again');
-                                this.handleSRRating(currentCard, 1);
+                                this.handleSRRating(currentCard, 5);
                                 break;
                             case 'h': // Hard
                                 console.log('Keyboard shortcut: Hard');
@@ -1737,7 +1754,7 @@ export class FlashcardsTool {
                     const currentCard = currentCards[idx];
 
                     if (currentCard) {
-                        this.handleSRRating(currentCard, 1);
+                        this.handleSRRating(currentCard, 5);
                     }
                 });
             }
@@ -2237,7 +2254,8 @@ export class FlashcardsTool {
             }
             // LEGACY FALLBACK: Try to parse with various separators (original behavior)
             else {
-                const parts = line.split(/\s*(–|--|:|-)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
+                console.log('reverting to catch any sep.');
+                const parts = line.split(/\s*(;;|--|::)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
                 if (parts.length === 2 && parts[0] && parts[1]) {
                     newCards.push({
                         german: parts[0],
@@ -2253,7 +2271,13 @@ export class FlashcardsTool {
 
         if (newCards.length > 0) {
             const sanitizedListName = this.sanitizeInput(listName);
-            this.customLists[sanitizedListName] = newCards;
+
+            if (this.customLists[sanitizedListName]) {
+                this.customLists[sanitizedListName] = this.customLists[sanitizedListName].concat(newCards);
+            } else {
+                this.customLists[sanitizedListName] = newCards;
+            }
+
             localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
 
             document.getElementById('new-flashcards-input').value = '';
