@@ -813,19 +813,19 @@ export class ActiveRecallModule {
         // Create modal footer
         const modalFooter = document.createElement('div');
         modalFooter.className = 'p-6 border-t border-gray-200 flex justify-between items-center';
-    //     modalFooter.innerHTML = `
-    //     <button id="ar-cancel-recall-btn" class="px-6 py-3 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg font-medium transition-colors duration-200">
-    //         Cancel
-    //     </button>
-    //     <div class="flex items-center space-x-4">
-    //         <span id="ar-selected-count" class="text-gray-600">
-    //             Selected: 0/${parts.length} parts
-    //         </span>
-    //         <button id="ar-start-recall-btn" class="px-6 py-3 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-    //             Start Active Recall
-    //         </button>
-    //     </div>
-    // `;
+        modalFooter.innerHTML = `
+        <button id="ar-cancel-recall-btn" class="px-6 py-3 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg font-medium transition-colors duration-200">
+            Cancel
+        </button>
+        <div class="flex items-center space-x-4">
+            <span id="ar-selected-count" class="text-gray-600">
+                Selected: 0/${parts.length} parts
+            </span>
+            <button id="ar-start-recall-btn" class="px-6 py-3 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Start Active Recall
+            </button>
+        </div>
+    `;
 
         // Assemble modal
         modalContent.appendChild(modalHeader);
