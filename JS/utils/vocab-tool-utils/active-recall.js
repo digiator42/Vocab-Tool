@@ -14,44 +14,45 @@ export class ActiveRecallModule {
         this.addActiveRecallButton();
     }
 
-    setupActiveRecallListeners() {
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('#ar-start-btn')) {
-                this.main.startActiveRecall?.();
-            } else if (e.target.matches('#ar-next-btn')) {
-                this.main.nextSentence?.();
-            } else if (e.target.matches('#ar-back-btn')) {
-                this.main.previousSentence?.();
-            } else if (e.target.matches('#ar-repeat-btn')) {
-                this.main.repeatAudio?.();
-            } else if (e.target.matches('#ar-finish-btn')) {
-                this.main.finishActiveRecall?.();
-            } else if (e.target.matches('#mobile-enter-btn')) {
-                this.main.checkAnswer?.();
-            }
-        });
+    // setupActiveRecallListeners() {
+    //     console.log('-----> ', 'setupActiveRecallListeners1111');
+    //     document.addEventListener('click', async (e) => {
+    //         if (e.target.matches('#ar-start-btn')) {
+    //             await this.main.startActiveRecall();
+    //         } else if (e.target.matches('#ar-next-btn')) {
+    //             this.main.nextSentence();
+    //         } else if (e.target.matches('#ar-back-btn')) {
+    //             this.main.previousSentence();
+    //         } else if (e.target.matches('#ar-repeat-btn')) {
+    //             this.main.repeatAudio();
+    //         } else if (e.target.matches('#ar-finish-btn')) {
+    //             this.main.finishActiveRecall();
+    //         } else if (e.target.matches('#mobile-enter-btn')) {
+    //             this.main.checkAnswer();
+    //         }
+    //     });
 
-        const userInput = document.getElementById('ar-user-input');
-        if (userInput) {
-            userInput.addEventListener('input', () => {
-                this.handleUserInput();
-            });
-            userInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.main.checkAnswer?.();
-                }
-            });
-            if (this.main.isTouchDevice) {
-                userInput.addEventListener('touchend', () => {
-                    setTimeout(() => this.handleUserInput(), 100);
-                });
-            }
-        }
+    //     const userInput = document.getElementById('ar-user-input');
+    //     if (userInput) {
+    //         userInput.addEventListener('input', () => {
+    //             this.handleUserInput();
+    //         });
+    //         userInput.addEventListener('keydown', (e) => {
+    //             if (e.key === 'Enter' && !e.shiftKey) {
+    //                 e.preventDefault();
+    //                 this.main.checkAnswer();
+    //             }
+    //         });
+    //         if (this.main.isTouchDevice) {
+    //             userInput.addEventListener('touchend', () => {
+    //                 setTimeout(() => this.handleUserInput(), 100);
+    //             });
+    //         }
+    //     }
 
-        // Wire checkboxes, sliders, and keyboard shortcuts
-        this.wireControls();
-    }
+    //     // Wire checkboxes, sliders, and keyboard shortcuts
+    //     this.wireControls();
+    // }
 
     wireControls() {
         const fuzzyMatch = document.getElementById('ar-fuzzy-match');
@@ -244,18 +245,18 @@ export class ActiveRecallModule {
         allDropdownBtns.forEach(btn => btn.classList.remove('border-blue-500', 'ring-2', 'ring-blue-200'));
     }
 
-    async handleUserInput() {
+    handleUserInput() {
         if (this.main.activeRecallMode === 'beginner') {
-            await this.updateHintDisplay();
+            this.updateHintDisplay();
         }
     }
 
-    async handleModeChange() {
+    handleModeChange() {
         const modeSelect = document.getElementById('ar-mode-select');
         if (modeSelect) {
             this.main.activeRecallMode = modeSelect.value;
             if (this.main.sentences && this.main.currentSentenceIndex >= 0) {
-                await this.updateHintDisplay();
+                this.updateHintDisplay();
                 setTimeout(() => {
                     window.dispatchEvent(new Event('resize'));
                 }, 100);
@@ -276,7 +277,19 @@ export class ActiveRecallModule {
         }
     }
 
-    async updateHintDisplay() {
+    resetHintDisplay() {
+        const hintDisplay = document.getElementById('ar-hint-display');
+        const hintText = document.getElementById('ar-hint-text');
+        // ar-translation
+        const translation = document.getElementById('ar-translation');
+        if (!hintDisplay || !hintText || !translation) return;
+        // hintDisplay.classList.add('hidden');
+        // hintDisplay.style.display = 'none';
+        hintText.textContent = '';
+        translation.textContent = '';
+    }
+
+    updateHintDisplay() {
         const hintDisplay = document.getElementById('ar-hint-display');
         const hintText = document.getElementById('ar-hint-text');
         if (!hintDisplay || !hintText) return;
@@ -298,8 +311,6 @@ export class ActiveRecallModule {
             hintText.innerHTML = hintHTML;
             hintDisplay.classList.remove('hidden');
             hintDisplay.style.display = 'block';
-            const translation = await this.main.translate(sentence);
-            document.getElementById('ar-translation').textContent = translation;
             this.fixMobileHintDisplay();
         } else {
             hintDisplay.classList.add('hidden');
@@ -593,11 +604,19 @@ export class ActiveRecallModule {
         this.setupActiveRecallListeners();
     }
 
-    setupActiveRecallListeners() {
+    async updateTranslation() {
+        const sentence = this.main.sentences[this.main.currentSentenceIndex].replace(/\p{P}/gu, '').trim();
+        console.log('==> ', sentence);
+        const translation = await this.main.translate(sentence);
+        return translation;
+    }
+
+    async setupActiveRecallListeners() {
+        console.log('-----> ', 'setupActiveRecallListeners');
         // Use event delegation for better mobile support
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', async (e) => {
             if (e.target.matches('#ar-start-btn')) {
-                this.startActiveRecall();
+                await this.startActiveRecall();
             } else if (e.target.matches('#ar-next-btn')) {
                 this.nextSentence();
             } else if (e.target.matches('#ar-back-btn')) {
@@ -633,6 +652,9 @@ export class ActiveRecallModule {
                 });
             }
         }
+
+        // Wire checkboxes, sliders, and keyboard shortcuts
+        this.wireControls();
 
         const fuzzyMatch = document.getElementById('ar-fuzzy-match');
 
@@ -810,6 +832,9 @@ export class ActiveRecallModule {
         this.main.timerInterval = setInterval(() => this.updateTimer(), 1000);
 
         displayArea.textContent = '🎧 Listen carefully...';
+        this.resetHintDisplay();
+        const translation = await this.updateTranslation();
+
         this.main.speech.speak(sentence).then(() => {
             if (this.main.isTouchDevice) {
                 setTimeout(() => {
@@ -836,7 +861,8 @@ export class ActiveRecallModule {
                     <div class="text-sm text-gray-500">Sentence ${this.main.currentSentenceIndex + 1} of ${this.main.sentences.length}</div>
                 </div>`;
                 if (this.main.activeRecallMode === 'beginner') {
-                    await this.updateHintDisplay();
+                    this.updateHintDisplay();
+                    document.getElementById('ar-translation').textContent = translation;
                 } else {
                     hintDisplay.classList.add('hidden');
                     hintDisplay.style.display = 'none';
