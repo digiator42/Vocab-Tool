@@ -14,46 +14,6 @@ export class ActiveRecallModule {
         this.addActiveRecallButton();
     }
 
-    // setupActiveRecallListeners() {
-    //     console.log('-----> ', 'setupActiveRecallListeners1111');
-    //     document.addEventListener('click', async (e) => {
-    //         if (e.target.matches('#ar-start-btn')) {
-    //             await this.main.startActiveRecall();
-    //         } else if (e.target.matches('#ar-next-btn')) {
-    //             this.main.nextSentence();
-    //         } else if (e.target.matches('#ar-back-btn')) {
-    //             this.main.previousSentence();
-    //         } else if (e.target.matches('#ar-repeat-btn')) {
-    //             this.main.repeatAudio();
-    //         } else if (e.target.matches('#ar-finish-btn')) {
-    //             this.main.finishActiveRecall();
-    //         } else if (e.target.matches('#mobile-enter-btn')) {
-    //             this.main.checkAnswer();
-    //         }
-    //     });
-
-    //     const userInput = document.getElementById('ar-user-input');
-    //     if (userInput) {
-    //         userInput.addEventListener('input', () => {
-    //             this.handleUserInput();
-    //         });
-    //         userInput.addEventListener('keydown', (e) => {
-    //             if (e.key === 'Enter' && !e.shiftKey) {
-    //                 e.preventDefault();
-    //                 this.main.checkAnswer();
-    //             }
-    //         });
-    //         if (this.main.isTouchDevice) {
-    //             userInput.addEventListener('touchend', () => {
-    //                 setTimeout(() => this.handleUserInput(), 100);
-    //             });
-    //         }
-    //     }
-
-    //     // Wire checkboxes, sliders, and keyboard shortcuts
-    //     this.wireControls();
-    // }
-
     wireControls() {
         const fuzzyMatch = document.getElementById('ar-fuzzy-match');
         if (fuzzyMatch) {
@@ -611,6 +571,8 @@ export class ActiveRecallModule {
         return translation;
     }
 
+
+
     async setupActiveRecallListeners() {
         console.log('-----> ', 'setupActiveRecallListeners');
         // Use event delegation for better mobile support
@@ -764,23 +726,294 @@ export class ActiveRecallModule {
         this.addActiveRecallButton();
     }
 
-    // ====== MOVED LOGIC (operates on this.main) ======
+    // ====== UPDATED LOGIC ======
     prepareActiveRecall() {
         const text = this.main.input.value;
         if (!text.trim()) {
             alert('Please process some text first!');
             return;
         }
-        this.main.sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
-        if (this.main.sentences.length === 0) {
+
+        // Instead of processing directly, delegate to prepareActiveRecallParts
+        this.prepareActiveRecallParts();
+    }
+
+    // ====== KEEP THE EXISTING prepareActiveRecallParts FUNCTION AS IS ======
+    prepareActiveRecallParts() {
+        const text = this.main.input.value;
+        if (!text.trim()) {
+            alert('Please process some text first!');
+            return;
+        }
+
+        const allSentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+        if (allSentences.length === 0) {
             alert('No sentences found in the text!');
             return;
         }
+
+        const maxSentencesPerPart = 50;
+        if (allSentences.length <= maxSentencesPerPart) {
+            // If total sentences are within the limit, proceed with normal active recall
+            this.main.sentences = allSentences;
+            this.initializeActiveRecallState();
+            this.setupActiveRecallUI();
+            return;
+        }
+
+        const parts = [];
+        for (let i = 0; i < allSentences.length; i += maxSentencesPerPart) {
+            parts.push(allSentences.slice(i, i + maxSentencesPerPart));
+        }
+
+        this.showPartSelectionModal(parts);
+    }
+
+    showPartSelectionModal(parts) {
+        // Remove existing modal if any
+        let existingModal = document.getElementById('ar-part-selection-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create modal container
+        const modal = document.createElement('div');
+        modal.id = 'ar-part-selection-modal';
+        modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70';
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.className = 'bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col';
+
+        // Add modal header
+        const modalHeader = document.createElement('div');
+        modalHeader.className = 'p-6 border-b border-gray-200';
+        modalHeader.innerHTML = `
+        <h2 class="text-2xl font-bold text-gray-800">Select Parts for Active Recall</h2>
+        <p class="text-gray-600 mt-2">
+            Your text has ${this.main.input.value.split(/[.!?]+/).filter(s => s.trim().length > 5).length} sentences.
+            Click on parts to select/deselect them.
+        </p>
+    `;
+
+        // Create parts container
+        const partsContainer = document.createElement('div');
+        partsContainer.id = 'ar-parts-list';
+        partsContainer.className = 'flex-1 overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 gap-3';
+
+        // Add select all button
+        const selectAllContainer = document.createElement('div');
+        selectAllContainer.className = 'px-4 pt-2 border-b border-gray-200 pb-3';
+        const selectAllButton = document.createElement('button');
+        selectAllButton.id = 'ar-select-all-btn';
+        selectAllButton.className = 'px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors duration-200';
+        selectAllButton.textContent = 'Select All';
+        selectAllContainer.appendChild(selectAllButton);
+
+        // Create modal footer
+        const modalFooter = document.createElement('div');
+        modalFooter.className = 'p-6 border-t border-gray-200 flex justify-between items-center';
+    //     modalFooter.innerHTML = `
+    //     <button id="ar-cancel-recall-btn" class="px-6 py-3 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg font-medium transition-colors duration-200">
+    //         Cancel
+    //     </button>
+    //     <div class="flex items-center space-x-4">
+    //         <span id="ar-selected-count" class="text-gray-600">
+    //             Selected: 0/${parts.length} parts
+    //         </span>
+    //         <button id="ar-start-recall-btn" class="px-6 py-3 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+    //             Start Active Recall
+    //         </button>
+    //     </div>
+    // `;
+
+        // Assemble modal
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(selectAllContainer);
+        modalContent.appendChild(partsContainer);
+        modalContent.appendChild(modalFooter);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        const totalSentences = this.main.input.value.split(/[.!?]+/).filter(s => s.trim().length > 5).length;
+        const selectedParts = new Set(); // Track selected parts by index
+
+        // Function to update UI state
+        const updateUIState = () => {
+            const selectedCount = selectedParts.size;
+            const totalCount = parts.length;
+
+            // Update selected count text
+            document.getElementById('ar-selected-count').textContent =
+                `Selected: ${selectedCount}/${totalCount} parts`;
+
+            // Update start button state
+            const startButton = document.getElementById('ar-start-recall-btn');
+            startButton.disabled = selectedCount === 0;
+            startButton.className = selectedCount === 0
+                ? 'px-6 py-3 bg-green-500 text-white rounded-lg font-medium opacity-50 cursor-not-allowed'
+                : 'px-6 py-3 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium transition-colors duration-200';
+
+            // Update select all button text
+            const selectAllBtn = document.getElementById('ar-select-all-btn');
+            selectAllBtn.textContent = selectedCount === totalCount
+                ? 'Deselect All'
+                : 'Select All';
+        };
+
+        // Create part elements
+        parts.forEach((part, index) => {
+            const partDiv = document.createElement('div');
+            const start = index * 50 + 1;
+            const end = Math.min((index + 1) * 50, totalSentences);
+            const sentenceCount = part.length;
+
+            // Initially select all parts
+            selectedParts.add(index);
+
+            partDiv.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md';
+            partDiv.dataset.index = index;
+            partDiv.innerHTML = `
+            <div class="flex items-start">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold mr-3">
+                    ${index + 1}
+                </div>
+                <div class="flex-1">
+                    <div class="font-bold text-gray-800 mb-1">Part ${index + 1}</div>
+                    <div class="text-sm text-gray-600 mb-2">
+                        Sentences ${start}-${end}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        ${sentenceCount} sentence${sentenceCount !== 1 ? 's' : ''}
+                    </div>
+                </div>
+                <div class="flex-shrink-0">
+                    <div class="w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+            // Add click handler
+            partDiv.addEventListener('click', () => {
+                if (selectedParts.has(index)) {
+                    selectedParts.delete(index);
+                    partDiv.className = 'p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-400';
+                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center';
+                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '';
+                } else {
+                    selectedParts.add(index);
+                    partDiv.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md';
+                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center';
+                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '<div class="w-3 h-3 rounded-full bg-green-500"></div>';
+                }
+                updateUIState();
+            });
+
+            partsContainer.appendChild(partDiv);
+        });
+
+        // Select all button handler
+        const selectAllBtn = document.getElementById('ar-select-all-btn');
+        selectAllBtn.addEventListener('click', () => {
+            const allSelected = selectedParts.size === parts.length;
+            const partDivs = partsContainer.querySelectorAll('[data-index]');
+
+            if (allSelected) {
+                // Deselect all
+                selectedParts.clear();
+                partDivs.forEach(div => {
+                    const index = parseInt(div.dataset.index);
+                    div.className = 'p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-400';
+                    div.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center';
+                    div.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '';
+                });
+            } else {
+                // Select all
+                parts.forEach((_, index) => selectedParts.add(index));
+                partDivs.forEach(div => {
+                    div.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md';
+                    div.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center';
+                    div.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '<div class="w-3 h-3 rounded-full bg-green-500"></div>';
+                });
+            }
+
+            updateUIState();
+        });
+
+        // Initialize UI state
+        updateUIState();
+
+        // Event handlers
+        const startButton = document.getElementById('ar-start-recall-btn');
+        const cancelButton = document.getElementById('ar-cancel-recall-btn');
+
+        const handleStart = () => {
+            const selectedIndices = Array.from(selectedParts).sort((a, b) => a - b);
+
+            if (selectedIndices.length === 0) {
+                alert('Please select at least one part.');
+                return;
+            }
+
+            let selectedSentences = [];
+            selectedIndices.forEach(idx => {
+                selectedSentences = selectedSentences.concat(parts[idx]);
+            });
+
+            // Clean up
+            startButton.removeEventListener('click', handleStart);
+            cancelButton.removeEventListener('click', handleCancel);
+            selectAllBtn.removeEventListener('click', selectAllBtn.onclick);
+
+            // Remove modal
+            modal.remove();
+
+            // Start active recall
+            this.main.sentences = selectedSentences;
+            this.initializeActiveRecallState();
+            this.setupActiveRecallUI();
+        };
+
+        const handleCancel = () => {
+            // Clean up
+            startButton.removeEventListener('click', handleStart);
+            cancelButton.removeEventListener('click', handleCancel);
+            selectAllBtn.removeEventListener('click', selectAllBtn.onclick);
+
+            // Remove modal
+            modal.remove();
+        };
+
+        startButton.addEventListener('click', handleStart);
+        cancelButton.addEventListener('click', handleCancel);
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                handleCancel();
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                handleCancel();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    initializeActiveRecallState() {
         this.main.currentSentenceIndex = -1;
         this.main.userAnswers = [];
         this.main.startTimes = [];
         this.main.results = [];
+    }
 
+    setupActiveRecallUI() {
         const modeSelect = document.getElementById('ar-mode-select');
         if (modeSelect) {
             this.main.activeRecallMode = modeSelect.value;
