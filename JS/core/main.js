@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         div.innerHTML = `
             <div class="flex flex-col">
-                <div class="font-medium text-gray-800 text-sm">${story.title}</div>
+                <div class="text-gray-800 text-xs">${story.title}</div>
                 <div class="text-xs text-gray-500 mt-1">${wordCount} words</div>
             </div>
         `;
