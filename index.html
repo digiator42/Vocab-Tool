@@ -25,73 +25,111 @@
         <button id="toggleTheme" class="p-2 text-3xl" title="Toggle Theme">🌙</button>
     </div>
 
-    <section id="vocab-tool" class="max-w-6xl hidden mx-auto">
-        <div class="flex flex-wrap justify-between items-start">
-            <div class="flex flex-col gap-4">
-                <h1 class="text-2xl font-bold text-blue-800">German Vocabulary Tool</h1>
-                <p class="text-gray-600 mb-4">Click on any German word to see its translation and hear pronunciation.
-                </p>
+    <section id="vocab-tool" class="hidden max-w-full">
+        <div class="flex w-full min-h-[70vh]">
+            <!-- Hamburger menu button - fixed position -->
+            <div class="hamburger" id="vocab-hamburger-menu">
+                <span></span>
+                <span></span>
+                <span></span>
             </div>
-            <div class="flex flex-col gap-1">
-                <select id="storySelect" class="w-full sm:w-auto p-2 border rounded truncate max-w-md"
-                    aria-label="Select Story">
-                </select>
-                <label for="voiceSelect" class="sr-only">Select Voice</label>
-                <select id="voiceSelect" class="p-2 border rounded-lg max-w-md" aria-label="Select Voice">
-                    <option value="">Select Voice</option>
-                </select>
-            </div>
-        </div>
-        <div class="fc-hint text-xs text-gray-500 m-2">💡 Press <kbd
-                class="px-1 py-0.5 bg-gray-100 border rounded text-xs">Alt</kbd>+<kbd
-                class="px-1 py-0.5 bg-gray-100 border rounded text-xs">Shift</kbd>+<kbd
-                class="px-1 py-0.5 bg-gray-100 border rounded text-xs">G</kbd> for focus mode
-        </div>
-        <div id="vocab-tool-container" class="bg-white p-4 rounded-lg shadow-sm mb-6">
-            <textarea id="input"
-                class="w-full h-80 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">Guten Morgen! Wie geht es dir heute?</textarea>
-            <div class="flex-row items-start justify-between gap-2 items-center mt-3">
-                <div class="flex justify-between items-center gap-2 w-full
-                border-2 border-gray-300 rounded-lg p-3">
-                    <button id="processBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow">Process</button>
-                    <button id="analyzeCasesBtn"
-                        class="px-6 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition-colors font-semibold">Analyze
-                        Cases</button>
-                    <button id="formatTxtBtn"
-                        class="px-6 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-700 transition-colors font-semibold">Format
-                        Text</button>
-                    <button id="playBtn"
-                        class="px-4 py-2 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700">Play
-                        Audio</button>
+
+            <!-- Overlay for mobile -->
+            <div class="sidebar-overlay" id="vocab-sidebar-overlay"></div>
+
+            <!-- Stories Sidebar (copied from flashcards) -->
+            <div id="vocab-stories-sidebar"
+                class="w-80 p-4 border-r border-gray-300 flex-shrink-0 shadow-lg rounded-xl flex flex-col overflow-y-auto">
+
+                <header class="mb-6 text-center">
+                    <h1 class="text-2xl font-bold text-blue-700 mb-2">German Stories</h1>
+                    <p class="text-gray-600 text-sm">Select a story to practice</p>
+                </header>
+
+                <div id="stories-list-container" class="flex flex-col gap-2 w-full">
+                    <!-- Stories will be dynamically added here -->
+                    <p class="text-xs text-gray-500 text-center p-4">Loading stories...</p>
                 </div>
 
-                <div class="flex justify-between items-center gap-2 w-full
-                    border-2 border-gray-300 rounded-lg p-3 mt-3">
-                    <button id="stopSpeechBtn" class="px-3 py-3 bg-red-500 text-white rounded-lg text-sm">Stop
-                        Speech</button>
-                    <div class="flex flex-row items-center space-x-1">
-                        <input type="checkbox" id="offline-speak" class="switch-input">
-                        <label for="offline-speak" class="text-sm font-medium"></label>
-                        <span>Offline Mode</span>
+            </div>
+
+            <!-- Main Content Area -->
+            <div id="main-vocab-view" class="flex-1 p-6">
+                <!-- Keep your existing vocab content here -->
+                <div class="flex flex-wrap justify-between items-start">
+                    <div class="flex flex-col gap-4">
+                        <h1 class="text-2xl font-bold text-blue-800">German Vocabulary Tool</h1>
+                        <p class="text-gray-600 mb-4">Click on any German word to see its translation and hear
+                            pronunciation.</p>
                     </div>
-                    <div class="flex flex-col md:flex-row md:items-start lg:items-start justify-between items-center">
-                        <span id="rateSliderSpan" class="text-sm text-gray-700">0.8</span>
-                        <input type="range" id="rateSlider" min="0.5" max="1.5" step="0.1" value="0.8">
+                    <div class="flex flex-col gap-1">
+                        <select id="storySelect" class="hidden w-full sm:w-auto p-2 border rounded truncate max-w-md"
+                            aria-label="Select Story">
+                        </select>
+                        <label for="voiceSelect" class="sr-only">Select Voice</label>
+                        <select id="voiceSelect" class="p-2 border rounded-lg max-w-md" aria-label="Select Voice">
+                            <option value="">Select Voice</option>
+                        </select>
                     </div>
                 </div>
+
+                <div class="fc-hint text-xs text-gray-500 m-2">
+                    💡 Press <kbd class="px-1 py-0.5 bg-gray-100 border rounded text-xs">Alt</kbd>+<kbd
+                        class="px-1 py-0.5 bg-gray-100 border rounded text-xs">Shift</kbd>+<kbd
+                        class="px-1 py-0.5 bg-gray-100 border rounded text-xs">G</kbd> for focus mode
+                </div>
+
+                <div id="vocab-tool-container" class="bg-white p-4 rounded-lg shadow-sm mb-6">
+                    <textarea id="input"
+                        class="w-full h-80 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">Guten Morgen! Wie geht es dir heute?</textarea>
+                    <div class="flex-row items-start justify-between gap-2 items-center mt-3">
+                        <div
+                            class="flex justify-between items-center gap-2 w-full border-2 border-gray-300 rounded-lg p-3">
+                            <button id="processBtn"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg shadow">Process</button>
+                            <button id="analyzeCasesBtn"
+                                class="px-6 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition-colors font-semibold">Analyze
+                                Cases</button>
+                            <button id="formatTxtBtn"
+                                class="px-6 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-700 transition-colors font-semibold">Format
+                                Text</button>
+                            <button id="playBtn"
+                                class="px-4 py-2 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700">Play
+                                Audio</button>
+                        </div>
+
+                        <div
+                            class="flex justify-between items-center gap-2 w-full border-2 border-gray-300 rounded-lg p-3 mt-3">
+                            <button id="stopSpeechBtn" class="px-3 py-3 bg-red-500 text-white rounded-lg text-sm">Stop
+                                Speech</button>
+                            <div class="flex flex-row items-center space-x-1">
+                                <input type="checkbox" id="offline-speak" class="switch-input">
+                                <label for="offline-speak" class="text-sm font-medium"></label>
+                                <span>Offline Mode</span>
+                            </div>
+                            <div
+                                class="flex flex-col md:flex-row md:items-start lg:items-start justify-between items-center">
+                                <span id="rateSliderSpan" class="text-sm text-gray-700">0.8</span>
+                                <input type="range" id="rateSlider" min="0.5" max="1.5" step="0.1" value="0.8">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="extra-tools-container"
+                    class="flex justify-center space-x-2 w-full border-2 border-gray-300 rounded-lg p-3">
+                </div>
+
+                <div class="flex justify-center">
+                    <p id="status" class="text-sm text-gray-600 my-4">Ready</p>
+                </div>
+
+                <div id="output"
+                    class="w-full p-6 md:p-14 bg-white border rounded-lg shadow-sm leading-8 min-h-[200px] whitespace-nowrap text-xl">
+                </div>
+                <div id="selectionTooltip" style="z-index: 12;"></div>
             </div>
         </div>
-        <div id="extra-tools-container"
-            class="flex justify-center space-x-2 w-full border-2 border-gray-300 rounded-lg p-3">
-        </div>
-
-        <div class="flex justify-center">
-            <p id="status" class="text-sm text-gray-600 my-4">Ready</p>
-        </div>
-        <div id="output"
-            class="w-full p-6 md:p-14 bg-white border rounded-lg shadow-sm leading-8 min-h-[200px] whitespace-nowrap text-xl">
-        </div>
-        <div id="selectionTooltip" style="z-index: 12;"></div>
     </section>
 
     <section id="flashcard-tool" class="py-8 z-50 hidden max-w-full">

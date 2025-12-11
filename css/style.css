@@ -1048,3 +1048,171 @@ input:checked+label::before {
     transform: translateX(26px);
     /* Moves it to the right */
 }
+
+/* Vocabulary Tool Specific Styles */
+#vocab-tool {
+    max-width: 100% !important;
+}
+
+#main-vocab-view {
+    padding: 1.5rem;
+    width: 100%;
+}
+
+/* Story item styles */
+.story-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.story-item:hover {
+    background-color: #f3f4f6;
+    transform: translateX(2px);
+    border-color: #d1d5db;
+}
+
+.story-item.active {
+    background-color: #dbeafe;
+    border-color: #3b82f6;
+    font-weight: 600;
+}
+
+/* Remove the separate vocab-hamburger styles and use existing hamburger styles */
+#vocab-hamburger-menu {
+    /* Uses the same styles as #hamburger-menu */
+}
+
+/* Make sure the vocab sidebar behaves like flashcard sidebar */
+#vocab-stories-sidebar {
+    position: relative;
+    height: 100%;
+}
+
+/* Responsive styles for vocab tool */
+@media (max-width: 1024px) {
+    #vocab-hamburger-menu {
+        display: flex;
+    }
+
+    #vocab-stories-sidebar {
+        position: fixed;
+        left: -320px;
+        top: 0;
+        height: 100vh;
+        z-index: 40;
+        background-color: white;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+
+    #vocab-stories-sidebar.active {
+        left: 0;
+    }
+
+    #main-vocab-view {
+        width: 100%;
+    }
+}
+
+/* Overlay for vocab mobile sidebar */
+#vocab-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 39;
+    display: none;
+}
+
+#vocab-sidebar-overlay.active {
+    display: block;
+}
+
+/* Ensure story sidebar has scroll when content overflows */
+#vocab-stories-sidebar {
+    overflow-y: auto;
+}
+
+/* Dark mode styles for vocab sidebar */
+.dark-mode #vocab-stories-sidebar {
+    background-color: rgb(12, 12, 23) !important;
+    color: white !important;
+    border-color: #444 !important;
+}
+
+.dark-mode .story-item {
+    background-color: rgb(18, 18, 30) !important;
+    border-color: #444 !important;
+    color: white !important;
+}
+
+.dark-mode .story-item:hover {
+    background-color: rgb(30, 30, 45) !important;
+}
+
+.dark-mode .story-item.active {
+    background-color: #1e3a8a !important;
+    border-color: #3b82f6 !important;
+}
+
+/* Fix for hamburger visibility on medium screens */
+@media (max-width: 1024px) {
+
+    .hamburger,
+    #vocab-hamburger-menu {
+        display: flex !important;
+    }
+
+    #list-sidebar-container,
+    #vocab-stories-sidebar {
+        position: fixed;
+        left: -320px;
+        top: 0;
+        height: 100vh;
+        z-index: 40;
+        background-color: white;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+
+    #list-sidebar-container.active,
+    #vocab-stories-sidebar.active {
+        left: 0;
+    }
+}
+
+/* Make sure hamburgers are hidden on large screens */
+@media (min-width: 1025px) {
+
+    .hamburger,
+    #vocab-hamburger-menu {
+        display: none !important;
+    }
+}
+
+/* Fix for hamburger sidebar activation */
+#hamburger-menu.active+#list-sidebar-container,
+#vocab-hamburger-menu.active+#vocab-stories-sidebar {
+    left: 0 !important;
+}
+
+/* Make sure hamburgers are clickable and on top */
+#hamburger-menu,
+#vocab-hamburger-menu {
+    z-index: 1000 !important;
+    cursor: pointer;
+}
+
+/* Ensure sidebars are on top when active */
+#list-sidebar-container.active,
+#vocab-stories-sidebar.active {
+    z-index: 999 !important;
+}

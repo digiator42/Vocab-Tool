@@ -345,84 +345,154 @@ export class ActiveRecallModule {
         const activeRecallTool = document.getElementById('active-recall-tool');
         const isVisible = !activeRecallTool.classList.contains('hidden');
 
-        // Store the original value in a class property
         if (!this.originalText) {
             this.originalText = this.main.input.value;
         }
 
-        // Hide all elements in vocab-tool except output, selectionTooltip, and essential controls
-        const vocabTool = document.getElementById('vocab-tool');
         const vocabToolContainer = document.getElementById('vocab-tool-div');
-
-        console.log('Flashcard load requested:--> ', this.isFlashCardLoadRequested);
         const addToFlashBtn = document.getElementById('addToFlashBtn');
+        const output = document.getElementById('output');
+        const selectionTooltip = document.getElementById('selectionTooltip');
+        const extraToolsContainer = document.getElementById('extra-tools-container');
 
         if (!isVisible) {
+            // Enter Active Recall mode
             this.prepareActiveRecall();
             activeRecallTool.classList.remove('hidden');
-            this.main.input.disabled = true;
-            this.main.storySelect.disabled = true;
-            this.main.input.value = '';
-            document.getElementById('ar-current-sentence').textContent = 'Sentence will appear here...';
-            document.getElementById('ar-hint-text').textContent = '';
-            this.extraToolsContainer.classList.remove('border-2', 'border-gray-300');
-            activeRecallTool.scrollIntoView({ behavior: 'smooth' });
-            if (!this.isFlashCardLoadRequested) {
-                console.log('Processing text for Active Recall');
-                this.main.processBtn.click();
+
+            // Hide the sidebar elements
+            const vocabSidebar = document.getElementById('vocab-stories-sidebar');
+            const vocabHamburger = document.getElementById('vocab-hamburger-menu');
+            const vocabOverlay = document.getElementById('vocab-sidebar-overlay');
+
+            if (vocabSidebar) {
+                vocabSidebar.dataset.originalDisplay = vocabSidebar.style.display || '';
+                vocabSidebar.style.display = 'none';
             }
-            this.main.output.innerHTML = '';
-            const elementsToHide = Array.from(vocabTool.children).filter(
-                child => !['active-recall-tool', 'active-recall-btn', 'extra-tools-container'].includes(child.id)
-            );
+            if (vocabHamburger) {
+                vocabHamburger.dataset.originalDisplay = vocabHamburger.style.display || '';
+                vocabHamburger.style.display = 'none';
+            }
+            if (vocabOverlay) {
+                vocabOverlay.dataset.originalDisplay = vocabOverlay.style.display || '';
+                vocabOverlay.style.display = 'none';
+            }
 
-            elementsToHide.forEach(element => {
-                element.dataset.originalDisplay = element.style.display || '';
-                element.style.display = 'none';
-            });
-            console.log('----------->>> ', elementsToHide);
-            addToFlashBtn.style.display = 'none';
+            // Hide everything in main-vocab-view EXCEPT:
+            // - active-recall-tool (AR interface)
+            // - output (display area)
+            // - selectionTooltip (tooltips)
+            // - extra-tools-container (contains the exit button!)
+            const mainVocabView = document.getElementById('main-vocab-view');
+            if (mainVocabView) {
+                Array.from(mainVocabView.children).forEach(child => {
+                    if (!['active-recall-tool', 'output', 'selectionTooltip', 'extra-tools-container'].includes(child.id)) {
+                        child.dataset.originalDisplay = child.style.display || '';
+                        child.style.display = 'none';
+                    }
+                });
+            }
 
+            output.style.display = 'none';
+            selectionTooltip.style.display = 'none';
+
+
+            // Make sure extra-tools-container is visible (contains exit button)
+            if (extraToolsContainer) {
+                extraToolsContainer.style.display = 'flex';
+                extraToolsContainer.classList.remove('border-2', 'border-gray-300');
+            }
+
+            // Hide the top toolbar
             if (vocabToolContainer) {
                 vocabToolContainer.dataset.originalDisplay = vocabToolContainer.style.display || '';
                 vocabToolContainer.style.display = 'none';
             }
-            document.getElementById('passive-learning-btn').classList.add('hidden');
+
+            // Hide passive learning button if it exists
+            const passiveLearningBtn = document.getElementById('passive-learning-btn');
+            if (passiveLearningBtn) {
+                passiveLearningBtn.classList.add('hidden');
+            }
+
+            // Hide add to flash button
+            if (addToFlashBtn) {
+                addToFlashBtn.style.display = 'none';
+            }
+
             this.activeRecallBtn.innerHTML = '❌ Exit Active Recall';
-            console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
+            console.log('Active Recall mode activated');
+
         } else {
-            console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
+            // Exit Active Recall mode
             activeRecallTool.classList.add('hidden');
             this.resetActiveRecall();
-            this.main.input.disabled = false;
-            this.main.storySelect.disabled = false;
-            this.main.input.value = this.originalText;
-            this.extraToolsContainer.classList.add('border-2', 'border-gray-300');
 
-            // Show all hidden elements
-            const elementsToShow = Array.from(vocabTool.children).filter(
-                child => child.hasAttribute('data-original-display')
-            );
+            // Restore sidebar elements
+            const vocabSidebar = document.getElementById('vocab-stories-sidebar');
+            const vocabHamburger = document.getElementById('vocab-hamburger-menu');
+            const vocabOverlay = document.getElementById('vocab-sidebar-overlay');
 
-            elementsToShow.forEach(element => {
-                const originalDisplay = element.dataset.originalDisplay;
-                element.style.display = originalDisplay || '';
-                delete element.dataset.originalDisplay;
-            });
+            if (vocabSidebar && vocabSidebar.hasAttribute('data-original-display')) {
+                const originalDisplay = vocabSidebar.dataset.originalDisplay;
+                vocabSidebar.style.display = originalDisplay || '';
+                delete vocabSidebar.dataset.originalDisplay;
+            }
+            if (vocabHamburger && vocabHamburger.hasAttribute('data-original-display')) {
+                const originalDisplay = vocabHamburger.dataset.originalDisplay;
+                vocabHamburger.style.display = originalDisplay || '';
+                delete vocabHamburger.dataset.originalDisplay;
+            }
+            if (vocabOverlay && vocabOverlay.hasAttribute('data-original-display')) {
+                const originalDisplay = vocabOverlay.dataset.originalDisplay;
+                vocabOverlay.style.display = originalDisplay || '';
+                delete vocabOverlay.dataset.originalDisplay;
+            }
 
-            const vocabToolContainer = document.getElementById('vocab-tool-div');
+            output.style.display = 'block';
+            selectionTooltip.style.display = 'block';
+
+            // Restore main-vocab-view children
+            const mainVocabView = document.getElementById('main-vocab-view');
+            if (mainVocabView) {
+                Array.from(mainVocabView.children).forEach(child => {
+                    if (child.hasAttribute('data-original-display')) {
+                        const originalDisplay = child.dataset.originalDisplay;
+                        child.style.display = originalDisplay || '';
+                        delete child.dataset.originalDisplay;
+                    }
+                });
+            }
+
+            // Make sure extra-tools-container has border again
+            if (extraToolsContainer) {
+                extraToolsContainer.classList.add('border-2', 'border-gray-300');
+            }
+
+            // Restore top toolbar
             if (vocabToolContainer && vocabToolContainer.hasAttribute('data-original-display')) {
                 const originalDisplay = vocabToolContainer.dataset.originalDisplay;
                 vocabToolContainer.style.display = originalDisplay || '';
                 delete vocabToolContainer.dataset.originalDisplay;
             }
+
+            // Show passive learning button
+            const passiveLearningBtn = document.getElementById('passive-learning-btn');
+            if (passiveLearningBtn) {
+                passiveLearningBtn.classList.remove('hidden');
+            }
+
+            // Show add to flash button
+            if (addToFlashBtn) {
+                addToFlashBtn.style.display = 'inline-block';
+            }
+
             this.activeRecallBtn.innerHTML = '🎯 Active Recall';
             if (!this.isFlashCardLoadRequested) {
                 console.log('Re-processing text after exiting Active Recall');
                 this.main.processBtn.click();
             }
             this.isFlashCardLoadRequested = !this.isFlashCardLoadRequested;
-            addToFlashBtn.style.display = 'inline-block';
         }
     }
 

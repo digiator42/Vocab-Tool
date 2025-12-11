@@ -14,12 +14,12 @@ export class ExerciseTool {
         this.createFileBrowser();
         window.exerciseTool = this;
 
-        this.grammerHTML = fetch('../grammer.html')
+        this.grammerHTML = fetch('../grammar.html')
             .then(res => res.text())
             .then(html => {
                 this.grammerHTML = html;
             }).catch(err => {
-                console.error('Error loading grammer.html:', err);
+                console.error('Error loading grammar.html:', err);
                 this.grammerHTML = '<p class="p-4 text-red-500">Error loading grammar reference.</p>';
             }
             );
