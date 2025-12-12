@@ -153,8 +153,13 @@ body.dark-mode {
 .dark-mode nav>a,
 .dark-mode p,
 .dark-mode #rateSliderSpan,
-.dark-mode #vocab-info-panel *:not(span) {
+.dark-mode #vocab-info-panel *:not(span)
+{    
     color: rgb(226, 223, 223) !important;
+}
+
+.dark-mode #stories-list-container .text-gray-800 {
+    color: rgb(201, 200, 200) !important;
 }
 
 .dark-mode #vocab-info-panel div:not(.bg-gradient-to-r):not(.bg-gradient-to-r div) {

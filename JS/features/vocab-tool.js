@@ -1861,7 +1861,7 @@ export class VocabularyTool {
             vocabSidebar.className = `
             w-80 p-4 border-r border-gray-300 bg-white rounded-lg shadow-lg 
             flex flex-col overflow-y-auto fixed left-[-320px] top-0 h-screen z-40 
-            transition-[left] duration-300 ease-in-out shadow-2xl
+            transition-[left] duration-300 ease-in-out shadow-2xl max-h-[1220px]
         `;
             vocabSidebar.dataset.focusMode = 'true';
         }
@@ -1876,7 +1876,6 @@ export class VocabularyTool {
             vocabHamburger.removeAttribute('style'); // Clear all inline styles
 
             // Apply focus mode styles
-            vocabHamburger.classList.add('fixed', 'top-5', 'left-5', 'z-[1000]', 'bg-white', 'p-2', 'rounded', 'shadow-lg', 'flex');
             vocabHamburger.style.display = 'flex'; // Force display
 
             vocabHamburger.dataset.focusMode = 'true';
