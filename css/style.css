@@ -1189,11 +1189,10 @@ input:checked+label::before {
     }
 }
 
-/* Make sure hamburgers are hidden on large screens */
+/* Make sure hamburgers are hidden on large screens - but NOT during focus mode */
 @media (min-width: 1025px) {
-
-    .hamburger,
-    #vocab-hamburger-menu {
+    .hamburger:not(.focus-mode-active, [data-focus-mode="true"]),
+    #vocab-hamburger-menu:not(.focus-mode-active, [data-focus-mode="true"]) {
         display: none !important;
     }
 }

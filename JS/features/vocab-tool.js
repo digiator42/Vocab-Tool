@@ -1783,6 +1783,7 @@ export class VocabularyTool {
         document.addEventListener('keydown', (e) => {
             if (this.output.style.display === 'none' || vocabTool.classList.contains('hidden')) return;
             if (e.altKey && e.shiftKey && e.key === 'G') {
+                console.log('---->> FC');
                 e.preventDefault();
                 this.toggleFocusMode();
             }
@@ -1839,18 +1840,85 @@ export class VocabularyTool {
             bodyOverflow: document.body.style.overflow,
             bodyBg: document.body.style.backgroundColor,
             outputClasses: this.output.className,
-            outputStyle: this.output.getAttribute('style') || ''
+            outputStyle: this.output.getAttribute('style') || '',
+            // Store original states
+            sidebarOriginalClasses: {},
+            hamburgerOriginalClasses: {},
+            overlayOriginalClasses: {}
         };
 
-        const vocabTool = document.getElementById('vocab-tool');
-        const elementsToHide = Array.from(vocabTool.children).filter(
-            child => !['output', 'selectionTooltip'].includes(child.id)
-        );
+        // Handle sidebar elements - in focus mode, always use mobile behavior
+        const vocabSidebar = document.getElementById('vocab-stories-sidebar');
+        const vocabHamburger = document.getElementById('vocab-hamburger-menu');
+        const vocabOverlay = document.getElementById('vocab-sidebar-overlay');
 
-        elementsToHide.forEach(element => {
-            element.dataset.originalDisplay = element.style.display || '';
-            element.style.display = 'none';
-        });
+        if (vocabSidebar) {
+            // Store original classes
+            this.originalState.sidebarOriginalClasses = vocabSidebar.className;
+
+            // In focus mode, force sidebar to mobile behavior with Tailwind
+            // Remove any hidden or responsive classes that hide it on large screens
+            vocabSidebar.className = `
+            w-80 p-4 border-r border-gray-300 bg-white rounded-lg shadow-lg 
+            flex flex-col overflow-y-auto fixed left-[-320px] top-0 h-screen z-40 
+            transition-[left] duration-300 ease-in-out shadow-2xl
+        `;
+            vocabSidebar.dataset.focusMode = 'true';
+        }
+
+        if (vocabHamburger) {
+            // Store original state
+            this.originalState.hamburgerOriginalClasses = vocabHamburger.className;
+            this.originalState.hamburgerOriginalStyle = vocabHamburger.getAttribute('style') || '';
+
+            // COMPLETELY reset and set focus mode styles
+            vocabHamburger.className = 'hamburger'; // Keep only base hamburger class
+            vocabHamburger.removeAttribute('style'); // Clear all inline styles
+
+            // Apply focus mode styles
+            vocabHamburger.classList.add('fixed', 'top-5', 'left-5', 'z-[1000]', 'bg-white', 'p-2', 'rounded', 'shadow-lg', 'flex');
+            vocabHamburger.style.display = 'flex'; // Force display
+
+            vocabHamburger.dataset.focusMode = 'true';
+
+            // Add focus mode click handler
+            vocabHamburger.addEventListener('click', this.handleFocusModeSidebarToggle.bind(this));
+        }
+
+        if (vocabOverlay) {
+            // Store original classes
+            this.originalState.overlayOriginalClasses = vocabOverlay.className;
+
+            // Set up overlay for focus mode with Tailwind
+            vocabOverlay.className = `
+            sidebar-overlay fixed inset-0 bg-black bg-opacity-50 z-30 hidden
+        `;
+            vocabOverlay.dataset.focusMode = 'true';
+
+            // Add click handler to close sidebar
+            vocabOverlay.addEventListener('click', this.handleFocusModeSidebarClose.bind(this));
+        }
+
+        // Hide everything in main-vocab-view EXCEPT output and selectionTooltip
+        const mainVocabView = document.getElementById('main-vocab-view');
+        if (mainVocabView) {
+            const mainChildren = Array.from(mainVocabView.children);
+            mainChildren.forEach(child => {
+                if (!['output', 'selectionTooltip'].includes(child.id)) {
+                    child.dataset.originalDisplay = child.style.display || '';
+                    child.style.display = 'none';
+                }
+            });
+
+            // Make sure output takes full width with Tailwind
+            const output = document.getElementById('output');
+            if (output) {
+                output.dataset.originalClasses = output.className;
+                output.className = `
+                ${output.className} w-full max-w-full
+            `;
+            }
+        }
 
         const vocabToolContainer = document.getElementById('vocab-tool-div');
         if (vocabToolContainer) {
@@ -1860,8 +1928,153 @@ export class VocabularyTool {
 
         this.createFocusControls();
         this.applyFocusModeStyles();
-        // this.addFocusModeIndicator();
         this.setupTooltipObserver();
+
+        // Add keyboard shortcut to toggle sidebar in focus mode (Alt+S)
+        document.addEventListener('keydown', this.handleFocusModeSidebarShortcut.bind(this));
+    }
+
+    // Add these methods to your class:
+    handleFocusModeSidebarToggle() {
+        const vocabSidebar = document.getElementById('vocab-stories-sidebar');
+        const vocabOverlay = document.getElementById('vocab-sidebar-overlay');
+        const vocabHamburger = document.getElementById('vocab-hamburger-menu');
+
+        if (vocabSidebar && vocabSidebar.dataset.focusMode === 'true') {
+            // Check if sidebar has left-0 class (is open)
+            const isOpen = vocabSidebar.classList.contains('left-0');
+
+            if (isOpen) {
+                // Close sidebar
+                vocabSidebar.classList.remove('left-0');
+                vocabSidebar.classList.add('left-[-320px]');
+                vocabOverlay.classList.add('hidden');
+                vocabHamburger.classList.remove('active');
+            } else {
+                // Open sidebar
+                vocabSidebar.classList.remove('left-[-320px]');
+                vocabSidebar.classList.add('left-0');
+                vocabOverlay.classList.remove('hidden');
+                vocabHamburger.classList.add('active');
+            }
+        }
+    }
+
+    handleFocusModeSidebarClose() {
+        const vocabSidebar = document.getElementById('vocab-stories-sidebar');
+        const vocabOverlay = document.getElementById('vocab-sidebar-overlay');
+        const vocabHamburger = document.getElementById('vocab-hamburger-menu');
+
+        if (vocabSidebar) {
+            vocabSidebar.classList.remove('left-0');
+            vocabSidebar.classList.add('left-[-320px]');
+            vocabOverlay.classList.add('hidden');
+            vocabHamburger.classList.remove('active');
+        }
+    }
+
+    handleFocusModeSidebarShortcut(e) {
+        // Alt+S toggles sidebar in focus mode
+        if (e.altKey && e.key === 's') {
+            e.preventDefault();
+            this.handleFocusModeSidebarToggle();
+        }
+    }
+
+    exitFocusMode() {
+        if (!this.isFocusMode) return;
+
+        console.log('Exiting focus mode');
+        this.isFocusMode = false;
+
+        this.processBtn.click()
+
+        // Remove focus controls
+        const focusControls = document.getElementById('focus-controls');
+        if (focusControls) {
+            focusControls.remove();
+        }
+
+        // Disconnect tooltip observer
+        if (this.tooltipObserver) {
+            this.tooltipObserver.disconnect();
+            this.tooltipObserver = null;
+        }
+
+        // Restore sidebar elements to original state
+        const vocabSidebar = document.getElementById('vocab-stories-sidebar');
+        const vocabHamburger = document.getElementById('vocab-hamburger-menu');
+        const vocabOverlay = document.getElementById('vocab-sidebar-overlay');
+
+        if (vocabSidebar && vocabSidebar.dataset.focusMode === 'true') {
+            // Restore original classes
+            vocabSidebar.className = this.originalState.sidebarOriginalClasses;
+            delete vocabSidebar.dataset.focusMode;
+        }
+
+        if (vocabHamburger && vocabHamburger.dataset.focusMode === 'true') {
+            // Restore original classes
+            vocabHamburger.className = this.originalState.hamburgerOriginalClasses;
+
+            // Remove focus mode click handler
+            vocabHamburger.removeEventListener('click', this.handleFocusModeSidebarToggle.bind(this));
+
+            // Remove active class
+            vocabHamburger.classList.remove('active');
+
+            delete vocabHamburger.dataset.focusMode;
+        }
+
+        if (vocabOverlay && vocabOverlay.dataset.focusMode === 'true') {
+            // Restore original classes
+            vocabOverlay.className = this.originalState.overlayOriginalClasses;
+
+            // Remove focus mode click handler
+            vocabOverlay.removeEventListener('click', this.handleFocusModeSidebarClose.bind(this));
+
+            delete vocabOverlay.dataset.focusMode;
+        }
+
+        // Restore elements in main-vocab-view
+        const mainVocabView = document.getElementById('main-vocab-view');
+        if (mainVocabView) {
+            const mainChildren = Array.from(mainVocabView.children).filter(
+                child => child.hasAttribute('data-original-display')
+            );
+
+            mainChildren.forEach(child => {
+                const originalDisplay = child.dataset.originalDisplay;
+                child.style.display = originalDisplay || '';
+                delete child.dataset.originalDisplay;
+            });
+
+            // Restore output original classes
+            const output = document.getElementById('output');
+            if (output && output.dataset.originalClasses) {
+                output.className = output.dataset.originalClasses;
+                delete output.dataset.originalClasses;
+            }
+        }
+
+        // Restore vocab tool container
+        const vocabToolContainer = document.getElementById('vocab-tool-div');
+        if (vocabToolContainer && vocabToolContainer.hasAttribute('data-original-display')) {
+            const originalDisplay = vocabToolContainer.dataset.originalDisplay;
+            vocabToolContainer.style.display = originalDisplay || '';
+            delete vocabToolContainer.dataset.originalDisplay;
+        }
+
+        // Restore group tooltip styles
+        const groupTooltip = document.getElementById('group-tooltip');
+        if (groupTooltip && groupTooltip.dataset.focusModeStyled) {
+            groupTooltip.style.zIndex = '';
+            delete groupTooltip.dataset.focusModeStyled;
+        }
+
+        // Remove keyboard shortcut listener
+        document.removeEventListener('keydown', this.handleFocusModeSidebarShortcut.bind(this));
+
+        this.restoreOriginalStyles();
     }
 
     setupTooltipObserver() {
@@ -1903,54 +2116,54 @@ export class VocabularyTool {
         const focusControls = document.createElement('div');
         focusControls.id = 'focus-controls';
         focusControls.className = `
-            fixed top-5 left-1/2 -translate-x-1/2
-            bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg 
-            flex flex-wrap mb-30 lg:flex-nowrap gap-3 justify-center w-fit z-[51]
-            
-        `;
+        fixed top-5 left-1/2 -translate-x-1/2
+        bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl p-4 shadow-lg 
+        flex flex-wrap mb-30 lg:flex-nowrap gap-3 justify-center w-fit z-[51]
+        transition-all duration-300 ease-in-out
+    `;
         focusControls.innerHTML = `
-            <div class="flex flex-row gap-3 justify-center">
-                <button id="focus-go-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
-                ${originalProcessBtn.innerText}
-                </button>
-                <button id="focus-play-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors">
-                ${originalPlayBtn.innerText}
-                </button>
-                <button id="focus-stop-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors">
-                Stop Speech
-                </button>
-            </div>
+        <div class="flex flex-row gap-3 justify-center">
+            <button id="focus-go-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors">
+            ${originalProcessBtn.innerText}
+            </button>
+            <button id="focus-play-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors">
+            ${originalPlayBtn.innerText}
+            </button>
+            <button id="focus-stop-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors">
+            Stop Speech
+            </button>
+        </div>
 
-            <div class="flex flex-row gap-3 justify-center">
-                <button id="focus-add-flash-btn" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">
-                ${originalAddToFlashBtn ? originalAddToFlashBtn.innerText : 'Add Flash'}
-                </button>
-                <button id="focus-panel-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
-                Hide Panel
-                </button>
-                <button id="focus-exit-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
-                ❌ Exit
-                </button>
-            </div>
+        <div class="flex flex-row gap-3 justify-center">
+            <button id="focus-add-flash-btn" class="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">
+            ${originalAddToFlashBtn ? originalAddToFlashBtn.innerText : 'Add Flash'}
+            </button>
+            <button id="focus-hide-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
+            Hide CTRs
+            </button>
+            <button id="focus-exit-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
+            ❌ Exit
+            </button>
+        </div>
 
-            <!-- Keep your select, sliders, and checkbox below -->
-            <select id="focus-lang-selector" class="px-3 py-2 bg-gray-100 rounded-lg text-sm">
-                ${Array.from(originalLangSelector.options).map(option =>
+        <!-- Keep your select, sliders, and checkbox below -->
+        <select id="focus-lang-selector" class="px-3 py-2 bg-gray-100 rounded-lg text-sm">
+            ${Array.from(originalLangSelector.options).map(option =>
             `<option value="${option.value}" ${option.selected ? 'selected' : ''}>${option.text}</option>`
         ).join('')}
-            </select>
-            
-            <div class="flex items-center gap-2">
-                <span id="focus-rate-span" class="text-sm text-gray-700">${originalRateSpan.textContent}</span>
-                <input id="focus-rate-slider" type="range" min="${originalRateSlider.min}" max="${originalRateSlider.max}" step="${originalRateSlider.step}" value="${originalRateSlider.value}" class="w-20">
-            </div>
-            
-            <div class="flex items-center gap-2">
-                <input id="focus-offline-checkbox" type="checkbox" ${originalOfflineCheckbox.checked ? 'checked' : ''} class="switch-input mx-auto">
-                <label for="focus-offline-checkbox" class="text-sm font-medium text-gray-700"></label>
-                <span>Offline</span>
-            </div>
-            `;
+        </select>
+        
+        <div class="flex items-center gap-2">
+            <span id="focus-rate-span" class="text-sm text-gray-700">${originalRateSpan.textContent}</span>
+            <input id="focus-rate-slider" type="range" min="${originalRateSlider.min}" max="${originalRateSlider.max}" step="${originalRateSlider.step}" value="${originalRateSlider.value}" class="w-20">
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <input id="focus-offline-checkbox" type="checkbox" ${originalOfflineCheckbox.checked ? 'checked' : ''} class="switch-input mx-auto">
+            <label for="focus-offline-checkbox" class="text-sm font-medium text-gray-700"></label>
+            <span>Offline</span>
+        </div>
+        `;
 
 
         const focusGoBtn = focusControls.querySelector('#focus-go-btn');
@@ -1960,18 +2173,36 @@ export class VocabularyTool {
         const focusRateSlider = focusControls.querySelector('#focus-rate-slider');
         const focusRateSpan = focusControls.querySelector('#focus-rate-span');
         const focusOfflineCheckbox = focusControls.querySelector('#focus-offline-checkbox');
+        const focusHideBtn = focusControls.querySelector('#focus-hide-btn');
         const focusExitBtn = focusControls.querySelector('#focus-exit-btn');
         const focusLangSelector = focusControls.querySelector('#focus-lang-selector');
-        const focusPanelBtn = focusControls.querySelector('#focus-panel-btn');
 
-        focusPanelBtn.onclick = () => {
-            this.hideFocusPanel = !this.hideFocusPanel;
-            if (this.hideFocusPanel) {
-                focusPanelBtn.textContent = 'Show Panel';
+        // Initialize hide state
+        this.isFocusControlsHidden = false;
+
+        focusHideBtn.onclick = () => {
+            this.isFocusControlsHidden = !this.isFocusControlsHidden;
+
+            if (this.isFocusControlsHidden) {
+                // Hide controls with animation
+                focusControls.style.transform = 'translate(-50%, -100%)';
+                focusControls.style.opacity = '0';
+                focusControls.style.pointerEvents = 'none';
+                focusHideBtn.textContent = 'Show CTRs';
+
+                // Add a small toggle button to show controls again
+                this.createFocusToggleButton(focusControls);
             } else {
-                focusPanelBtn.textContent = 'Hide Panel';
+                // Show controls with animation
+                focusControls.style.transform = 'translate(-50%, 0)';
+                focusControls.style.opacity = '1';
+                focusControls.style.pointerEvents = 'auto';
+                focusHideBtn.textContent = 'Hide CTRs';
+
+                // Remove toggle button if it exists
+                this.removeFocusToggleButton();
             }
-        }
+        };
 
         focusGoBtn.onclick = () => originalProcessBtn.click();
         focusPlayBtn.onclick = () => originalPlayBtn.click();
@@ -2011,52 +2242,73 @@ export class VocabularyTool {
         };
 
         document.body.appendChild(focusControls);
+
+        // Add keyboard shortcut to toggle controls (Alt+H)
+        document.addEventListener('keydown', this.handleFocusControlsKeydown.bind(this));
     }
 
-    exitFocusMode() {
-        if (!this.isFocusMode) return;
+    createFocusToggleButton(focusControls) {
+        // Remove existing toggle button if it exists
+        this.removeFocusToggleButton();
 
-        console.log('Exiting focus mode');
-        this.isFocusMode = false;
+        const toggleBtn = document.createElement('button');
+        toggleBtn.id = 'focus-toggle-btn';
+        toggleBtn.className = `
+        fixed top-5 right-5 
+        px-3 py-2 bg-blue-600 text-white rounded-lg text-sm 
+        hover:bg-blue-700 transition-colors z-[52]
+        shadow-lg
+    `;
+        toggleBtn.textContent = '👁️ Show Controls';
 
-        this.processBtn.click()
+        toggleBtn.onclick = () => {
+            // Show controls
+            focusControls.style.transform = 'translate(-50%, 0)';
+            focusControls.style.opacity = '1';
+            focusControls.style.pointerEvents = 'auto';
 
+            // Update hide button text
+            const focusHideBtn = document.getElementById('focus-hide-btn');
+            if (focusHideBtn) {
+                focusHideBtn.textContent = 'Hide CTRs';
+            }
+
+            this.isFocusControlsHidden = false;
+            this.removeFocusToggleButton();
+        };
+
+        document.body.appendChild(toggleBtn);
+        this.focusToggleButton = toggleBtn;
+    }
+
+    removeFocusToggleButton() {
+        if (this.focusToggleButton) {
+            this.focusToggleButton.remove();
+            this.focusToggleButton = null;
+        }
+    }
+
+    handleFocusControlsKeydown(e) {
+        // Alt+H toggles focus controls visibility
+        if (e.altKey && e.key === 'h') {
+            e.preventDefault();
+            const focusHideBtn = document.getElementById('focus-hide-btn');
+            if (focusHideBtn) {
+                focusHideBtn.click();
+            }
+        }
+    }
+
+    removeFocusControls() {
         const focusControls = document.getElementById('focus-controls');
         if (focusControls) {
             focusControls.remove();
         }
 
-        if (this.tooltipObserver) {
-            this.tooltipObserver.disconnect();
-            this.tooltipObserver = null;
-        }
+        this.removeFocusToggleButton();
 
-        const vocabTool = document.getElementById('vocab-tool');
-        const elementsToShow = Array.from(vocabTool.children).filter(
-            child => child.hasAttribute('data-original-display')
-        );
-
-        elementsToShow.forEach(element => {
-            const originalDisplay = element.dataset.originalDisplay;
-            element.style.display = originalDisplay || '';
-            delete element.dataset.originalDisplay;
-        });
-
-        const vocabToolContainer = document.getElementById('vocab-tool-div');
-        if (vocabToolContainer && vocabToolContainer.hasAttribute('data-original-display')) {
-            const originalDisplay = vocabToolContainer.dataset.originalDisplay;
-            vocabToolContainer.style.display = originalDisplay || '';
-            delete vocabToolContainer.dataset.originalDisplay;
-        }
-
-        const groupTooltip = document.getElementById('group-tooltip');
-        if (groupTooltip && groupTooltip.dataset.focusModeStyled) {
-            groupTooltip.style.zIndex = '';
-            delete groupTooltip.dataset.focusModeStyled;
-        }
-
-        this.restoreOriginalStyles();
-        this.removeFocusModeIndicator();
+        // Remove keyboard event listener
+        document.removeEventListener('keydown', this.handleFocusControlsKeydown.bind(this));
     }
 
     removeFocusModeIndicator() {

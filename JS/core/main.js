@@ -89,16 +89,6 @@ document.addEventListener('DOMContentLoaded', function () {
     initFlashcardSidebar();
     initVocabSidebar();
 
-    // function handleTabSwitch() {
-    //     setTimeout(checkSidebarVisibility, 100);
-    // }
-
-    // ['tab-flash', 'tab-vocab', 'tab-exercise'].forEach(tabId => {
-    //     document.getElementById(tabId).addEventListener('click', handleTabSwitch);
-    // });
-
-    // window.addEventListener('resize', updateAllHamburgerVisibility);
-
 
     // Populate story selection dropdown
     const storySelect = document.getElementById('storySelect');
@@ -276,36 +266,6 @@ document.addEventListener('DOMContentLoaded', function () {
             hamburger.classList.remove('active');
         });
     }
-
-    // function updateAllHamburgerVisibility() {
-    //     const isLargeScreen = window.innerWidth > 1024;
-
-    //     // Get all tools
-    //     const flashcardTool = document.getElementById('flashcard-tool');
-    //     const vocabTool = document.getElementById('vocab-tool');
-
-    //     // Get all hamburgers
-    //     const flashHamburger = document.getElementById('hamburger-menu');
-    //     const vocabHamburger = document.getElementById('vocab-hamburger-menu');
-
-    //     // Flashcard hamburger
-    //     if (flashHamburger) {
-    //         if (!flashcardTool.classList.contains('hidden') && !isLargeScreen) {
-    //             flashHamburger.style.display = 'flex';
-    //         } else {
-    //             flashHamburger.style.display = 'none';
-    //         }
-    //     }
-
-    //     // Vocab hamburger
-    //     if (vocabHamburger) {
-    //         if (!vocabTool.classList.contains('hidden') && !isLargeScreen) {
-    //             vocabHamburger.style.display = 'flex';
-    //         } else {
-    //             vocabHamburger.style.display = 'none';
-    //         }
-    //     }
-    // }
 
     // Function to render stories in the sidebar (simplified)
     function renderStoriesInSidebar() {
