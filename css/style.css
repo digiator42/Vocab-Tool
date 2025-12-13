@@ -1146,20 +1146,9 @@ input:checked+label::before {
 }
 
 /* Dark mode styles for vocab sidebar */
-.dark-mode #vocab-stories-sidebar {
+.dark-mode #vocab-stories-sidebar:not(.story-item) {
     background-color: rgb(12, 12, 23) !important;
-    color: white !important;
-    border-color: #444 !important;
-}
-
-.dark-mode .story-item {
-    background-color: rgb(18, 18, 30) !important;
-    border-color: #444 !important;
-    color: white !important;
-}
-
-.dark-mode .story-item:hover {
-    background-color: rgb(30, 30, 45) !important;
+    color: black !important;
 }
 
 .dark-mode .story-item.active {
