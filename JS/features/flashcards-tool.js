@@ -753,6 +753,7 @@ export class FlashcardsTool {
                 button.addEventListener('click', (e) => {
                     const filter = e.target.dataset.filter;
                     this.renderCustomListButtons(true, filter);
+                    localStorage.setItem('filter', filter);
                 });
             }
         });
@@ -1737,6 +1738,7 @@ export class FlashcardsTool {
                 e.stopPropagation();
                 const idx = parseInt(flashcard.dataset.index);
                 this.handleRemoveFlashcard(idx);
+                this.refreshCustomListButtons();
             });
         }
 
@@ -2004,7 +2006,7 @@ export class FlashcardsTool {
         this.renderCustomListButtons(true); // buttonsOnly = true to preserve current state
     }
 
-    renderCustomListButtons(buttonsOnly = false, filter = 'all') {
+    renderCustomListButtons(buttonsOnly = false, filter = '') {
         const container = document.getElementById('custom-lists-container');
 
         if (!buttonsOnly) {
@@ -2061,6 +2063,10 @@ export class FlashcardsTool {
             if (listName == 'Dark List') {
                 listColor = 'bg-gray-800 hover:bg-gray-900';
                 listIcon = 'list';
+            }
+
+            if (!filter) {
+                filter = localStorage.getItem('filter');
             }
 
             if (filter === 'mastered' && masteryPercentage < 100) {
