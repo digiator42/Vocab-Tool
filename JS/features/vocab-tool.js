@@ -2112,6 +2112,7 @@ export class VocabularyTool {
         const originalAddToFlashBtn = document.getElementById('addToFlashBtn');
         const originalLangSelector = document.getElementById('langSelector');
 
+
         const focusControls = document.createElement('div');
         focusControls.id = 'focus-controls';
         focusControls.className = `
@@ -2138,10 +2139,13 @@ export class VocabularyTool {
             ${originalAddToFlashBtn ? originalAddToFlashBtn.innerText : 'Add Flash'}
             </button>
             <button id="focus-hide-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
-            Hide CTRs
+                Hide CTRs
+            </button>
+            <button id="focus-panel-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
+                Hide Panel
             </button>
             <button id="focus-exit-btn" class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm hover:bg-gray-600 transition-colors">
-            ❌ Exit
+                ❌ Exit
             </button>
         </div>
 
@@ -2175,6 +2179,16 @@ export class VocabularyTool {
         const focusHideBtn = focusControls.querySelector('#focus-hide-btn');
         const focusExitBtn = focusControls.querySelector('#focus-exit-btn');
         const focusLangSelector = focusControls.querySelector('#focus-lang-selector');
+        const focusPanelBtn = focusControls.querySelector('#focus-panel-btn');
+
+        focusPanelBtn.onclick = () => {
+            this.hideFocusPanel = !this.hideFocusPanel;
+            if (this.hideFocusPanel) {
+                focusPanelBtn.textContent = 'Show Panel';
+            } else {
+                focusPanelBtn.textContent = 'Hide Panel';
+            }
+        }
 
         // Initialize hide state
         this.isFocusControlsHidden = false;
