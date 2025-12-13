@@ -268,7 +268,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Function to render stories in the sidebar (simplified)
-    function renderStoriesInSidebar() {
+    function renderStoriesInSidebar(filter) {
         const storiesContainer = document.getElementById('stories-list-container');
         if (!storiesContainer) return;
 
@@ -279,8 +279,13 @@ document.addEventListener('DOMContentLoaded', function () {
             .sort((a, b) => a[1].title.localeCompare(b[1].title));
 
         sortedStories.forEach(([key, story]) => {
-            const storyElement = createStoryElement(key, story);
+            if (filter && !story.title.toLowerCase().includes(filter.toLowerCase())) {
+                return;
+            }
+
+            const { storyElement, colorClass } = createStoryElement(key, story);
             storiesContainer.appendChild(storyElement);
+            storyElement.classList.add(colorClass);
         });
 
         // Mark active story
@@ -303,9 +308,20 @@ document.addEventListener('DOMContentLoaded', function () {
         // Estimate word count
         const wordCount = estimateWordCount(story.text);
 
+        let colorClass = 'bg-gray-800';
+        if (story.title.includes('A1')) {
+            colorClass = 'bg-green-200';
+        } else if (story.title.includes('A2/B1')) {
+            colorClass = 'bg-sky-200';
+        } else if (story.title.includes('A2')) {
+            colorClass = 'bg-yellow-200';
+        } else if (story.title.includes('B1')) {
+            colorClass = 'bg-purple-200';
+        }
+
         div.innerHTML = `
             <div class="flex flex-col">
-                <div class="text-gray-800 text-xs">${story.title}</div>
+                <div class="text-xs">${story.title}</div>
                 <div class="text-xs text-gray-500 mt-1">${wordCount} words</div>
             </div>
         `;
@@ -334,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        return div;
+        return {storyElement: div, colorClass};
     }
 
     function estimateWordCount(text) {
@@ -475,6 +491,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initial render of stories
     renderStoriesInSidebar();
+
+    // Filter buttons
+    document.getElementById('filter-all').addEventListener('click', () => {
+        renderStoriesInSidebar();
+    });
+    document.getElementById('filter-a1').addEventListener('click', () => {
+        renderStoriesInSidebar('A1');
+    });
+    document.getElementById('filter-a2').addEventListener('click', () => {
+        renderStoriesInSidebar('A2');
+    });
+    document.getElementById('filter-b1').addEventListener('click', () => {
+        renderStoriesInSidebar('B1');
+    });
+    document.getElementById('filter-b2').addEventListener('click', () => {
+        renderStoriesInSidebar('B2');
+    });
 
     setTimeout(debugHamburgerStates, 1500);
 });

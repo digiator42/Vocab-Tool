@@ -39,12 +39,20 @@
 
             <!-- Stories Sidebar -->
             <div id="vocab-stories-sidebar"
-                class="max-h-[1220px] w-80 p-4 border-r border-gray-300 flex-shrink-0 shadow-lg rounded-xl flex flex-col overflow-y-auto">
+                class="max-h-[2025px] w-80 p-4 border-r border-gray-300 flex-shrink-0 shadow-lg rounded-xl flex flex-col overflow-y-auto">
 
                 <header class="mb-6 text-center">
                     <h1 class="text-2xl font-bold text-blue-700 mb-2">German Stories</h1>
                     <p class="text-gray-600 text-sm">Select a story to practice</p>
                 </header>
+
+                <div class="flex justify-center gap-2 mb-4">
+                    <button id="filter-all" class="px-3 py-1 text-sm bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors">All</button>
+                    <button id="filter-a1" class="px-3 py-1 text-sm bg-green-200 text-green-800 rounded-full hover:bg-green-300 transition-colors">A1</button>
+                    <button id="filter-a2" class="px-3 py-1 text-sm bg-yellow-200 text-yellow-800 rounded-full hover:bg-yellow-300 transition-colors">A2</button>
+                    <button id="filter-b1" class="px-3 py-1 text-sm bg-blue-200 text-blue-800 rounded-full hover:bg-blue-300 transition-colors">B1</button>
+                    <button id="filter-b2" class="px-3 py-1 text-sm bg-red-200 text-red-800 rounded-full hover:bg-red-300 transition-colors">B2</button>
+                </div>
 
                 <div id="stories-list-container" class="flex flex-col gap-0 w-full">
                     <!-- Stories will be added here -->
