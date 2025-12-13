@@ -741,7 +741,6 @@ export class FlashcardsTool {
         const filterButtons = [
             'flashcard-filter-all',
             'flashcard-filter-mastered',
-            'flashcard-filter-high',
             'flashcard-filter-very-good',
             'flashcard-filter-good',
             'flashcard-filter-some',
@@ -2072,7 +2071,7 @@ export class FlashcardsTool {
                 return;
             } else if (filter === 'some' && (masteryPercentage < 10 || masteryPercentage >= 50)) {
                 return;
-            } else if (filter === 'new' && (masteryPercentage > 0 || masteryPercentage >= 10)) {
+            } else if (filter === 'new' && (masteryPercentage >= 10)) {
                 return;
             }
 
