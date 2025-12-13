@@ -159,6 +159,15 @@
                     <p class="text-gray-600 text-sm">Select Your Vocabulary</p>
                 </header>
 
+                <div class="flex flex-wrap justify-center gap-2 mb-4">
+                    <button id="flashcard-filter-all" class="px-3 py-1 text-sm bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors" data-filter="all">All</button>
+                    <button id="flashcard-filter-mastered" class="px-3 py-1 text-sm bg-green-800 text-white rounded-full hover:bg-green-700 transition-colors" title="Mastered" data-filter="mastered">M</button>
+                    <button id="flashcard-filter-very-good" class="px-3 py-1 text-sm bg-green-600 text-white rounded-full hover:bg-green-500 transition-colors" title="Very Good (80%+)" data-filter="very-good">VG</button>
+                    <button id="flashcard-filter-good" class="px-3 py-1 text-sm bg-yellow-600 text-white rounded-full hover:bg-yellow-700 transition-colors" title="Good (50%+)" data-filter="good">G</button>
+                    <button id="flashcard-filter-some" class="px-3 py-1 text-sm bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors" title="Some (>10%)" data-filter="some">S</button>
+                    <button id="flashcard-filter-new" class="px-3 py-1 text-sm bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors" title="New (0-10%)" data-filter="new">N</button>
+                </div>
+
                 <button id="open-add-flashcards-modal"
                     class="mt-0 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition w-full mb-4">
                     + Add New List

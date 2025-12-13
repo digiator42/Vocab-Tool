@@ -734,6 +734,29 @@ export class FlashcardsTool {
         });
 
         this.setupAddFlashcardsModal();
+        this.setupFilterButtons();
+    }
+
+    setupFilterButtons() {
+        const filterButtons = [
+            'flashcard-filter-all',
+            'flashcard-filter-mastered',
+            'flashcard-filter-high',
+            'flashcard-filter-very-good',
+            'flashcard-filter-good',
+            'flashcard-filter-some',
+            'flashcard-filter-new'
+        ];
+
+        filterButtons.forEach(id => {
+            const button = document.getElementById(id);
+            if (button) {
+                button.addEventListener('click', (e) => {
+                    const filter = e.target.dataset.filter;
+                    this.renderCustomListButtons(true, filter);
+                });
+            }
+        });
     }
 
     setupSearch() {
@@ -1982,7 +2005,7 @@ export class FlashcardsTool {
         this.renderCustomListButtons(true); // buttonsOnly = true to preserve current state
     }
 
-    renderCustomListButtons(buttonsOnly = false) {
+    renderCustomListButtons(buttonsOnly = false, filter = 'all') {
         const container = document.getElementById('custom-lists-container');
 
         if (!buttonsOnly) {
@@ -2011,21 +2034,26 @@ export class FlashcardsTool {
 
             if (masteryPercentage === 100 && totalCount > 0) {
                 // Fully mastered - Green with target icon
-                listColor = 'bg-green-600 hover:bg-green-700';
+                listColor = 'bg-green-800 hover:bg-green-700';
                 listIcon = 'target';
                 listTitle = ''; // 'Fully mastered! 🎯';
+            } else if (masteryPercentage >= 80) {
+                // Very good mastery (80-89%) - Green-200 with percentage
+                listColor = 'bg-green-600 hover:bg-green-500';
+                listIcon = 'bar-chart-2';
+                listTitle = `${masteryPercentage}% mastered`;
             } else if (masteryPercentage >= 50) {
-                // Partially mastered - Yellow with percentage
+                // Good mastery (50-79%) - Yellow with percentage
                 listColor = 'bg-yellow-600 hover:bg-yellow-700';
                 listIcon = 'bar-chart-2';
                 listTitle = `${masteryPercentage}% mastered`;
-            } else if (masteryPercentage > 10 && masteryPercentage < 50) {
-                // Partially mastered - Blue with percentage
-                listColor = 'bg-blue-600 hover:bg-blue-700';
+            } else if (masteryPercentage > 10) {
+                // Some progress (11-49%) - Blue with percentage
+                listColor = 'bg-blue-600 hover:bg-blue-500'; // Slightly different blue for lower range
                 listIcon = 'bar-chart-2';
                 listTitle = `${masteryPercentage}% mastered`;
             } else {
-                // No mastery - Blue with list icon
+                // No or very low mastery (0-10%) - Purple with list icon
                 listColor = 'bg-purple-600 hover:bg-purple-700';
                 listIcon = 'list';
                 listTitle = ''; // 'No cards mastered yet';
@@ -2036,6 +2064,17 @@ export class FlashcardsTool {
                 listIcon = 'list';
             }
 
+            if (filter === 'mastered' && masteryPercentage < 100) {
+                return;
+            } else if (filter === 'very-good' && (masteryPercentage < 80 || masteryPercentage == 100)) {
+                return;
+            } else if (filter === 'good' && (masteryPercentage < 50 || masteryPercentage >= 80)) {
+                return;
+            } else if (filter === 'some' && (masteryPercentage < 10 || masteryPercentage >= 50)) {
+                return;
+            } else if (filter === 'new' && (masteryPercentage > 0 || masteryPercentage >= 10)) {
+                return;
+            }
 
             // List button with dynamic color and icon
             const btn = document.createElement('button');
