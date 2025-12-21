@@ -1550,8 +1550,8 @@ export class VocabularyTool {
             modal.classList.add('hidden');
         });
 
-        document.getElementById('batch-add-all-btn').addEventListener('click', () => {
-            this.handleBatchAdd();
+        document.getElementById('batch-add-all-btn').addEventListener('click', async () => {
+            await this.handleBatchAdd();
         });
 
         modal.addEventListener('click', (e) => {
@@ -1608,7 +1608,7 @@ export class VocabularyTool {
         let addedCount = 0;
         let skippedCount = 0;
 
-        selections.forEach(selection => {
+        await Promise.all(selections.map(async (selection) => {
             const exists = customLists[selectedListName].some(card =>
                 card.german === selection.german && card.english === selection.english
             );
@@ -1618,13 +1618,15 @@ export class VocabularyTool {
                     german: selection.german,
                     sentence: selection.sentence,
                     english: selection.english,
+                    sentenceTranslation: await this.translate(selection.sentence),
                     mastered: false
                 });
                 addedCount++;
             } else {
                 skippedCount++;
             }
-        });
+        }));
+
         localStorage.setItem('customGermanLists', JSON.stringify(customLists));
         // Refresh flashcard lists
         this.FCL.refreshFlashcardLists();
