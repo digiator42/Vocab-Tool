@@ -28,6 +28,8 @@ export class FlashcardsTool {
 
 
         this.init();
+
+        window.flashcardsToo = this;
     }
 
     init() {
@@ -134,7 +136,8 @@ export class FlashcardsTool {
         this.currentSRCardIndex = 0;
         this.spacedRepetitionCards = [];
         this.sessionStartTime = null; // Reset session timer
-        this.showNotification('Spaced repetition session completed! Great job!');
+        if (this.spacedRepetitionMode)
+            this.showNotification('Spaced repetition session completed! Great job!');
 
         // If in single card mode, switch back
         if (this.singleCardMode && this.spacedRepetitionMode) {
@@ -292,6 +295,8 @@ export class FlashcardsTool {
     }
 
     handleSRRating(card, minutesUntilNext) {
+        this.isClicked = false;
+        console.log('--->>>>>>>>>> ', this.isClicked);
         console.log('SR Rating called:', {
             currentSRCardIndex: this.currentSRCardIndex,
             totalSRCards: this.spacedRepetitionCards.length,
@@ -332,10 +337,10 @@ export class FlashcardsTool {
                         const currentFlashcard = document.querySelector('.flashcard');
                         console.log('=====>> ', currentFlashcard);
                         currentFlashcard.classList.add('flipped');
-                        this.isClicked = false;
+                        // this.isClicked = false;
                     }
                 }
-            }, 5 * 60 * 1000);
+            }, 1 * 60 * 1000);
         } else if (minutesUntilNext === HARD) {
             setTimeout(() => {
                 if (this.spacedRepetitionMode && this.spacedRepetitionCards.length > 0) {
@@ -344,6 +349,12 @@ export class FlashcardsTool {
 
                     this.spacedRepetitionCards.splice(this.currentSRCardIndex + 1, 0, card);
                     this.renderFlashcards();
+                    if (this.isClicked) {
+                        const currentFlashcard = document.querySelector('.flashcard');
+                        console.log('=====>> ', currentFlashcard);
+                        currentFlashcard.classList.add('flipped');
+                        // this.isClicked = false;
+                    }
                 }
             }, 30 * 60 * 1000);
         } else {
@@ -1219,7 +1230,7 @@ export class FlashcardsTool {
                 currentSRCardIndex: this.currentSRCardIndex
             });
             this.isClicked = !this.isClicked;
-            console.log('---> ', this.isClicked);
+            console.log('---> Main', this.isClicked);
         });
 
         // Determine front and back content based on flip state
@@ -1571,12 +1582,15 @@ export class FlashcardsTool {
                     }
                 }
 
-                const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
-                if (masterSRBtn) {
-                    masterSRBtn.addEventListener('click', () => {
-                        this.handleMasterBtn();
-                    });
-                }
+                // const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
+                // if (masterSRBtn) {
+                //     masterSRBtn.addEventListener('click', () => {
+                //         this.handleMasterBtn();
+                //         console.log('-->> Mastered button clicked in SR mode');
+                //         // this has to be false, but due to flashcard event listener, we set it to true again
+                //         this.isClicked = true;
+                //     });
+                // }
 
                 // Mastered shortcut (works in both normal and SR mode)
                 if (e.key.toLowerCase() === 'm' && this.singleCardMode) {
@@ -1591,6 +1605,7 @@ export class FlashcardsTool {
                             this.currentSRCardIndex++;
                             this.processRescheduledCardsIfNeeded();
                             this.renderFlashcards();
+                            this.isClicked = false;
                         }
                     } else {
                         document.getElementById('next-page-btn')?.click();
@@ -1601,6 +1616,7 @@ export class FlashcardsTool {
                         if (this.currentSRCardIndex > 0) {
                             this.currentSRCardIndex--;
                             this.renderFlashcards();
+                            this.isClicked = false;
                         }
                     } else {
                         document.getElementById('prev-page-btn')?.click();
@@ -1701,6 +1717,7 @@ export class FlashcardsTool {
                 this.renderFlashcards();
 
                 this.showNotification('Mastery status updated!');
+                console.log('Mastery toggled for card at index:', idx, clickedCard);
             });
         }
 
@@ -1762,6 +1779,8 @@ export class FlashcardsTool {
             if (masterSRBtn) {
                 masterSRBtn.addEventListener('click', () => {
                     this.handleMasterBtn();
+                    this.isClicked = true;
+                    console.log('---> SR Mastered', this.isClicked);
                 });
             }
 
@@ -2345,8 +2364,13 @@ export class FlashcardsTool {
     }
 
     showNotification(message) {
+        if (document.getElementById('notification')) {
+            // remove it
+            document.getElementById('notification').remove();
+        }
         const notif = document.createElement('div');
         notif.textContent = message;
+        notif.id = 'notification';
         notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 3500);
