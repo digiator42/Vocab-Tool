@@ -154,7 +154,7 @@ export class ArticleService {
         const googleArticle = googleWordArticle;
 
         const detailModal = document.createElement('div');
-        detailModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        detailModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[53]';
         detailModal.id = 'article-detail-modal';
         detailModal.innerHTML = `
             <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">

@@ -7,7 +7,7 @@ export class FlashcardsTool {
         this.customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
 
         // Sanitize customLists to fix any corrupted data structures
-        this.sanitizeCustomLists();
+        // this.sanitizeCustomLists();
 
         this.isFiltered = false;
         this.filteredFlashcards = [];
@@ -25,12 +25,15 @@ export class FlashcardsTool {
         this.currentListName = null;
         this.hasAttachedFlashcardListener = false;
         this.isNotMasteredSR = false;
+        this.isClicked = false;
 
         this.speechSynth = window.speechSynthesis;
         this.speech = new SpeechService(this);
 
 
         this.init();
+
+        window.flashcardsToo = this;
     }
 
     async init() {
@@ -141,18 +144,44 @@ export class FlashcardsTool {
         const srBtn = document.getElementById('spaced-repetition-btn');
         if (srBtn) {
             const stats = this.getSRStatistics();
+
+            if (this.spacedRepetitionMode) {
+                // In SR mode, show session progress
+                const remaining = this.spacedRepetitionCards.length - this.currentSRCardIndex;
+                srBtn.textContent = `Spaced Repetition (${remaining} left)`;
+                srBtn.title = `${remaining} cards left in current session | Click to exit SR mode`;
+                srBtn.classList.add('bg-blue-600'); // Highlight when in SR mode
+            } else {
+                // Normal mode, show due count
+                srBtn.textContent = `Spaced Repetition (${stats ? stats.due : 0} due)`;
+                srBtn.title = `${stats ? stats.due : 0} cards due for review out of ${stats ? stats.total : 0} total cards`;
+                srBtn.classList.remove('bg-blue-600'); // Remove highlight
+            }
             srBtn.textContent = `Spaced Repetition (${stats ? stats.due : 0} due)`;
             srBtn.title = `${stats ? stats.due : 0} cards due for review out of ${stats ? stats.total : 0} total cards`;
         }
     }
 
     exitSpacedRepetitionMode() {
-        this.spacedRepetitionMode = false;
+        this.endSpacedRepetitionSession();
+        this.updateSRButton();
+        this.renderFlashcards();
+    }
+
+    // Helper method to end SR session
+    endSpacedRepetitionSession() {
         this.currentSRCardIndex = 0;
         this.spacedRepetitionCards = [];
-        this.rescheduledCards = [];
-        this.currentPage = 1;
-        this.renderFlashcards();
+        this.sessionStartTime = null; // Reset session timer
+        if (this.spacedRepetitionMode)
+            this.showNotification('Spaced repetition session completed! Great job!');
+
+        // If in single card mode, switch back
+        if (this.singleCardMode && this.spacedRepetitionMode) {
+            this.singleCardMode = false;
+        }
+        // here for a reason to keep singlemode alive when changing lists
+        this.spacedRepetitionMode = false;
     }
 
     // Add this method to setup spaced repetition
@@ -190,6 +219,9 @@ export class FlashcardsTool {
 
         if (dueCards.length === 0) {
             this.showNotification('No cards due for review right now! Great job!');
+            if (this.spacedRepetitionMode) {
+                this.exitSpacedRepetitionMode();
+            }
             return;
         }
 
@@ -206,6 +238,7 @@ export class FlashcardsTool {
 
         // Switch to single card mode for better SR experience
         this.singleCardMode = true;
+        this.updateSRButton();
         this.renderFlashcards();
 
         this.showNotification(`Starting spaced repetition with ${this.spacedRepetitionCards.length} cards! Use A/H/G/E for ratings, M for mastered, Space to flip, Arrows to navigate.`);
@@ -239,7 +272,7 @@ export class FlashcardsTool {
             againBtn.addEventListener('click', (e) => {
                 console.log('SR Again button clicked - EVENT FIRED');
                 e.stopPropagation();
-                this.handleSRRating(card, 1); // 1 minute
+                this.handleSRRating(card, 5); // 1 minute
             });
         } else {
             console.error('Again button not found!');
@@ -250,7 +283,7 @@ export class FlashcardsTool {
             hardBtn.addEventListener('click', (e) => {
                 console.log('SR Hard button clicked');
                 e.stopPropagation();
-                this.handleSRRating(card, 30); // 10 minutes
+                this.handleSRRating(card, 30); // 30 minutes
             });
         }
 
@@ -299,6 +332,8 @@ export class FlashcardsTool {
     }
 
     handleSRRating(card, minutesUntilNext) {
+        this.isClicked = false;
+        console.log('--->>>>>>>>>> ', this.isClicked);
         console.log('SR Rating called:', {
             currentSRCardIndex: this.currentSRCardIndex,
             totalSRCards: this.spacedRepetitionCards.length,
@@ -320,8 +355,8 @@ export class FlashcardsTool {
         const cardData = this.srSessionData[cardKey];
 
         // Define rating constants
-        const AGAIN = 1; // 1 minute
-        const HARD = 30; // 30 minutes (changed from 10)
+        const AGAIN = 5; // 1 minute
+        const HARD = 30; // 30 minutes
         const GOOD = 5760; // 4 days
         const EASY = 12960; // 9 days
         const MASTERED = 43200; // 30 days
@@ -331,10 +366,16 @@ export class FlashcardsTool {
             setTimeout(() => {
                 if (this.spacedRepetitionMode && this.spacedRepetitionCards.length > 0) {
                     // this.showNotification(`"${card.german}" is ready for review again!`, 3000);
-                    console.log(`"${card.german}" is ready for review again!`, 3000);
+                    console.log(`"${card.german}" is ready for review again!`);
 
                     this.spacedRepetitionCards.splice(this.currentSRCardIndex + 1, 0, card);
                     this.renderFlashcards();
+                    if (this.isClicked) {
+                        const currentFlashcard = document.querySelector('.flashcard');
+                        console.log('=====>> ', currentFlashcard);
+                        currentFlashcard.classList.add('flipped');
+                        // this.isClicked = false;
+                    }
                 }
             }, 1 * 60 * 1000);
         } else if (minutesUntilNext === HARD) {
@@ -345,6 +386,12 @@ export class FlashcardsTool {
 
                     this.spacedRepetitionCards.splice(this.currentSRCardIndex + 1, 0, card);
                     this.renderFlashcards();
+                    if (this.isClicked) {
+                        const currentFlashcard = document.querySelector('.flashcard');
+                        console.log('=====>> ', currentFlashcard);
+                        currentFlashcard.classList.add('flipped');
+                        // this.isClicked = false;
+                    }
                 }
             }, 30 * 60 * 1000);
         } else {
@@ -388,18 +435,22 @@ export class FlashcardsTool {
         // Check if session is completed AFTER processing rescheduled cards
         if (this.currentSRCardIndex >= this.spacedRepetitionCards.length) {
             console.log('SR session completed');
-            this.spacedRepetitionMode = false;
-            this.currentSRCardIndex = 0;
-            this.spacedRepetitionCards = [];
-            // this.clearRescheduledCards();
-            this.showNotification('Spaced repetition session completed! Great job!');
+            this.exitSpacedRepetitionMode();
+            this.toggleFlashcardButtons(false);
         }
 
         console.log('Calling renderFlashcards');
         this.renderFlashcards();
     }
 
-    getHumanReadableTime(date) {
+    getHumanReadableTime(timestamp) {
+        // Convert the numeric timestamp into a Date object
+        const date = new Date(timestamp);
+
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1; // Months are zero-based (0 = Jan, 11 = Dec)
+        const day = date.getDate();
+
         const hours = date.getHours();
         const minutes = date.getMinutes();
         const seconds = date.getSeconds();
@@ -407,21 +458,8 @@ export class FlashcardsTool {
         // Pad single-digit numbers with a leading zero
         const pad = (num) => String(num).padStart(2, '0');
 
-        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-    }
-
-    // Helper method to end SR session
-    endSpacedRepetitionSession() {
-        this.spacedRepetitionMode = false;
-        this.currentSRCardIndex = 0;
-        this.spacedRepetitionCards = [];
-        this.sessionStartTime = null; // Reset session timer
-        this.showNotification('Spaced repetition session completed! Great job!');
-
-        // If in single card mode, switch back
-        if (this.singleCardMode) {
-            this.singleCardMode = false;
-        }
+        // Return full human-readable format
+        return `${pad(day)}/${pad(month)}/${year} ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
     }
 
     rescheduleCardForCurrentSession(card, insertAfterCards = 3) {
@@ -542,10 +580,18 @@ export class FlashcardsTool {
             if (this.spacedRepetitionMode) {
                 // If already in SR mode, exit it
                 this.exitSpacedRepetitionMode();
+                this.toggleFlashcardButtons(false);
                 this.showNotification('Exited spaced repetition mode');
             } else {
+                // Start SR mode - check if there are due cards
+                const stats = this.getSRStatistics();
+                if (stats.due === 0) {
+                    this.showNotification('No cards due for review right now! Great job!');
+                    return;
+                }
                 // Start SR mode
                 this.setupSpacedRepetition();
+                this.toggleFlashcardButtons(true);
             }
         });
 
@@ -615,7 +661,7 @@ export class FlashcardsTool {
 
             const notMastered = originalFlashcards.filter(c => !c.mastered);
             if (notMastered.length === 0) {
-                this.showNotification('All words mastered!');
+                this.showNotification('All words mastered!++');
                 return;
             }
 
@@ -717,9 +763,11 @@ export class FlashcardsTool {
             });
         }
 
+        const flashcardTool = document.getElementById('flashcard-tool');
+
         // Playing audio event listener with v keyword for speak-btn
         document.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'v' && document.activeElement === document.body) {
+            if (e.key.toLowerCase() === 'v' && document.activeElement === document.body && !flashcardTool.classList.contains('hidden')) {
                 const currentCards = this.getCurrentCards();
                 const currentIndex = this.getCurrentCardIndex();
 
@@ -734,6 +782,29 @@ export class FlashcardsTool {
         });
 
         this.setupAddFlashcardsModal();
+        this.setupFilterButtons();
+    }
+
+    setupFilterButtons() {
+        const filterButtons = [
+            'flashcard-filter-all',
+            'flashcard-filter-mastered',
+            'flashcard-filter-very-good',
+            'flashcard-filter-good',
+            'flashcard-filter-some',
+            'flashcard-filter-new'
+        ];
+
+        filterButtons.forEach(id => {
+            const button = document.getElementById(id);
+            if (button) {
+                button.addEventListener('click', (e) => {
+                    const filter = e.target.dataset.filter;
+                    this.renderCustomListButtons(true, filter);
+                    localStorage.setItem('filter', filter);
+                });
+            }
+        });
     }
 
     setupSearch() {
@@ -810,6 +881,7 @@ export class FlashcardsTool {
         let SRList = [];
 
         const notMasteredSRCards = this.flashcards.filter(c => !c.mastered);
+        console.log("notMasteredSRCards", notMasteredSRCards.length);
         if (notMasteredSRCards.length === 0 && this.isNotMasteredSR) {
             this.showNotification('All words mastered!');
             return;
@@ -1099,6 +1171,8 @@ export class FlashcardsTool {
             console.log('Rendering normal cards:', cardsToRender.length);
         }
 
+        console.log('---> singleCardMode', this.singleCardMode);
+
         if (this.singleCardMode) {
             this.renderSingleCardMode(container, cardsToRender, isSearching);
         } else {
@@ -1108,6 +1182,36 @@ export class FlashcardsTool {
         feather.replace();
         this.updateProgress();
     }
+
+    toggleFlashcardButtons(disable) {
+        // List of all button IDs
+        const buttonIds = [
+            "import-json-btn",
+            "import-json-text-btn",
+            "export-json-btn",
+            "open-sync-modal",
+            "shuffle-btn",
+            "reset-btn",
+            "show-original-btn",
+            "show-not-mastered-btn",
+            "toggle-view-btn",
+            "flip-list-btn",
+            "open-add-flashcards-modal",
+            "flashcard-search-input",
+            "import-export-json-area"
+        ];
+
+        // Loop through each ID and disable the button
+        buttonIds.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.classList.toggle('hidden', disable);
+            }
+        });
+        const btn = document.getElementById('spaced-repetition-btn');
+        btn.innerHTML = disable ? '❌ Exit ' + btn.textContent : btn.textContent;
+    }
+
 
     renderSingleCardMode(container, cardsToRender = this.flashcards, isSearching) {
         console.log('renderSingleCardMode called with:', cardsToRender.length, 'cards');
@@ -1155,12 +1259,15 @@ export class FlashcardsTool {
         flashcard.className = `flashcard w-full h-96 flex items-center justify-center relative`;
         flashcard.dataset.index = actualIndex;
 
+
         flashcard.addEventListener('click', (e) => {
             console.log('Flashcard clicked:', {
                 target: e.target,
                 classList: e.target.classList,
                 currentSRCardIndex: this.currentSRCardIndex
             });
+            this.isClicked = !this.isClicked;
+            console.log('---> Main', this.isClicked);
         });
 
         // Determine front and back content based on flip state
@@ -1283,7 +1390,7 @@ export class FlashcardsTool {
             const actualIndex = startIndex + idx;
 
             // Add heading if it exists and is different from previous
-            if (isSearching && card.listName !== lastHeading || card.heading && card.heading !== lastHeading) {
+            if ((isSearching && card.listName !== lastHeading) || (!isSearching && card.heading && card.heading !== lastHeading)) {
                 console.log(isSearching, card.listName, card.heading, lastHeading);
 
                 if (!card.heading && !isSearching) {
@@ -1483,6 +1590,8 @@ export class FlashcardsTool {
                     const currentFlashcard = document.querySelector('.flashcard');
                     e.preventDefault();
                     currentFlashcard?.classList.toggle('flipped');
+                    this.isClicked = !this.isClicked;
+                    console.log('---> ', this.isClicked);
                 }
 
                 // Spaced Repetition keyboard shortcuts
@@ -1492,7 +1601,7 @@ export class FlashcardsTool {
                         switch (e.key.toLowerCase()) {
                             case 'a': // Again
                                 console.log('Keyboard shortcut: Again');
-                                this.handleSRRating(currentCard, 1);
+                                this.handleSRRating(currentCard, 5);
                                 break;
                             case 'h': // Hard
                                 console.log('Keyboard shortcut: Hard');
@@ -1510,12 +1619,15 @@ export class FlashcardsTool {
                     }
                 }
 
-                const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
-                if (masterSRBtn) {
-                    masterSRBtn.addEventListener('click', () => {
-                        this.handleMasterBtn();
-                    });
-                }
+                // const masterSRBtn = document.getElementsByClassName('master-btn-sr')[0];
+                // if (masterSRBtn) {
+                //     masterSRBtn.addEventListener('click', () => {
+                //         this.handleMasterBtn();
+                //         console.log('-->> Mastered button clicked in SR mode');
+                //         // this has to be false, but due to flashcard event listener, we set it to true again
+                //         this.isClicked = true;
+                //     });
+                // }
 
                 // Mastered shortcut (works in both normal and SR mode)
                 if (e.key.toLowerCase() === 'm' && this.singleCardMode) {
@@ -1530,6 +1642,7 @@ export class FlashcardsTool {
                             this.currentSRCardIndex++;
                             this.processRescheduledCardsIfNeeded();
                             this.renderFlashcards();
+                            this.isClicked = false;
                         }
                     } else {
                         document.getElementById('next-page-btn')?.click();
@@ -1540,6 +1653,7 @@ export class FlashcardsTool {
                         if (this.currentSRCardIndex > 0) {
                             this.currentSRCardIndex--;
                             this.renderFlashcards();
+                            this.isClicked = false;
                         }
                     } else {
                         document.getElementById('prev-page-btn')?.click();
@@ -1640,6 +1754,7 @@ export class FlashcardsTool {
                 this.renderFlashcards();
 
                 this.showNotification('Mastery status updated!');
+                console.log('Mastery toggled for card at index:', idx, clickedCard);
             });
         }
 
@@ -1677,6 +1792,7 @@ export class FlashcardsTool {
                 e.stopPropagation();
                 const idx = parseInt(flashcard.dataset.index);
                 this.handleRemoveFlashcard(idx);
+                this.refreshCustomListButtons();
             });
         }
 
@@ -1700,6 +1816,8 @@ export class FlashcardsTool {
             if (masterSRBtn) {
                 masterSRBtn.addEventListener('click', () => {
                     this.handleMasterBtn();
+                    this.isClicked = true;
+                    console.log('---> SR Mastered', this.isClicked);
                 });
             }
 
@@ -1716,7 +1834,7 @@ export class FlashcardsTool {
                     const currentCard = currentCards[idx];
 
                     if (currentCard) {
-                        this.handleSRRating(currentCard, 1);
+                        this.handleSRRating(currentCard, 5);
                     }
                 });
             }
@@ -1944,7 +2062,7 @@ export class FlashcardsTool {
         this.renderCustomListButtons(true); // buttonsOnly = true to preserve current state
     }
 
-    renderCustomListButtons(buttonsOnly = false) {
+    renderCustomListButtons(buttonsOnly = false, filter = '') {
         const container = document.getElementById('custom-lists-container');
 
         if (!buttonsOnly) {
@@ -1964,7 +2082,6 @@ export class FlashcardsTool {
             // Calculate mastery statistics for this list
             const listCards = this.customLists[listName];
             if (listCards === undefined || listCards === null) return;
-            console.log('------------>><>>>>> ', listCards);
             const masteredCount = listCards.filter(card => card.mastered).length;
             const totalCount = listCards.length;
             const masteryPercentage = totalCount > 0 ? Math.round((masteredCount / totalCount) * 100) : 0;
@@ -1974,21 +2091,26 @@ export class FlashcardsTool {
 
             if (masteryPercentage === 100 && totalCount > 0) {
                 // Fully mastered - Green with target icon
-                listColor = 'bg-green-600 hover:bg-green-700';
+                listColor = 'bg-green-800 hover:bg-green-700';
                 listIcon = 'target';
                 listTitle = ''; // 'Fully mastered! 🎯';
+            } else if (masteryPercentage >= 80) {
+                // Very good mastery (80-89%) - Green-200 with percentage
+                listColor = 'bg-green-600 hover:bg-green-500';
+                listIcon = 'bar-chart-2';
+                listTitle = `${masteryPercentage}% mastered`;
             } else if (masteryPercentage >= 50) {
-                // Partially mastered - Yellow with percentage
+                // Good mastery (50-79%) - Yellow with percentage
                 listColor = 'bg-yellow-600 hover:bg-yellow-700';
                 listIcon = 'bar-chart-2';
                 listTitle = `${masteryPercentage}% mastered`;
-            } else if (masteryPercentage > 10 && masteryPercentage < 50) {
-                // Partially mastered - Blue with percentage
-                listColor = 'bg-blue-600 hover:bg-blue-700';
+            } else if (masteryPercentage > 10) {
+                // Some progress (11-49%) - Blue with percentage
+                listColor = 'bg-blue-600 hover:bg-blue-500'; // Slightly different blue for lower range
                 listIcon = 'bar-chart-2';
                 listTitle = `${masteryPercentage}% mastered`;
             } else {
-                // No mastery - Blue with list icon
+                // No or very low mastery (0-10%) - Purple with list icon
                 listColor = 'bg-purple-600 hover:bg-purple-700';
                 listIcon = 'list';
                 listTitle = ''; // 'No cards mastered yet';
@@ -1999,6 +2121,21 @@ export class FlashcardsTool {
                 listIcon = 'list';
             }
 
+            if (!filter) {
+                filter = localStorage.getItem('filter');
+            }
+
+            if (filter === 'mastered' && masteryPercentage < 100) {
+                return;
+            } else if (filter === 'very-good' && (masteryPercentage < 80 || masteryPercentage == 100)) {
+                return;
+            } else if (filter === 'good' && (masteryPercentage < 50 || masteryPercentage >= 80)) {
+                return;
+            } else if (filter === 'some' && (masteryPercentage < 10 || masteryPercentage >= 50)) {
+                return;
+            } else if (filter === 'new' && (masteryPercentage >= 10)) {
+                return;
+            }
 
             // List button with dynamic color and icon
             const btn = document.createElement('button');
@@ -2049,6 +2186,7 @@ export class FlashcardsTool {
 
                 this.currentPage = 1;
                 this.updateSRButton();
+                this.exitSpacedRepetitionMode();
                 this.renderFlashcards();
 
                 console.log('Successfully loaded list:', listName, 'with', this.flashcards.length, 'cards');
@@ -2226,7 +2364,8 @@ export class FlashcardsTool {
             }
             // LEGACY FALLBACK: Try to parse with various separators (original behavior)
             else {
-                const parts = line.split(/\s*(–|--|:|-)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
+                console.log('reverting to catch any sep.');
+                const parts = line.split(/\s*(;;|--|::)\s*/).filter((p, i) => i === 0 || (i % 2 === 1 ? false : true)).map(p => p.trim());
                 if (parts.length === 2 && parts[0] && parts[1]) {
                     newCards.push({
                         german: parts[0],
@@ -2242,7 +2381,13 @@ export class FlashcardsTool {
 
         if (newCards.length > 0) {
             const sanitizedListName = this.sanitizeInput(listName);
-            this.customLists[sanitizedListName] = newCards;
+
+            if (this.customLists[sanitizedListName]) {
+                this.customLists[sanitizedListName] = this.customLists[sanitizedListName].concat(newCards);
+            } else {
+                this.customLists[sanitizedListName] = newCards;
+            }
+
             localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
 
             document.getElementById('new-flashcards-input').value = '';
@@ -2266,8 +2411,13 @@ export class FlashcardsTool {
     }
 
     showNotification(message) {
+        if (document.getElementById('notification')) {
+            // remove it
+            document.getElementById('notification').remove();
+        }
         const notif = document.createElement('div');
         notif.textContent = message;
+        notif.id = 'notification';
         notif.className = "fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow z-50";
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 3500);

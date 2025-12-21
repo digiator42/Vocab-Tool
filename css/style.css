@@ -153,8 +153,13 @@ body.dark-mode {
 .dark-mode nav>a,
 .dark-mode p,
 .dark-mode #rateSliderSpan,
-.dark-mode #vocab-info-panel *:not(span) {
+.dark-mode #vocab-info-panel *:not(span)
+{    
     color: rgb(226, 223, 223) !important;
+}
+
+.dark-mode #stories-list-container .text-gray-800 {
+    color: rgb(201, 200, 200) !important;
 }
 
 .dark-mode #vocab-info-panel div:not(.bg-gradient-to-r):not(.bg-gradient-to-r div) {
@@ -972,72 +977,235 @@ span.multi-highlighted {
     opacity: 1;
 }
 
+#ar-hint-display:hover #ar-translation {
+    opacity: 1;
+}
+
 .form-control {
-  /* Adds space between checkboxes */
-  margin-bottom: 1em; 
+    /* Adds space between checkboxes */
+    margin-bottom: 1em;
 }
 
 
 /* State when the checkbox is checked */
 input[type="checkbox"]:checked::before {
-  transform: scale(1); /* Show the checkmark */
+    transform: scale(1);
+    /* Show the checkmark */
 }
 
 /* Add hover effect to the label for better user experience */
 label {
-  cursor: pointer;
-  padding-left: 0.5em; /* Space between the box and the text */
-  vertical-align: middle;
+    cursor: pointer;
+    padding-left: 0.5em;
+    /* Space between the box and the text */
+    vertical-align: middle;
 }
 
 /* Add focus styles for accessibility */
 input[type="checkbox"]:focus {
-  outline: max(2px, 0.15em) solid currentColor;
-  outline-offset: max(2px, 0.15em);
+    outline: max(2px, 0.15em) solid currentColor;
+    outline-offset: max(2px, 0.15em);
 }
 
 /* Hide the default HTML checkbox */
 .switch-input {
-  opacity: 0;
-  width: 0;
-  height: 0;
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
 /* The switch-visual - the track around the slider */
 label {
-  position: relative;
-  display: inline-block;
-  width: 55px;
-  height: 29px;
-  background-color: #ccc;
-  border-radius: 34px; /* Makes it rounded like iOS */
-  cursor: pointer;
-  transition: background-color 0.1s;
+    position: relative;
+    display: inline-block;
+    width: 55px;
+    height: 29px;
+    background-color: #ccc;
+    border-radius: 34px;
+    /* Makes it rounded like iOS */
+    cursor: pointer;
+    transition: background-color 0.1s;
 }
 
 /* The knob (slider) */
 label::before {
-  content: "";
-  position: absolute;
-  height: 21px;
-  width: 21px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  border-radius: 50%;
-  box-shadow: 0 0 3px 1px rgba(0, 0, 0, 0.15);
-  transition: transform 0.1s; /* Use transform for smooth movement */
+    content: "";
+    position: absolute;
+    height: 21px;
+    width: 21px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    border-radius: 50%;
+    box-shadow: 0 0 3px 1px rgba(0, 0, 0, 0.15);
+    transition: transform 0.1s;
+    /* Use transform for smooth movement */
 }
 
 /* Change background color when checked */
-input:checked + label {
-  background-color: #2196f3; /* iOS color */
+input:checked+label {
+    background-color: #2196f3;
+    /* iOS color */
 }
 
 /* Move the knob to the right when checked */
-input:checked + label::before {
-  transform: translateX(26px); /* Moves it to the right */
+input:checked+label::before {
+    transform: translateX(26px);
+    /* Moves it to the right */
 }
 
+/* Vocabulary Tool Specific Styles */
+#vocab-tool {
+    max-width: 100% !important;
+}
 
+#main-vocab-view {
+    padding: 1.5rem;
+    width: 100%;
+}
 
+/* Story item styles */
+.story-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.story-item:hover {
+    background-color: #f3f4f6;
+    transform: translateX(2px);
+    border-color: #d1d5db;
+}
+
+.story-item.active {
+    background-color: #dbeafe;
+    border-color: #3b82f6;
+    font-weight: 600;
+}
+
+/* Remove the separate vocab-hamburger styles and use existing hamburger styles */
+#vocab-hamburger-menu {
+    /* Uses the same styles as #hamburger-menu */
+}
+
+/* Make sure the vocab sidebar behaves like flashcard sidebar */
+#vocab-stories-sidebar {
+    position: relative;
+    height: 100%;
+}
+
+/* Responsive styles for vocab tool */
+@media (max-width: 1024px) {
+    #vocab-hamburger-menu {
+        display: flex;
+    }
+
+    #vocab-stories-sidebar {
+        position: fixed;
+        left: -320px;
+        top: 0;
+        height: 100vh;
+        z-index: 40;
+        background-color: white;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+
+    #vocab-stories-sidebar.active {
+        left: 0;
+    }
+
+    #main-vocab-view {
+        width: 100%;
+    }
+}
+
+/* Overlay for vocab mobile sidebar */
+#vocab-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 39;
+    display: none;
+}
+
+#vocab-sidebar-overlay.active {
+    display: block;
+}
+
+/* Ensure story sidebar has scroll when content overflows */
+#vocab-stories-sidebar {
+    overflow-y: auto;
+}
+
+/* Dark mode styles for vocab sidebar */
+.dark-mode #vocab-stories-sidebar:not(.story-item) {
+    background-color: rgb(12, 12, 23) !important;
+    color: black !important;
+}
+
+.dark-mode .story-item.active {
+    background-color: #1e3a8a !important;
+    border-color: #3b82f6 !important;
+}
+
+/* Fix for hamburger visibility on medium screens */
+@media (max-width: 1024px) {
+
+    .hamburger,
+    #vocab-hamburger-menu {
+        display: flex !important;
+    }
+
+    #list-sidebar-container,
+    #vocab-stories-sidebar {
+        position: fixed;
+        left: -320px;
+        top: 0;
+        height: 100vh;
+        z-index: 40;
+        background-color: white;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+
+    #list-sidebar-container.active,
+    #vocab-stories-sidebar.active {
+        left: 0;
+    }
+}
+
+/* Make sure hamburgers are hidden on large screens - but NOT during focus mode */
+@media (min-width: 1025px) {
+    .hamburger:not(.focus-mode-active, [data-focus-mode="true"]),
+    #vocab-hamburger-menu:not(.focus-mode-active, [data-focus-mode="true"]) {
+        display: none !important;
+    }
+}
+
+/* Fix for hamburger sidebar activation */
+#hamburger-menu.active+#list-sidebar-container,
+#vocab-hamburger-menu.active+#vocab-stories-sidebar {
+    left: 0 !important;
+}
+
+/* Make sure hamburgers are clickable and on top */
+#hamburger-menu,
+#vocab-hamburger-menu {
+    z-index: 1000 !important;
+    cursor: pointer;
+}
+
+/* Ensure sidebars are on top when active */
+#list-sidebar-container.active,
+#vocab-stories-sidebar.active {
+    z-index: 999 !important;
+}

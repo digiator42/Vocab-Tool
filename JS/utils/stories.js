@@ -21,17 +21,6 @@ fährt er mit dem Bus zur Schule. Tim lernt Deutsch und Mathematik, aber seine
 Lieblingsstunde ist Zeichnen. Nach der Schule spielt er Fußball mit seinen
 Freunden im Hof. Am Abend liest Tim gerne ein Buch, bevor er ins Bett geht.`
     },
-    "a1-3_cacb7982": {
-        title: "A1 Story: Anna und Max gehen immer in den Park (Extended)",
-        text: `Anna und Max gehen immer in den Park. Im Park gibt es viele Bäume und einen
-kleinen See. Max läuft gern schnell und spielt mit seinem Ball. Anna sitzt oft
-auf einer Bank, liest ein Buch oder schaut die Vögel an. Manchmal treffen sie
-andere Hunde und Anna spricht mit den Besitzern.
-
-Nach einer Stunde gehen Anna und Max zurück nach Hause. Anna macht ihre
-Hausaufgaben, und Max schläft in seinem Korb. Am Nachmittag gehen sie oft wieder
-nach draußen und besuchen Annas Freunde.`
-    },
     "a1-4_62e2adad3b304533": {
         "title": "A1 Story: Meine Familie",
         "text": `Ich heiße Ben. Das ist meine Familie. Wir wohnen in einem Haus.

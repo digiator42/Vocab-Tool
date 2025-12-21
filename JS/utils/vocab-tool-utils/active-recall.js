@@ -14,45 +14,6 @@ export class ActiveRecallModule {
         this.addActiveRecallButton();
     }
 
-    setupActiveRecallListeners() {
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('#ar-start-btn')) {
-                this.main.startActiveRecall?.();
-            } else if (e.target.matches('#ar-next-btn')) {
-                this.main.nextSentence?.();
-            } else if (e.target.matches('#ar-back-btn')) {
-                this.main.previousSentence?.();
-            } else if (e.target.matches('#ar-repeat-btn')) {
-                this.main.repeatAudio?.();
-            } else if (e.target.matches('#ar-finish-btn')) {
-                this.main.finishActiveRecall?.();
-            } else if (e.target.matches('#mobile-enter-btn')) {
-                this.main.checkAnswer?.();
-            }
-        });
-
-        const userInput = document.getElementById('ar-user-input');
-        if (userInput) {
-            userInput.addEventListener('input', () => {
-                this.handleUserInput();
-            });
-            userInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.main.checkAnswer?.();
-                }
-            });
-            if (this.main.isTouchDevice) {
-                userInput.addEventListener('touchend', () => {
-                    setTimeout(() => this.handleUserInput(), 100);
-                });
-            }
-        }
-
-        // Wire checkboxes, sliders, and keyboard shortcuts
-        this.wireControls();
-    }
-
     wireControls() {
         const fuzzyMatch = document.getElementById('ar-fuzzy-match');
         if (fuzzyMatch) {
@@ -276,6 +237,18 @@ export class ActiveRecallModule {
         }
     }
 
+    resetHintDisplay() {
+        const hintDisplay = document.getElementById('ar-hint-display');
+        const hintText = document.getElementById('ar-hint-text');
+        // ar-translation
+        const translation = document.getElementById('ar-translation');
+        if (!hintDisplay || !hintText || !translation) return;
+        // hintDisplay.classList.add('hidden');
+        // hintDisplay.style.display = 'none';
+        hintText.textContent = '';
+        translation.textContent = '';
+    }
+
     updateHintDisplay() {
         const hintDisplay = document.getElementById('ar-hint-display');
         const hintText = document.getElementById('ar-hint-text');
@@ -372,84 +345,154 @@ export class ActiveRecallModule {
         const activeRecallTool = document.getElementById('active-recall-tool');
         const isVisible = !activeRecallTool.classList.contains('hidden');
 
-        // Store the original value in a class property
         if (!this.originalText) {
             this.originalText = this.main.input.value;
         }
 
-        // Hide all elements in vocab-tool except output, selectionTooltip, and essential controls
-        const vocabTool = document.getElementById('vocab-tool');
         const vocabToolContainer = document.getElementById('vocab-tool-div');
-
-        console.log('Flashcard load requested:--> ', this.isFlashCardLoadRequested);
         const addToFlashBtn = document.getElementById('addToFlashBtn');
+        const output = document.getElementById('output');
+        const selectionTooltip = document.getElementById('selectionTooltip');
+        const extraToolsContainer = document.getElementById('extra-tools-container');
 
         if (!isVisible) {
+            // Enter Active Recall mode
             this.prepareActiveRecall();
             activeRecallTool.classList.remove('hidden');
-            this.main.input.disabled = true;
-            this.main.storySelect.disabled = true;
-            this.main.input.value = '';
-            document.getElementById('ar-current-sentence').textContent = 'Sentence will appear here...';
-            document.getElementById('ar-hint-text').textContent = '';
-            this.extraToolsContainer.classList.remove('border-2', 'border-gray-300');
-            activeRecallTool.scrollIntoView({ behavior: 'smooth' });
-            if (!this.isFlashCardLoadRequested) {
-                console.log('Processing text for Active Recall');
-                this.main.processBtn.click();
+
+            // Hide the sidebar elements
+            const vocabSidebar = document.getElementById('vocab-stories-sidebar');
+            const vocabHamburger = document.getElementById('vocab-hamburger-menu');
+            const vocabOverlay = document.getElementById('vocab-sidebar-overlay');
+
+            if (vocabSidebar) {
+                vocabSidebar.dataset.originalDisplay = vocabSidebar.style.display || '';
+                vocabSidebar.style.display = 'none';
             }
-            this.main.output.innerHTML = '';
-            const elementsToHide = Array.from(vocabTool.children).filter(
-                child => !['active-recall-tool', 'active-recall-btn', 'extra-tools-container'].includes(child.id)
-            );
+            if (vocabHamburger) {
+                vocabHamburger.dataset.originalDisplay = vocabHamburger.style.display || '';
+                vocabHamburger.style.display = 'none';
+            }
+            if (vocabOverlay) {
+                vocabOverlay.dataset.originalDisplay = vocabOverlay.style.display || '';
+                vocabOverlay.style.display = 'none';
+            }
 
-            elementsToHide.forEach(element => {
-                element.dataset.originalDisplay = element.style.display || '';
-                element.style.display = 'none';
-            });
-            console.log('----------->>> ', elementsToHide);
-            addToFlashBtn.style.display = 'none';
+            // Hide everything in main-vocab-view EXCEPT:
+            // - active-recall-tool (AR interface)
+            // - output (display area)
+            // - selectionTooltip (tooltips)
+            // - extra-tools-container (contains the exit button!)
+            const mainVocabView = document.getElementById('main-vocab-view');
+            if (mainVocabView) {
+                Array.from(mainVocabView.children).forEach(child => {
+                    if (!['active-recall-tool', 'output', 'selectionTooltip', 'extra-tools-container'].includes(child.id)) {
+                        child.dataset.originalDisplay = child.style.display || '';
+                        child.style.display = 'none';
+                    }
+                });
+            }
 
+            output.style.display = 'none';
+            selectionTooltip.style.display = 'none';
+
+
+            // Make sure extra-tools-container is visible (contains exit button)
+            if (extraToolsContainer) {
+                extraToolsContainer.style.display = 'flex';
+                extraToolsContainer.classList.remove('border-2', 'border-gray-300');
+            }
+
+            // Hide the top toolbar
             if (vocabToolContainer) {
                 vocabToolContainer.dataset.originalDisplay = vocabToolContainer.style.display || '';
                 vocabToolContainer.style.display = 'none';
             }
-            document.getElementById('passive-learning-btn').classList.add('hidden');
+
+            // Hide passive learning button if it exists
+            const passiveLearningBtn = document.getElementById('passive-learning-btn');
+            if (passiveLearningBtn) {
+                passiveLearningBtn.classList.add('hidden');
+            }
+
+            // Hide add to flash button
+            if (addToFlashBtn) {
+                addToFlashBtn.style.display = 'none';
+            }
+
             this.activeRecallBtn.innerHTML = '❌ Exit Active Recall';
-            console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
+            console.log('Active Recall mode activated');
+
         } else {
-            console.log('Active Recall mode activated', this.activeRecallBtn.innerHTML);
+            // Exit Active Recall mode
             activeRecallTool.classList.add('hidden');
             this.resetActiveRecall();
-            this.main.input.disabled = false;
-            this.main.storySelect.disabled = false;
-            this.main.input.value = this.originalText;
-            this.extraToolsContainer.classList.add('border-2', 'border-gray-300');
 
-            // Show all hidden elements
-            const elementsToShow = Array.from(vocabTool.children).filter(
-                child => child.hasAttribute('data-original-display')
-            );
+            // Restore sidebar elements
+            const vocabSidebar = document.getElementById('vocab-stories-sidebar');
+            const vocabHamburger = document.getElementById('vocab-hamburger-menu');
+            const vocabOverlay = document.getElementById('vocab-sidebar-overlay');
 
-            elementsToShow.forEach(element => {
-                const originalDisplay = element.dataset.originalDisplay;
-                element.style.display = originalDisplay || '';
-                delete element.dataset.originalDisplay;
-            });
+            if (vocabSidebar && vocabSidebar.hasAttribute('data-original-display')) {
+                const originalDisplay = vocabSidebar.dataset.originalDisplay;
+                vocabSidebar.style.display = originalDisplay || '';
+                delete vocabSidebar.dataset.originalDisplay;
+            }
+            if (vocabHamburger && vocabHamburger.hasAttribute('data-original-display')) {
+                const originalDisplay = vocabHamburger.dataset.originalDisplay;
+                vocabHamburger.style.display = originalDisplay || '';
+                delete vocabHamburger.dataset.originalDisplay;
+            }
+            if (vocabOverlay && vocabOverlay.hasAttribute('data-original-display')) {
+                const originalDisplay = vocabOverlay.dataset.originalDisplay;
+                vocabOverlay.style.display = originalDisplay || '';
+                delete vocabOverlay.dataset.originalDisplay;
+            }
 
-            const vocabToolContainer = document.getElementById('vocab-tool-div');
+            output.style.display = 'block';
+            selectionTooltip.style.display = 'block';
+
+            // Restore main-vocab-view children
+            const mainVocabView = document.getElementById('main-vocab-view');
+            if (mainVocabView) {
+                Array.from(mainVocabView.children).forEach(child => {
+                    if (child.hasAttribute('data-original-display')) {
+                        const originalDisplay = child.dataset.originalDisplay;
+                        child.style.display = originalDisplay || '';
+                        delete child.dataset.originalDisplay;
+                    }
+                });
+            }
+
+            // Make sure extra-tools-container has border again
+            if (extraToolsContainer) {
+                extraToolsContainer.classList.add('border-2', 'border-gray-300');
+            }
+
+            // Restore top toolbar
             if (vocabToolContainer && vocabToolContainer.hasAttribute('data-original-display')) {
                 const originalDisplay = vocabToolContainer.dataset.originalDisplay;
                 vocabToolContainer.style.display = originalDisplay || '';
                 delete vocabToolContainer.dataset.originalDisplay;
             }
+
+            // Show passive learning button
+            const passiveLearningBtn = document.getElementById('passive-learning-btn');
+            if (passiveLearningBtn) {
+                passiveLearningBtn.classList.remove('hidden');
+            }
+
+            // Show add to flash button
+            if (addToFlashBtn) {
+                addToFlashBtn.style.display = 'inline-block';
+            }
+
             this.activeRecallBtn.innerHTML = '🎯 Active Recall';
             if (!this.isFlashCardLoadRequested) {
                 console.log('Re-processing text after exiting Active Recall');
                 this.main.processBtn.click();
             }
             this.isFlashCardLoadRequested = !this.isFlashCardLoadRequested;
-            addToFlashBtn.style.display = 'inline-block';
         }
     }
 
@@ -522,7 +565,14 @@ export class ActiveRecallModule {
         <!-- Beginner Mode Display -->
         <div id="ar-hint-display" class="mb-4 p-4 bg-blue-50 rounded border border-blue-200 hidden">
             <div class="text-sm text-blue-800 font-medium mb-2">Sentence Hint:</div>
-            <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
+
+            <!-- wrapper for text + translation -->
+            <div class="relative inline-block group">
+                <div id="ar-hint-text" class="text-lg font-mono text-blue-900"></div>
+                <div id="ar-translation" 
+                    class="absolute -top-8 w-full left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs italic px-2 py-1 border border-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                </div>
+            </div>
         </div>
 
         <div id="ar-current-sentence" class="mb-4 p-4 bg-white rounded border-2 border-blue-200 min-h-20 flex items-center justify-center">
@@ -584,11 +634,21 @@ export class ActiveRecallModule {
         this.setupActiveRecallListeners();
     }
 
-    setupActiveRecallListeners() {
+    async updateTranslation() {
+        const sentence = this.main.sentences[this.main.currentSentenceIndex].replace(/\p{P}/gu, '').trim();
+        console.log('==> ', sentence);
+        const translation = await this.main.translate(sentence);
+        return translation;
+    }
+
+
+
+    async setupActiveRecallListeners() {
+        console.log('-----> ', 'setupActiveRecallListeners');
         // Use event delegation for better mobile support
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', async (e) => {
             if (e.target.matches('#ar-start-btn')) {
-                this.startActiveRecall();
+                await this.startActiveRecall();
             } else if (e.target.matches('#ar-next-btn')) {
                 this.nextSentence();
             } else if (e.target.matches('#ar-back-btn')) {
@@ -624,6 +684,9 @@ export class ActiveRecallModule {
                 });
             }
         }
+
+        // Wire checkboxes, sliders, and keyboard shortcuts
+        this.wireControls();
 
         const fuzzyMatch = document.getElementById('ar-fuzzy-match');
 
@@ -733,23 +796,294 @@ export class ActiveRecallModule {
         this.addActiveRecallButton();
     }
 
-    // ====== MOVED LOGIC (operates on this.main) ======
+    // ====== UPDATED LOGIC ======
     prepareActiveRecall() {
         const text = this.main.input.value;
         if (!text.trim()) {
             alert('Please process some text first!');
             return;
         }
-        this.main.sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
-        if (this.main.sentences.length === 0) {
+
+        // Instead of processing directly, delegate to prepareActiveRecallParts
+        this.prepareActiveRecallParts();
+    }
+
+    // ====== KEEP THE EXISTING prepareActiveRecallParts FUNCTION AS IS ======
+    prepareActiveRecallParts() {
+        const text = this.main.input.value;
+        if (!text.trim()) {
+            alert('Please process some text first!');
+            return;
+        }
+
+        const allSentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+        if (allSentences.length === 0) {
             alert('No sentences found in the text!');
             return;
         }
+
+        const maxSentencesPerPart = 50;
+        if (allSentences.length <= maxSentencesPerPart) {
+            // If total sentences are within the limit, proceed with normal active recall
+            this.main.sentences = allSentences;
+            this.initializeActiveRecallState();
+            this.setupActiveRecallUI();
+            return;
+        }
+
+        const parts = [];
+        for (let i = 0; i < allSentences.length; i += maxSentencesPerPart) {
+            parts.push(allSentences.slice(i, i + maxSentencesPerPart));
+        }
+
+        this.showPartSelectionModal(parts);
+    }
+
+    showPartSelectionModal(parts) {
+        // Remove existing modal if any
+        let existingModal = document.getElementById('ar-part-selection-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create modal container
+        const modal = document.createElement('div');
+        modal.id = 'ar-part-selection-modal';
+        modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70';
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.className = 'bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col';
+
+        // Add modal header
+        const modalHeader = document.createElement('div');
+        modalHeader.className = 'p-6 border-b border-gray-200';
+        modalHeader.innerHTML = `
+        <h2 class="text-2xl font-bold text-gray-800">Select Parts for Active Recall</h2>
+        <p class="text-gray-600 mt-2">
+            Your text has ${this.main.input.value.split(/[.!?]+/).filter(s => s.trim().length > 5).length} sentences.
+            Click on parts to select/deselect them.
+        </p>
+    `;
+
+        // Create parts container
+        const partsContainer = document.createElement('div');
+        partsContainer.id = 'ar-parts-list';
+        partsContainer.className = 'flex-1 overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 gap-3';
+
+        // Add select all button
+        const selectAllContainer = document.createElement('div');
+        selectAllContainer.className = 'px-4 pt-2 border-b border-gray-200 pb-3';
+        const selectAllButton = document.createElement('button');
+        selectAllButton.id = 'ar-select-all-btn';
+        selectAllButton.className = 'px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-medium transition-colors duration-200';
+        selectAllButton.textContent = 'Select All';
+        selectAllContainer.appendChild(selectAllButton);
+
+        // Create modal footer
+        const modalFooter = document.createElement('div');
+        modalFooter.className = 'p-6 border-t border-gray-200 flex justify-between items-center';
+        modalFooter.innerHTML = `
+        <button id="ar-cancel-recall-btn" class="px-6 py-3 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg font-medium transition-colors duration-200">
+            Cancel
+        </button>
+        <div class="flex items-center space-x-4">
+            <span id="ar-selected-count" class="text-gray-600">
+                Selected: 0/${parts.length} parts
+            </span>
+            <button id="ar-start-recall-btn" class="px-6 py-3 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Start Active Recall
+            </button>
+        </div>
+    `;
+
+        // Assemble modal
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(selectAllContainer);
+        modalContent.appendChild(partsContainer);
+        modalContent.appendChild(modalFooter);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        const totalSentences = this.main.input.value.split(/[.!?]+/).filter(s => s.trim().length > 5).length;
+        const selectedParts = new Set(); // Track selected parts by index
+
+        // Function to update UI state
+        const updateUIState = () => {
+            const selectedCount = selectedParts.size;
+            const totalCount = parts.length;
+
+            // Update selected count text
+            document.getElementById('ar-selected-count').textContent =
+                `Selected: ${selectedCount}/${totalCount} parts`;
+
+            // Update start button state
+            const startButton = document.getElementById('ar-start-recall-btn');
+            startButton.disabled = selectedCount === 0;
+            startButton.className = selectedCount === 0
+                ? 'px-6 py-3 bg-green-500 text-white rounded-lg font-medium opacity-50 cursor-not-allowed'
+                : 'px-6 py-3 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium transition-colors duration-200';
+
+            // Update select all button text
+            const selectAllBtn = document.getElementById('ar-select-all-btn');
+            selectAllBtn.textContent = selectedCount === totalCount
+                ? 'Deselect All'
+                : 'Select All';
+        };
+
+        // Create part elements
+        parts.forEach((part, index) => {
+            const partDiv = document.createElement('div');
+            const start = index * 50 + 1;
+            const end = Math.min((index + 1) * 50, totalSentences);
+            const sentenceCount = part.length;
+
+            // Initially select all parts
+            selectedParts.add(index);
+
+            partDiv.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md';
+            partDiv.dataset.index = index;
+            partDiv.innerHTML = `
+            <div class="flex items-start">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold mr-3">
+                    ${index + 1}
+                </div>
+                <div class="flex-1">
+                    <div class="font-bold text-gray-800 mb-1">Part ${index + 1}</div>
+                    <div class="text-sm text-gray-600 mb-2">
+                        Sentences ${start}-${end}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        ${sentenceCount} sentence${sentenceCount !== 1 ? 's' : ''}
+                    </div>
+                </div>
+                <div class="flex-shrink-0">
+                    <div class="w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+            // Add click handler
+            partDiv.addEventListener('click', () => {
+                if (selectedParts.has(index)) {
+                    selectedParts.delete(index);
+                    partDiv.className = 'p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-400';
+                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center';
+                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '';
+                } else {
+                    selectedParts.add(index);
+                    partDiv.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md';
+                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center';
+                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '<div class="w-3 h-3 rounded-full bg-green-500"></div>';
+                }
+                updateUIState();
+            });
+
+            partsContainer.appendChild(partDiv);
+        });
+
+        // Select all button handler
+        const selectAllBtn = document.getElementById('ar-select-all-btn');
+        selectAllBtn.addEventListener('click', () => {
+            const allSelected = selectedParts.size === parts.length;
+            const partDivs = partsContainer.querySelectorAll('[data-index]');
+
+            if (allSelected) {
+                // Deselect all
+                selectedParts.clear();
+                partDivs.forEach(div => {
+                    const index = parseInt(div.dataset.index);
+                    div.className = 'p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-400';
+                    div.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center';
+                    div.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '';
+                });
+            } else {
+                // Select all
+                parts.forEach((_, index) => selectedParts.add(index));
+                partDivs.forEach(div => {
+                    div.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md';
+                    div.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center';
+                    div.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '<div class="w-3 h-3 rounded-full bg-green-500"></div>';
+                });
+            }
+
+            updateUIState();
+        });
+
+        // Initialize UI state
+        updateUIState();
+
+        // Event handlers
+        const startButton = document.getElementById('ar-start-recall-btn');
+        const cancelButton = document.getElementById('ar-cancel-recall-btn');
+
+        const handleStart = () => {
+            const selectedIndices = Array.from(selectedParts).sort((a, b) => a - b);
+
+            if (selectedIndices.length === 0) {
+                alert('Please select at least one part.');
+                return;
+            }
+
+            let selectedSentences = [];
+            selectedIndices.forEach(idx => {
+                selectedSentences = selectedSentences.concat(parts[idx]);
+            });
+
+            // Clean up
+            startButton.removeEventListener('click', handleStart);
+            cancelButton.removeEventListener('click', handleCancel);
+            selectAllBtn.removeEventListener('click', selectAllBtn.onclick);
+
+            // Remove modal
+            modal.remove();
+
+            // Start active recall
+            this.main.sentences = selectedSentences;
+            this.initializeActiveRecallState();
+            this.setupActiveRecallUI();
+        };
+
+        const handleCancel = () => {
+            // Clean up
+            startButton.removeEventListener('click', handleStart);
+            cancelButton.removeEventListener('click', handleCancel);
+            selectAllBtn.removeEventListener('click', selectAllBtn.onclick);
+
+            // Remove modal
+            modal.remove();
+        };
+
+        startButton.addEventListener('click', handleStart);
+        cancelButton.addEventListener('click', handleCancel);
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                handleCancel();
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                handleCancel();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    initializeActiveRecallState() {
         this.main.currentSentenceIndex = -1;
         this.main.userAnswers = [];
         this.main.startTimes = [];
         this.main.results = [];
+    }
 
+    setupActiveRecallUI() {
         const modeSelect = document.getElementById('ar-mode-select');
         if (modeSelect) {
             this.main.activeRecallMode = modeSelect.value;
@@ -765,12 +1099,12 @@ export class ActiveRecallModule {
         this.updateProgress();
     }
 
-    startActiveRecall() {
+    async startActiveRecall() {
         this.main.currentSentenceIndex = 0;
-        this.showCurrentSentence();
+        await this.showCurrentSentence();
     }
 
-    showCurrentSentence() {
+    async showCurrentSentence() {
         const sentence = this.main.sentences[this.main.currentSentenceIndex].trim();
         const displayArea = document.getElementById('ar-current-sentence');
         const inputArea = document.getElementById('ar-input-area');
@@ -800,15 +1134,18 @@ export class ActiveRecallModule {
         this.updateTimer();
         this.main.timerInterval = setInterval(() => this.updateTimer(), 1000);
 
+        displayArea.textContent = '🎧 Listen carefully...';
+        this.resetHintDisplay();
+        const translation = await this.updateTranslation();
+
         this.main.speech.speak(sentence).then(() => {
-            displayArea.textContent = '🎧 Listen carefully...';
             if (this.main.isTouchDevice) {
                 setTimeout(() => {
                     document.body.style.overflow = 'hidden';
                     setTimeout(() => { document.body.style.overflow = 'auto'; }, 50);
                 }, 10);
             }
-            setTimeout(() => {
+            setTimeout(async () => {
                 inputArea.classList.remove('hidden');
                 userInput.value = '';
                 if (this.main.isTouchDevice) {
@@ -828,6 +1165,7 @@ export class ActiveRecallModule {
                 </div>`;
                 if (this.main.activeRecallMode === 'beginner') {
                     this.updateHintDisplay();
+                    document.getElementById('ar-translation').textContent = translation;
                 } else {
                     hintDisplay.classList.add('hidden');
                     hintDisplay.style.display = 'none';
@@ -933,18 +1271,18 @@ export class ActiveRecallModule {
         document.getElementById('ar-input-area').classList.add('hidden');
     }
 
-    nextSentence() {
+    async nextSentence() {
         if (this.main.currentSentenceIndex < this.main.sentences.length - 1) {
             this.main.currentSentenceIndex++;
-            this.showCurrentSentence();
+            await this.showCurrentSentence();
             this.updateProgress();
         }
     }
 
-    previousSentence() {
+    async previousSentence() {
         if (this.main.currentSentenceIndex > 0) {
             this.main.currentSentenceIndex--;
-            this.showCurrentSentence();
+            await this.showCurrentSentence();
             this.updateProgress();
             if (this.main.results[this.main.currentSentenceIndex]) {
                 this.showSentenceFeedback(this.main.currentSentenceIndex);
@@ -982,7 +1320,7 @@ export class ActiveRecallModule {
         const totalCorrect = this.main.results.reduce((sum, r) => sum + r.correctCount, 0);
         const totalWords = this.main.results.reduce((sum, r) => sum + r.totalWords, 0);
         document.getElementById('ar-summary').innerHTML = `
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
             <div class="p-3 bg-blue-50 rounded-lg">
                 <div class="text-2xl font-bold text-blue-600">${this.main.sentences.length}</div>
                 <div class="text-sm text-blue-800">Sentences</div>
@@ -998,6 +1336,10 @@ export class ActiveRecallModule {
             <div class="p-3 bg-yellow-50 rounded-lg">
                 <div class="text-2xl font-bold text-yellow-600">${Math.round(totalWords / this.main.sentences.length)}</div>
                 <div class="text-sm text-yellow-800">Avg. Words/Sentence</div>
+            </div>
+            <div class="p-3 bg-red-50 rounded-lg">
+                <div class="text-2xl font-bold text-red-600">${this.formatSecondsToMMSS(Math.floor((Date.now() - this.main.startTimes[0]) / 1000))}</div>
+                <div class="text-sm text-red-800">Total Time</div>
             </div>
         </div>`;
         const detailedResults = document.getElementById('ar-detailed-results');
@@ -1023,6 +1365,12 @@ export class ActiveRecallModule {
         }).join('');
         const resultsContainer = document.getElementById('ar-results');
         if (resultsContainer && resultsContainer.classList) resultsContainer.classList.remove('hidden');
+    }
+
+    formatSecondsToMMSS(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
     }
 
     getSequenceDisplay(result, correctWords) {
