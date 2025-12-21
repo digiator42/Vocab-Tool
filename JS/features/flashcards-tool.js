@@ -45,9 +45,40 @@ export class FlashcardsTool {
         this.syncCurrentListName();
         this.setupSearch();
         this.speech.loadVoices();
+        this.syncCrontab();
+
+        // Schedule to run every hour (3600000 ms)
+        setInterval(this.syncCrontab, 3600000);
         feather.replace();
         AOS.init();
         window.flashcardsTool = this;
+    }
+
+    syncCrontab() {
+        const uploadBtn = document.getElementById("upload-data-btn");
+        const syncBtn = document.getElementById("sync-info-btn");
+        console.log("Running syncCrontab...");
+
+        let passwordHash = localStorage.getItem('syncPasswordHash');
+
+        if (!passwordHash) {
+            console.log("No syncPasswordHash found, skipping sync.");
+            return;
+        }
+
+        if (uploadBtn) {
+            uploadBtn.click();
+            console.log("Clicked upload-data-btn");
+        } else {
+            console.warn("upload-data-btn not found");
+        }
+
+        if (syncBtn) {
+            syncBtn.click();
+            console.log("Clicked sync-info-btn");
+        } else {
+            console.warn("sync-info-btn not found");
+        }
     }
 
     // Sanitize customLists to ensure all lists are arrays
