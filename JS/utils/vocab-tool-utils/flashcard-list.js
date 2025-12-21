@@ -37,10 +37,10 @@ export class FlashcardListService {
                     <span id="selected-list-name" class="font-medium"></span>
                     <span id="selected-list-count" class="text-sm text-gray-600"></span>
                 </div>
-                <button id="load-flashcards-btn" class="mt-2 w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                <button id="load-flashcards-btn" class="mt-2 w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors">
                     🎯 Load for Active Recall
                 </button>
-                <button id="passive-learning-list-btn" class="mt-2 w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors">
+                <button id="passive-learning-list-btn" class="mt-2 w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
                     🎧 Start Passive Learning
                 </button>
             </div>
