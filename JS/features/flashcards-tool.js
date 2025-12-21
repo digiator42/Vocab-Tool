@@ -1353,7 +1353,7 @@ export class FlashcardsTool {
             const actualIndex = startIndex + idx;
 
             // Add heading if it exists and is different from previous
-            if (isSearching && card.listName !== lastHeading || card.heading && card.heading !== lastHeading) {
+            if ((isSearching && card.listName !== lastHeading) || (!isSearching && card.heading && card.heading !== lastHeading)) {
                 console.log(isSearching, card.listName, card.heading, lastHeading);
 
                 if (!card.heading && !isSearching) {
