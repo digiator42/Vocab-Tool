@@ -1,9 +1,8 @@
-import { FlashcardsTool } from '../features/flashcards-tool.js';
 // Import/Export Module
 export class ImportExportManager {
-    constructor() {
+    constructor(flashCardsTool) {
         this.init();
-        this.FCT = new FlashcardsTool();
+        this.FCT = flashCardsTool;
     }
 
     async init() {

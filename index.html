@@ -47,11 +47,16 @@
                 </header>
 
                 <div class="flex justify-center gap-2 mb-4">
-                    <button id="filter-all" class="px-3 py-1 text-sm bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors">All</button>
-                    <button id="filter-a1" class="px-3 py-1 text-sm bg-green-200 text-green-800 rounded-full hover:bg-green-300 transition-colors">A1</button>
-                    <button id="filter-a2" class="px-3 py-1 text-sm bg-yellow-200 text-yellow-800 rounded-full hover:bg-yellow-300 transition-colors">A2</button>
-                    <button id="filter-b1" class="px-3 py-1 text-sm bg-blue-200 text-blue-800 rounded-full hover:bg-blue-300 transition-colors">B1</button>
-                    <button id="filter-b2" class="px-3 py-1 text-sm bg-red-200 text-red-800 rounded-full hover:bg-red-300 transition-colors">B2</button>
+                    <button id="filter-all"
+                        class="px-3 py-1 text-sm bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors">All</button>
+                    <button id="filter-a1"
+                        class="px-3 py-1 text-sm bg-green-200 text-green-800 rounded-full hover:bg-green-300 transition-colors">A1</button>
+                    <button id="filter-a2"
+                        class="px-3 py-1 text-sm bg-yellow-200 text-yellow-800 rounded-full hover:bg-yellow-300 transition-colors">A2</button>
+                    <button id="filter-b1"
+                        class="px-3 py-1 text-sm bg-blue-200 text-blue-800 rounded-full hover:bg-blue-300 transition-colors">B1</button>
+                    <button id="filter-b2"
+                        class="px-3 py-1 text-sm bg-red-200 text-red-800 rounded-full hover:bg-red-300 transition-colors">B2</button>
                 </div>
 
                 <div id="stories-list-container" class="flex flex-col gap-0 w-full">
@@ -160,12 +165,24 @@
                 </header>
 
                 <div class="flex flex-wrap justify-center gap-2 mb-4">
-                    <button id="flashcard-filter-all" class="px-3 py-1 text-sm bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors" data-filter="all">All</button>
-                    <button id="flashcard-filter-mastered" class="px-3 py-1 text-sm bg-green-800 text-white rounded-full hover:bg-green-700 transition-colors" title="Mastered" data-filter="mastered">M</button>
-                    <button id="flashcard-filter-very-good" class="px-3 py-1 text-sm bg-green-600 text-white rounded-full hover:bg-green-500 transition-colors" title="Very Good (80%+)" data-filter="very-good">VG</button>
-                    <button id="flashcard-filter-good" class="px-3 py-1 text-sm bg-yellow-600 text-white rounded-full hover:bg-yellow-700 transition-colors" title="Good (50%+)" data-filter="good">G</button>
-                    <button id="flashcard-filter-some" class="px-3 py-1 text-sm bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors" title="Some (>10%)" data-filter="some">S</button>
-                    <button id="flashcard-filter-new" class="px-3 py-1 text-sm bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors" title="New (0-10%)" data-filter="new">N</button>
+                    <button id="flashcard-filter-all"
+                        class="px-3 py-1 text-sm bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors"
+                        data-filter="all">All</button>
+                    <button id="flashcard-filter-mastered"
+                        class="px-3 py-1 text-sm bg-green-800 text-white rounded-full hover:bg-green-700 transition-colors"
+                        title="Mastered" data-filter="mastered">M</button>
+                    <button id="flashcard-filter-very-good"
+                        class="px-3 py-1 text-sm bg-green-600 text-white rounded-full hover:bg-green-500 transition-colors"
+                        title="Very Good (80%+)" data-filter="very-good">VG</button>
+                    <button id="flashcard-filter-good"
+                        class="px-3 py-1 text-sm bg-yellow-600 text-white rounded-full hover:bg-yellow-700 transition-colors"
+                        title="Good (50%+)" data-filter="good">G</button>
+                    <button id="flashcard-filter-some"
+                        class="px-3 py-1 text-sm bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                        title="Some (>10%)" data-filter="some">S</button>
+                    <button id="flashcard-filter-new"
+                        class="px-3 py-1 text-sm bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+                        title="New (0-10%)" data-filter="new">N</button>
                 </div>
 
                 <button id="open-add-flashcards-modal"
@@ -263,7 +280,7 @@
                     </div>
                 </div>
 
-                <div id="flashcard-search-container" class="flex justify-center mb-6">
+                <div id="flashcard-search-container" class="flex flex-row justify-center mb-6">
                     <div class="relative w-full max-w-md">
                         <input type="text" id="flashcard-search-input"
                             class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -275,6 +292,11 @@
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
                         </div>
+                    </div>
+                    <div class="flex flex-row items-center space-x-1">
+                        <input type="checkbox" id="match-word" class="switch-input">
+                        <label for="match-word" class="text-sm font-medium"></label>
+                        <span>Match</span>
                     </div>
                 </div>
 
@@ -301,7 +323,8 @@
                         <button id="sync-info-btn"
                             class="px-4 py-3 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center justify-center">Info</button>
                         <button id="set-password-btn"
-                            class="px-4 py-3 bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center justify-center">Reset Password</button>
+                            class="px-4 py-3 bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center justify-center">Reset
+                            Password</button>
                     </div>
                     <div class="text-xs text-gray-500 bg-gray-100 p-3 rounded">
                         <strong>Security:</strong> This is for your personal use.

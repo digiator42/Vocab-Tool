@@ -378,6 +378,10 @@ export class ActiveRecallModule {
                 vocabOverlay.style.display = 'none';
             }
 
+            this.main.vocabSection.style.marginRight = '10%';
+            // center in middle of screen
+            this.main.vocabSection.style.marginLeft = '10%';
+
             // Hide everything in main-vocab-view EXCEPT:
             // - active-recall-tool (AR interface)
             // - output (display area)
@@ -448,6 +452,9 @@ export class ActiveRecallModule {
                 vocabOverlay.style.display = originalDisplay || '';
                 delete vocabOverlay.dataset.originalDisplay;
             }
+            this.main.vocabSection.style.marginRight = '0';
+            this.main.vocabSection.style.marginLeft = '0';
+            this.main.vocabSection.style.marginRight = 'calc(50% - 425px)';
 
             output.style.display = 'block';
             selectionTooltip.style.display = 'block';
@@ -740,58 +747,58 @@ export class ActiveRecallModule {
             console.log('rate value - ', this.main.rate);
         })
 
-        document.addEventListener('keydown', (e) => {
-            console.log('activated keydown active recall slider');
+        // document.addEventListener('keydown', (e) => {
+        //     console.log('activated keydown active recall slider');
 
-            let currentValue = Number(rateSliderActiveRecall.value);
-            const step = Number(rateSliderActiveRecall.step) || 1;
+        //     let currentValue = Number(rateSliderActiveRecall.value);
+        //     const step = Number(rateSliderActiveRecall.step) || 1;
 
-            // Only process keys if body is focused
-            if (document.activeElement !== document.getElementById('ar-user-input')) {
-                return;
-            }
+        //     // Only process keys if body is focused
+        //     if (document.activeElement !== document.getElementById('ar-user-input')) {
+        //         return;
+        //     }
 
-            if (e.altKey && e.shiftKey && e.key === 'ArrowRight') {
-                currentValue = Math.min(Number(rateSliderActiveRecall.max), currentValue + step);
-                rateSliderActiveRecall.value = currentValue;
-                e.preventDefault();
-            } else if (e.altKey && e.shiftKey && e.key === 'ArrowLeft') {
-                currentValue = Math.max(Number(rateSliderActiveRecall.min), currentValue - step);
-                rateSliderActiveRecall.value = currentValue;
-                e.preventDefault();
-            } else if (e.ctrlKey && e.shiftKey && e.key === ' ') {
-                slowVoice.checked = !slowVoice.checked;
-                this.main.useSlowVoice = slowVoice.checked;
-                e.preventDefault();
-                console.log("Slow voice set to:", this.main.useSlowVoice)
-            }
-            // fuzzy match art+shift+f
-            else if (e.altKey && e.shiftKey && e.key === 'F') {
-                fuzzyMatch.checked = !fuzzyMatch.checked;
-                this.useFuzzyMatching = fuzzyMatch.checked;
-                e.preventDefault();
-                console.log("Fuzzy matching set to:", this.useFuzzyMatching);
-            }
-            // Alt+Shift+F for repeat
-            else if (e.altKey && e.shiftKey && e.key === 'R') {
-                e.preventDefault();
-                this.repeatAudio();
-            }
-            // // keyboard shortcut for focus mode
-            // if (e.altKey && e.shiftKey && e.key === 'G') {
-            //     e.preventDefault();
-            //     this.toggleFocusMode();
-            // }
+        //     if (e.altKey && e.shiftKey && e.key === 'ArrowRight') {
+        //         currentValue = Math.min(Number(rateSliderActiveRecall.max), currentValue + step);
+        //         rateSliderActiveRecall.value = currentValue;
+        //         e.preventDefault();
+        //     } else if (e.altKey && e.shiftKey && e.key === 'ArrowLeft') {
+        //         currentValue = Math.max(Number(rateSliderActiveRecall.min), currentValue - step);
+        //         rateSliderActiveRecall.value = currentValue;
+        //         e.preventDefault();
+        //     } else if (e.ctrlKey && e.shiftKey && e.key === ' ') {
+        //         slowVoice.checked = !slowVoice.checked;
+        //         this.main.useSlowVoice = slowVoice.checked;
+        //         e.preventDefault();
+        //         console.log("Slow voice set to:", this.main.useSlowVoice)
+        //     }
+        //     // fuzzy match art+shift+f
+        //     else if (e.altKey && e.shiftKey && e.key === 'F') {
+        //         fuzzyMatch.checked = !fuzzyMatch.checked;
+        //         this.useFuzzyMatching = fuzzyMatch.checked;
+        //         e.preventDefault();
+        //         console.log("Fuzzy matching set to:", this.useFuzzyMatching);
+        //     }
+        //     // Alt+Shift+F for repeat
+        //     else if (e.altKey && e.shiftKey && e.key === 'R') {
+        //         e.preventDefault();
+        //         this.repeatAudio();
+        //     }
+        // // keyboard shortcut for focus mode
+        // if (e.altKey && e.shiftKey && e.key === 'G') {
+        //     e.preventDefault();
+        //     this.toggleFocusMode();
+        // }
 
-            // // Escape to exit focus mode
-            // if (this.isFocusMode && e.key === 'Escape') {
-            //     e.preventDefault();
-            //     this.toggleFocusMode();
-            // }
+        // // Escape to exit focus mode
+        // if (this.isFocusMode && e.key === 'Escape') {
+        //     e.preventDefault();
+        //     this.toggleFocusMode();
+        // }
 
-            rateSliderSpanActiveRecall.textContent = rateSliderActiveRecall.value;
-            this.main.rate = rateSliderActiveRecall.value;
-        });
+        //     rateSliderSpanActiveRecall.textContent = rateSliderActiveRecall.value;
+        //     this.main.rate = rateSliderActiveRecall.value;
+        // });
 
         this.addActiveRecallButton();
     }

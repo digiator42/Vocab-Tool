@@ -6,9 +6,6 @@ export class FlashcardsTool {
         this.flashcards = JSON.parse(localStorage.getItem('germanFlashcards')) || [];
         this.customLists = JSON.parse(localStorage.getItem('customGermanLists')) || {};
 
-        // Sanitize customLists to fix any corrupted data structures
-        // this.sanitizeCustomLists();
-
         this.isFiltered = false;
         this.filteredFlashcards = [];
         this.originalListName = null;
@@ -26,18 +23,21 @@ export class FlashcardsTool {
         this.hasAttachedFlashcardListener = false;
         this.isNotMasteredSR = false;
         this.isClicked = false;
-
+        this.isEventAttached = false;
         this.speechSynth = window.speechSynthesis;
         this.speech = new SpeechService(this);
 
-
         this.init();
 
-        window.flashcardsToo = this;
+        window.flashcardsTool = this;
     }
 
     async init() {
-        this.setupEventListeners();
+        if (!this.isEventAttached) {
+            this.isEventAttached = true;
+            this.setupEventListeners();
+            console.log('========>> isEventAttached', this.isEventAttached);
+        }
         this.renderFlashcards();
         this.renderCustomListButtons(false);
         this.updatePaginationControls();
@@ -51,7 +51,6 @@ export class FlashcardsTool {
         setInterval(this.syncCrontab, 3600000);
         feather.replace();
         AOS.init();
-        window.flashcardsTool = this;
     }
 
     syncCrontab() {
@@ -78,36 +77,6 @@ export class FlashcardsTool {
             console.log("Clicked sync-info-btn");
         } else {
             console.warn("sync-info-btn not found");
-        }
-    }
-
-    // Sanitize customLists to ensure all lists are arrays
-    sanitizeCustomLists() {
-        let needsSave = false;
-
-        Object.entries(this.customLists).forEach(([listName, listCards]) => {
-            // Check if listCards is not an array
-            if (!Array.isArray(listCards)) {
-                console.warn(`⚠️ List "${listName}" is not an array, attempting to fix...`);
-
-                if (listCards && typeof listCards === 'object') {
-                    // Convert object to array
-                    this.customLists[listName] = Object.values(listCards);
-                    console.log(`✅ Converted "${listName}" to array with ${this.customLists[listName].length} items`);
-                    needsSave = true;
-                } else {
-                    // Invalid data, remove it
-                    console.error(`❌ List "${listName}" has invalid data, removing...`);
-                    delete this.customLists[listName];
-                    needsSave = true;
-                }
-            }
-        });
-
-        // Save the fixed data back to localStorage
-        if (needsSave) {
-            localStorage.setItem('customGermanLists', JSON.stringify(this.customLists));
-            console.log('✅ Fixed and saved customGermanLists');
         }
     }
 
@@ -797,10 +766,17 @@ export class FlashcardsTool {
         const flashcardTool = document.getElementById('flashcard-tool');
 
         // Playing audio event listener with v keyword for speak-btn
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keyup', (e) => {
+            console.log('--->>>>> e.key', e.key, this.speech.isSpeaking, e.repeat);
+
+            // Check if this is a repeated key event
+            if (this.speech.isSpeaking || e.repeat) return;
+
             if (e.key.toLowerCase() === 'v' && document.activeElement === document.body && !flashcardTool.classList.contains('hidden')) {
                 const currentCards = this.getCurrentCards();
                 const currentIndex = this.getCurrentCardIndex();
+
+                console.log('--->> currentIndex', currentIndex, this.spacedRepetitionMode);
 
                 if (currentIndex >= 0 && currentIndex < currentCards.length) {
                     const card = currentCards[currentIndex];
@@ -878,12 +854,29 @@ export class FlashcardsTool {
             }
         });
 
-        // Filter cards across all lists
+        console.log("allFlashcards ----->> ");
+
+        const matchWord = document.getElementById('match-word');
+
         const results = allFlashcards.filter(card => {
             const german = (card.german || '').toLowerCase();
             const english = (card.english || '').toLowerCase();
+            const queryLower = query.toLowerCase();
+            if (matchWord && matchWord.checked) {
+                console.log("matchWord", matchWord.checked);
+                // Match whole words within the text
+                const germanPattern = new RegExp(`\\b${this.escapeRegExp(queryLower)}\\b`);
+                const englishPattern = new RegExp(`\\b${this.escapeRegExp(queryLower)}\\b`);
+
+                return germanPattern.test(german) || englishPattern.test(english);
+            }
             return german.includes(query) || english.includes(query);
         });
+
+        if (results.length === 0) {
+            this.showNotification('No results found!');
+            return;
+        }
 
         // Sort results: German matches first
         results.sort((a, b) => {
@@ -901,6 +894,10 @@ export class FlashcardsTool {
         this.filteredFlashcards = results;
         this.currentPage = 1;
         this.renderFlashcards(true);
+    }
+
+    escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     // Add method to get SR statistics
@@ -999,6 +996,9 @@ export class FlashcardsTool {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
                 modal.classList.add('hidden');
+                if (this.spacedRepetitionMode) {
+                    this.exitSpacedRepetitionMode();
+                }
             }
         });
     }
@@ -1228,7 +1228,7 @@ export class FlashcardsTool {
             "toggle-view-btn",
             "flip-list-btn",
             "open-add-flashcards-modal",
-            "flashcard-search-input",
+            "flashcard-search-container",
             "import-export-json-area"
         ];
 

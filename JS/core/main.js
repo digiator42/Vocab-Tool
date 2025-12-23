@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize all modules
     const tabManager = new TabManager();
-    const importExportManager = new ImportExportManager();
 
     // Initialize tools only when needed
     let vocabTool, flashCardsTool, exerciseTool, syncManager;
@@ -78,12 +77,22 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize the default tool based on URL parameter
     const params = new URL(window.location).searchParams;
     if (params.get('page') === 'flashcards') {
-        flashCardsTool = new FlashcardsTool();
+        if (!flashCardsTool) {
+            console.log('Initializing FlashcardsTool...');
+            flashCardsTool = new FlashcardsTool();
+        }
     } else if (params.get('page') === 'vocab') {
-        vocabTool = new VocabularyTool();
+        if (!vocabTool) {
+            vocabTool = new VocabularyTool();
+        }
     } else {
-        exerciseTool = new ExerciseTool();
+        if (!exerciseTool) {
+            exerciseTool = new ExerciseTool();
+        }
     }
+
+    const importExportManager = new ImportExportManager(flashCardsTool);
+
 
     // Initialize sidebars
     initFlashcardSidebar();
@@ -350,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        return {storyElement: div, colorClass};
+        return { storyElement: div, colorClass };
     }
 
     function estimateWordCount(text) {

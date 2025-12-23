@@ -2,6 +2,7 @@
 export class SpeechService {
     constructor(main) {
         this.main = main;
+        this.isSpeaking = false;
         this.germanVoices = [];
     }
 
@@ -138,6 +139,8 @@ export class SpeechService {
                 return;
             }
 
+            console.log('---> ', text);
+
             console.log('🔊 Speaking text, highlighting enabled:', enableHighlighting);
 
             this.main.speechSynth.cancel();
@@ -171,6 +174,7 @@ export class SpeechService {
 
             this.main.utterance.onstart = () => {
                 this.main.isSpeaking = true;
+                this.isSpeaking = true;
                 if (this.main.playBtn) this.main.playBtn.textContent = 'Pause';
                 const focusModePlayBTN = document.getElementById("focus-play-btn");
                 if (focusModePlayBTN) focusModePlayBTN.textContent = 'Pause';
@@ -178,6 +182,7 @@ export class SpeechService {
 
             this.main.utterance.onend = () => {
                 this.main.isSpeaking = false;
+                this.isSpeaking = false;
                 this.main.isPaused = false;
                 this.main.utterance = null;
                 this.main.stopWordHighlighting();
