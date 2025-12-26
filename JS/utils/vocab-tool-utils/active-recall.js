@@ -94,7 +94,7 @@ export class ActiveRecallModule {
                 }
                 e.preventDefault();
             } else if (e.altKey && e.shiftKey && e.key === 'R') {
-                console.log('----> >> >>> >>');
+                // console.log('----> >> >>> >>');
                 e.preventDefault();
                 document.getElementById('ar-repeat-btn').click();
                 // this.main.repeatAudio();
