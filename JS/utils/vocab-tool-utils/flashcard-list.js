@@ -21,10 +21,22 @@ export class FlashcardListService {
         selectorContainer.innerHTML = `
         <div class="flex flex-row justify-between">
             <h3 class="text-lg font-semibold mb-3">📚 Practice with Flashcards</h3>
-            <div class="flex flex-col">
-                <input type="checkbox" id="not-mastered-fc" class="switch-input" />
-                <label class="switch-label mx-auto" for="not-mastered-fc"></label>
-                <span>Exclude Mastered</span>
+            <div class="flex flex-row gap-2">
+                <div class="flex flex-col">
+                    <input type="checkbox" id="not-mastered-ar" class="switch-input" />
+                    <label class="switch-label mx-auto" for="not-mastered-ar"></label>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded">Exclude Finished AR</span>
+                </div>
+                <div class="flex flex-col">
+                    <input type="checkbox" id="not-mastered-pl" class="switch-input" />
+                    <label class="switch-label mx-auto" for="not-mastered-pl"></label>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded">Exclude Finished PL</span>
+                </div>
+                <div class="flex flex-col">
+                    <input type="checkbox" id="not-mastered-fc" class="switch-input" />
+                    <label class="switch-label mx-auto" for="not-mastered-fc"></label>
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded">Exclude Mastered</span>
+                </div>
             </div>
         </div>
         <div class="flex flex-col gap-3">
@@ -129,6 +141,18 @@ export class FlashcardListService {
             console.log("set to:", !this.isNotMasteredFC ? "Normal FC" : "!mastered FC");
         });
 
+        document.getElementById('not-mastered-pl').addEventListener('change', (e) => {
+            this.isNotMasteredPL = e.target.checked;
+            this.populateFlashcardLists();
+            console.log("set to:", !this.isNotMasteredPL ? "Normal PL" : "!mastered PL");
+        });
+
+        document.getElementById('not-mastered-ar').addEventListener('change', (e) => {
+            this.isNotMasteredAR = e.target.checked;
+            this.populateFlashcardLists();
+            console.log("set to:", !this.isNotMasteredAR ? "Normal AR" : "!mastered AR");
+        });
+
         // Handle load flashcards button
         if (loadFlashcardsBtn) {
             loadFlashcardsBtn.addEventListener('click', () => {
@@ -173,6 +197,8 @@ export class FlashcardListService {
 
         const customLists = this.getFlashcardLists();
         const list = customLists[this.selectedFlashcardList];
+
+        localStorage.setItem('lastARList', JSON.stringify(this.selectedFlashcardList));
 
         if (!list || list.length === 0) {
             alert('Selected list is empty!');
@@ -246,6 +272,8 @@ export class FlashcardListService {
             return;
         }
 
+        localStorage.setItem('lastPLList', this.selectedFlashcardList);
+
         // Combine German words and sentences
         const sentences = list.map(card => {
             let content = this.vocabTool.decodeSanitizedInput(card.german);
@@ -270,6 +298,24 @@ export class FlashcardListService {
             let unmasteredByList = this.getUnmasteredItems(customLists);
             console.log("Unmastered items:", Object.keys(unmasteredByList).length);
             return unmasteredByList;
+        }
+        if (this.isNotMasteredPL) {
+            // get PLListArray from local storage and exclude the customLists by it
+            const PLListArray = JSON.parse(localStorage.getItem('PLListArray') || '[]');
+            const filteredLists = Object.fromEntries(
+                Object.entries(customLists).filter(([listName]) => !PLListArray.includes(listName))
+            );
+            console.log("Filtered items:", Object.keys(filteredLists).length);
+            return filteredLists;
+        }
+        if (this.isNotMasteredAR) {
+            // get ARListArray from local storage and filter the customLists by it
+            const ARListArray = JSON.parse(localStorage.getItem('ARListArray') || '[]');
+            const filteredLists = Object.fromEntries(
+                Object.entries(customLists).filter(([listName]) => !ARListArray.includes(listName))
+            );
+            console.log("Filtered items:", Object.keys(filteredLists).length);
+            return filteredLists;
         }
         console.log("All items:", Object.keys(customLists).length);
         return customLists;

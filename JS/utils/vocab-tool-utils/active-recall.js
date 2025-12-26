@@ -5,6 +5,7 @@ export class ActiveRecallModule {
         this.activeRecallBtn = null;
         this.extraToolsContainer = document.getElementById('extra-tools-container');
         this.useFuzzyMatching = false;
+        this.selectedFlashcardList = null;
     }
 
     setupActiveRecall() {
@@ -806,6 +807,9 @@ export class ActiveRecallModule {
     // ====== UPDATED LOGIC ======
     prepareActiveRecall() {
         const text = this.main.input.value;
+        this.originalAllSentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+        this.selectedFlashcardList = JSON.parse(localStorage.getItem('lastARList'));
+
         if (!text.trim()) {
             alert('Please process some text first!');
             return;
@@ -829,10 +833,14 @@ export class ActiveRecallModule {
             return;
         }
 
+        this.originalAllSentences = allSentences;
+
         const maxSentencesPerPart = 50;
         if (allSentences.length <= maxSentencesPerPart) {
             // If total sentences are within the limit, proceed with normal active recall
             this.main.sentences = allSentences;
+            this.currentPartIndex = 0; // Single part = part 0
+            localStorage.setItem(`lastSelectedPart_${this.selectedFlashcardList}`, 0);
             this.initializeActiveRecallState();
             this.setupActiveRecallUI();
             return;
@@ -938,52 +946,66 @@ export class ActiveRecallModule {
                 : 'Select All';
         };
 
-        // Create part elements
+        // Replace the entire parts.forEach loop with this:
         parts.forEach((part, index) => {
-            const partDiv = document.createElement('div');
+            // Check if this part is already completed
+            const completionKey = `completedParts_${this.selectedFlashcardList}`;
+            const completedParts = JSON.parse(localStorage.getItem(completionKey) || '[]');
+            const isCompleted = completedParts.includes(index);
+
             const start = index * 50 + 1;
             const end = Math.min((index + 1) * 50, totalSentences);
             const sentenceCount = part.length;
 
-            // Initially select all parts
-            selectedParts.add(index);
+            const partDiv = document.createElement('div');
 
-            partDiv.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md';
+            // Create the part div with the structure that matches your click handler
+            partDiv.className = `p-4 rounded-lg border-2 ${isCompleted ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'} cursor-pointer transition-all duration-200 hover:shadow-md`;
             partDiv.dataset.index = index;
+
+            // Use your original HTML structure
             partDiv.innerHTML = `
-            <div class="flex items-start">
-                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold mr-3">
-                    ${index + 1}
+        <div class="flex items-start">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-500'} text-white flex items-center justify-center font-bold mr-3">
+                ${index + 1}
+            </div>
+            <div class="flex-1">
+                <div class="font-bold text-gray-800 mb-1">Part ${index + 1}${isCompleted ? ' ✓' : ''}</div>
+                <div class="text-sm text-gray-600 mb-2">
+                    Sentences ${start}-${end}
                 </div>
-                <div class="flex-1">
-                    <div class="font-bold text-gray-800 mb-1">Part ${index + 1}</div>
-                    <div class="text-sm text-gray-600 mb-2">
-                        Sentences ${start}-${end}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                        ${sentenceCount} sentence${sentenceCount !== 1 ? 's' : ''}
-                    </div>
-                </div>
-                <div class="flex-shrink-0">
-                    <div class="w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center">
-                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                    </div>
+                <div class="text-xs text-gray-500">
+                    ${sentenceCount} sentence${sentenceCount !== 1 ? 's' : ''}
                 </div>
             </div>
-        `;
+            <div class="flex-shrink-0">
+                <div class="w-6 h-6 rounded-full border-2 ${selectedParts.has(index) ? 'border-green-500' : 'border-gray-400'} flex items-center justify-center">
+                    ${selectedParts.has(index) ? '<div class="w-3 h-3 rounded-full bg-green-500"></div>' : ''}
+                </div>
+            </div>
+        </div>
+    `;
 
-            // Add click handler
+            // Update click handler to match the new structure
             partDiv.addEventListener('click', () => {
                 if (selectedParts.has(index)) {
                     selectedParts.delete(index);
-                    partDiv.className = 'p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-400';
-                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center';
-                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '';
+                    partDiv.className = `p-4 rounded-lg border-2 ${isCompleted ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'} cursor-pointer transition-all duration-200 hover:shadow-md`;
+                    // Update the checkmark circle
+                    const checkmarkDiv = partDiv.querySelector('.flex-shrink-0:last-child > div');
+                    if (checkmarkDiv) {
+                        checkmarkDiv.className = 'w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center';
+                        checkmarkDiv.innerHTML = '';
+                    }
                 } else {
                     selectedParts.add(index);
-                    partDiv.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md';
-                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').className = 'w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center';
-                    partDiv.querySelector('.flex-shrink-0:last-child div:first-child').innerHTML = '<div class="w-3 h-3 rounded-full bg-green-500"></div>';
+                    partDiv.className = `p-4 rounded-lg border-2 ${isCompleted ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'} cursor-pointer transition-all duration-200 hover:shadow-md`;
+                    // Update the checkmark circle
+                    const checkmarkDiv = partDiv.querySelector('.flex-shrink-0:last-child > div');
+                    if (checkmarkDiv) {
+                        checkmarkDiv.className = 'w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center';
+                        checkmarkDiv.innerHTML = '<div class="w-3 h-3 rounded-full bg-green-500"></div>';
+                    }
                 }
                 updateUIState();
             });
@@ -1033,6 +1055,11 @@ export class ActiveRecallModule {
                 alert('Please select at least one part.');
                 return;
             }
+
+            const selectedPartIndex = selectedIndices[0];
+            this.currentPartIndex = selectedPartIndex;
+            localStorage.setItem(`lastSelectedPart_${this.selectedFlashcardList}`, selectedPartIndex);
+
 
             let selectedSentences = [];
             selectedIndices.forEach(idx => {
@@ -1315,10 +1342,112 @@ export class ActiveRecallModule {
         this.main.speech.speak(sentence);
     }
 
+    // Add this method to your ActiveRecallModule class
+    getCurrentPartIndex() {
+        const lastSelectedPart = JSON.parse(localStorage.getItem(`lastSelectedPart_${this.selectedFlashcardList}`));
+        if (lastSelectedPart !== null) {
+            return parseInt(lastSelectedPart);
+        }
+
+        return -1; // Unable to determine
+    }
+
     finishActiveRecall() {
         clearInterval(this.main.timerInterval);
         this.showFinalResults();
         this.updateProgress();
+        this.selectedFlashcardList = JSON.parse(localStorage.getItem('lastARList'));
+
+        if (this.selectedFlashcardList) {
+            // Track this part as completed
+            const partIndex = this.getCurrentPartIndex();
+            if (partIndex !== -1) {
+                console.log('Part index:-->> ', partIndex);
+                this.trackPartCompletion(partIndex);
+
+                this.checkAllPartsCompleted();
+            }
+
+            // Update the list tracking array
+            const arListArray = JSON.parse(localStorage.getItem('ARListArray') || '[]');
+            if (!arListArray.includes(this.selectedFlashcardList)) {
+                arListArray.push(this.selectedFlashcardList);
+                localStorage.setItem('ARListArray', JSON.stringify(arListArray));
+            }
+        }
+    }
+
+    // Add these new methods:
+    trackPartCompletion(partIndex) {
+        if (!this.selectedFlashcardList || partIndex === -1) return;
+
+        const completionKey = `completedParts_${this.selectedFlashcardList}`;
+        let completedParts = JSON.parse(localStorage.getItem(completionKey) || '[]');
+
+        if (!completedParts.includes(partIndex)) {
+            completedParts.push(partIndex);
+            localStorage.setItem(completionKey, JSON.stringify(completedParts));
+            console.log(`Part ${partIndex + 1} marked as completed for ${this.selectedFlashcardList}`);
+        }
+    }
+
+    checkAllPartsCompleted() {
+        if (!this.selectedFlashcardList) return;
+
+        // Get total number of parts
+        const allSentences = this.originalAllSentences ||
+            this.main.input.value.split(/[.!?]+/).filter(s => s.trim().length > 5);
+        const totalParts = Math.ceil(allSentences.length / 50);
+
+        // Get completed parts
+        const completionKey = `completedParts_${this.selectedFlashcardList}`;
+        const completedParts = JSON.parse(localStorage.getItem(completionKey) || '[]');
+
+        // Check if all parts are completed
+        const allPartsCompleted = completedParts.length >= totalParts;
+
+        if (allPartsCompleted) {
+            const completionKey = `completedARLists`;
+            let completedLists = JSON.parse(localStorage.getItem(completionKey) || '[]');
+            console.log('completedLists: ', completedLists);
+            if (!completedLists) {
+                localStorage.setItem(completionKey, JSON.stringify([]));
+                completedLists = [];
+            }
+            console.log('completedLists after: ', completedLists);
+
+            if (!completedLists.includes(this.selectedFlashcardList)) {
+                completedLists.push(this.selectedFlashcardList);
+                localStorage.setItem(completionKey, JSON.stringify(completedLists));
+                console.log(`List ${this.selectedFlashcardList} marked as completed`);
+            }
+            this.showCompletionNotification();
+        }
+
+        return allPartsCompleted;
+    }
+
+    showCompletionNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50 animate-bounce';
+        notification.innerHTML = `
+        <div class="flex items-center">
+            <span class="text-2xl mr-3">🎉</span>
+            <div>
+                <div class="font-bold">Amazing Progress!</div>
+                <div>You've completed all parts of "${this.selectedFlashcardList}"!</div>
+            </div>
+        </div>
+    `;
+
+        document.body.appendChild(notification);
+
+        // Remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
     }
 
     showFinalResults() {

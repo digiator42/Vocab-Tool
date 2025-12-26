@@ -12,6 +12,11 @@ export class PassiveLearningService {
         this.currentTranslation = '';
         this.transcriptBuffer = '';
         this.successFound = false;
+
+        this.selectedFlashcardList = null;
+        this.currentPartIndex = -1;
+        this.originalAllSentences = [];
+
         this.setupRecognition();
     }
 
@@ -106,26 +111,38 @@ export class PassiveLearningService {
             stopSpeechBtn.innerHTML = 'Stop Speech';
         }
 
-        // Split text into sentences (basic splitting by .!?)
-        this.sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-        this.sentences = this.sentences.map(s => s.trim()).filter(s => s.length > 0);
+        // Get the selected flashcard list if coming from flashcard list
+        this.selectedFlashcardList = localStorage.getItem('lastPLList') || null;
 
-        if (this.sentences.length === 0) {
+        // Store original sentences for tracking
+        this.originalAllSentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        this.originalAllSentences = this.originalAllSentences.map(s => s.trim()).filter(s => s.length > 0);
+
+        if (this.originalAllSentences.length === 0) {
             alert('Could not find any sentences.');
             return;
         }
 
-        if (this.sentences.length > 50) {
+        if (this.originalAllSentences.length > 50) {
             // Split sentences into chunks of max 50 sentences each
             const chunks = [];
-            for (let i = 0; i < this.sentences.length; i += 50) {
-                chunks.push(this.sentences.slice(i, i + 50));
+            for (let i = 0; i < this.originalAllSentences.length; i += 50) {
+                chunks.push(this.originalAllSentences.slice(i, i + 50));
             }
             this.createChoiceModal(chunks);
             return;
         }
 
+        // If single part, track as part 0
+        this.currentPartIndex = 0;
+        this.sentences = [...this.originalAllSentences];
         this.currentIndex = 0;
+
+        // Store part selection
+        if (this.selectedFlashcardList) {
+            localStorage.setItem(`lastSelectedPart_PL_${this.selectedFlashcardList}`, 0);
+        }
+
         this.createModal();
         this.processNextSentence();
     }
@@ -141,53 +158,62 @@ export class PassiveLearningService {
         let optionsHTML = '';
         chunks.forEach((chunk, index) => {
             const startIndex = index * 50 + 1;
-            const endIndex = Math.min((index + 1) * 50, this.sentences.length);
+            const endIndex = Math.min((index + 1) * 50, this.originalAllSentences.length);
+
+            // Check if this part is already completed
+            const isCompleted = this.isPartCompleted(index);
+
             optionsHTML += `
-                <div class="mb-4">
-                    <button data-chunk-index="${index}" 
-                            class="pl-chunk-btn w-full px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-left transition-colors group">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-gray-800 text-lg">Part ${index + 1}</div>
-                                <div class="text-sm text-gray-500 mt-1">Sentences ${startIndex} - ${endIndex}</div>
+            <div class="mb-4">
+                <button data-chunk-index="${index}" 
+                        class="pl-chunk-btn w-full px-6 py-4 ${isCompleted ? 'bg-green-50 border-green-500' : 'bg-white border-gray-200'} border rounded-xl text-left transition-colors group hover:shadow-md">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-gray-800 text-lg">Part ${index + 1}${isCompleted ? ' ✓' : ''}</div>
+                            <div class="text-sm ${isCompleted ? 'text-green-600' : 'text-gray-500'} mt-1">
+                                Sentences ${startIndex} - ${endIndex}
                             </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${isCompleted ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Completed</span>' : ''}
                             <div class="text-gray-400 group-hover:text-blue-500 transition-colors">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                 </svg>
                             </div>
                         </div>
-                        <div class="mt-2 text-sm text-gray-600 italic truncate">
-                            "${chunk[0].substring(0, 60)}${chunk[0].length > 60 ? '...' : ''}"
-                        </div>
-                    </button>
-                </div>
-            `;
+                    </div>
+                    <div class="mt-2 text-sm text-gray-600 italic truncate">
+                        "${chunk[0].substring(0, 60)}${chunk[0].length > 60 ? '...' : ''}"
+                    </div>
+                </button>
+            </div>
+        `;
         });
 
         this.modal.innerHTML = `
-            <div class="passive-learning-modal bg-white rounded-xl p-6 max-w-2xl w-full mx-4 shadow-2xl">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">🎧 Passive Learning - Select a Part</h2>
-                    <button id="pl-close-btn" class="text-gray-500 hover:text-gray-700">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-
-                <div class="mb-4 text-gray-600">
-                    <p class="mb-2">Your text contains ${this.sentences.length} sentences, which is too many for one session.</p>
-                    <p>Please select a part to practice (max 50 sentences per session):</p>
-                </div>
-
-                <div class="max-h-[400px] overflow-y-auto pr-2">
-                    ${optionsHTML}
-                </div>
-
-                <div class="mt-6 text-center text-sm text-gray-500">
-                    You can come back later to practice other parts.
-                </div>
+        <div class="passive-learning-modal bg-white rounded-xl p-6 max-w-2xl w-full mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">🎧 Passive Learning - Select a Part</h2>
+                <button id="pl-close-btn" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
             </div>
-        `;
+
+            <div class="mb-4 text-gray-600">
+                <p class="mb-2">Your text contains ${this.originalAllSentences.length} sentences, which is too many for one session.</p>
+                <p>Please select a part to practice (max 50 sentences per session):</p>
+            </div>
+
+            <div class="max-h-[400px] overflow-y-auto pr-2">
+                ${optionsHTML}
+            </div>
+
+            <div class="mt-6 text-center text-sm text-gray-500">
+                Completed parts are shown in green. You can come back later to practice other parts.
+            </div>
+        </div>
+    `;
 
         document.body.appendChild(this.modal);
 
@@ -203,6 +229,12 @@ export class PassiveLearningService {
                 // Set the sentences to the selected chunk
                 this.sentences = selectedChunk;
                 this.currentIndex = 0;
+                this.currentPartIndex = chunkIndex;
+
+                // Store part selection
+                if (this.selectedFlashcardList) {
+                    localStorage.setItem(`lastSelectedPart_PL_${this.selectedFlashcardList}`, chunkIndex);
+                }
 
                 // Remove the choice modal and create the practice modal
                 if (this.modal) {
@@ -214,6 +246,14 @@ export class PassiveLearningService {
                 this.processNextSentence();
             };
         });
+    }
+
+    isPartCompleted(partIndex) {
+        if (!this.selectedFlashcardList) return false;
+
+        const completionKey = `completedParts_PL_${this.selectedFlashcardList}`;
+        const completedParts = JSON.parse(localStorage.getItem(completionKey) || '[]');
+        return completedParts.includes(partIndex);
     }
 
     createModal() {
@@ -477,19 +517,87 @@ export class PassiveLearningService {
     }
 
     finish() {
+        // Track part completion before showing finish screen
+        this.trackPartCompletion();
+
         if (this.modal) {
             this.modal.innerHTML = `
-                <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl text-center">
-                    <div class="text-5xl mb-4">🎉</div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Session Complete!</h2>
-                    <p class="text-gray-600 mb-6">You've practiced all sentences.</p>
-                    <button id="pl-finish-btn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        Close
-                    </button>
-                </div>
-            `;
+            <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl text-center">
+                <div class="text-5xl mb-4">🎉</div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Session Complete!</h2>
+                <p class="text-gray-600 mb-4">You've practiced all sentences in this part.</p>
+                
+                ${this.selectedFlashcardList ?
+                    `<div class="mb-6 p-3 bg-blue-50 rounded-lg">
+                        <div class="font-medium text-blue-800">${this.selectedFlashcardList}</div>
+                        <div class="text-sm text-blue-600 mt-1">${this.checkAllPartsCompleted() ? '✅ All parts completed!' : 'Keep going to complete all parts!'}</div>
+                    </div>`
+                    : ''
+                }
+                
+                <button id="pl-finish-btn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Close
+                </button>
+            </div>
+        `;
             document.getElementById('pl-finish-btn').onclick = () => this.close();
         }
+    }
+
+    // NEW: Track part completion
+    trackPartCompletion() {
+        if (!this.selectedFlashcardList || this.currentPartIndex === -1) return;
+
+        const completionKey = `completedParts_PL_${this.selectedFlashcardList}`;
+        let completedParts = JSON.parse(localStorage.getItem(completionKey) || '[]');
+
+        if (!completedParts.includes(this.currentPartIndex)) {
+            completedParts.push(this.currentPartIndex);
+            localStorage.setItem(completionKey, JSON.stringify(completedParts));
+            console.log(`Passive Learning: Part ${this.currentPartIndex + 1} marked as completed for ${this.selectedFlashcardList}`);
+        }
+
+        // Also track the list itself
+        const plListArray = JSON.parse(localStorage.getItem('PLListArray') || '[]');
+        if (!plListArray.includes(this.selectedFlashcardList)) {
+            plListArray.push(this.selectedFlashcardList);
+            localStorage.setItem('PLListArray', JSON.stringify(plListArray));
+        }
+    }
+
+    // NEW: Check if all parts are completed
+    checkAllPartsCompleted() {
+        if (!this.selectedFlashcardList) return false;
+
+        const totalParts = Math.ceil(this.originalAllSentences.length / 50);
+        const completionKey = `completedParts_PL_${this.selectedFlashcardList}`;
+        const completedParts = JSON.parse(localStorage.getItem(completionKey) || '[]');
+
+        return completedParts.length >= totalParts;
+    }
+
+    // Add this method to the class
+    showCompletionNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50 animate-bounce';
+        notification.innerHTML = `
+        <div class="flex items-center">
+            <span class="text-2xl mr-3">🎧</span>
+            <div>
+                <div class="font-bold">Passive Learning Complete!</div>
+                <div>You've finished all parts of "${this.selectedFlashcardList}"!</div>
+            </div>
+        </div>
+    `;
+
+        document.body.appendChild(notification);
+
+        // Remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
     }
 
     close() {
