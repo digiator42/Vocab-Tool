@@ -94,8 +94,10 @@ export class ActiveRecallModule {
                 }
                 e.preventDefault();
             } else if (e.altKey && e.shiftKey && e.key === 'R') {
+                console.log('----> >> >>> >>');
                 e.preventDefault();
-                this.main.repeatAudio?.();
+                document.getElementById('ar-repeat-btn').click();
+                // this.main.repeatAudio();
             } else if (e.altKey && e.shiftKey && e.key === 'F') {
                 if (fuzzyMatch) {
                     fuzzyMatch.checked = !fuzzyMatch.checked;
