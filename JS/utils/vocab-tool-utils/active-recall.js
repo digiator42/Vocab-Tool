@@ -619,7 +619,7 @@ export class ActiveRecallModule {
                 🎧 Start Practice
             </button>
             <button id="ar-next-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors hidden">
-                ➡️ Next
+                ➡️ Skip
             </button>
             <button id="ar-back-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors hidden">
                 ⬅️ Previous
@@ -1128,8 +1128,12 @@ export class ActiveRecallModule {
                 if (hintDisplay) {
                     hintDisplay.classList.remove('hidden');
                     hintDisplay.style.display = 'block';
+                    hintDisplay.textContent = 'Loading...';
                 }
             }
+        }
+        if (document.getElementById('ar-current-sentence')) {
+            document.getElementById('ar-current-sentence').textContent = 'Loading...';
         }
         document.getElementById('ar-total').textContent = this.main.sentences.length;
         this.updateProgress();
