@@ -5,6 +5,8 @@ import { ImportExportManager } from '../utils/import-export.js';
 import { TabManager } from './tab-manager.js';
 import { ExerciseTool } from '../features/exercise-tool.js';
 import { germanStories } from '../utils/stories.js';
+// import { aiStories } from '../utils/stories.js';
+import { netzwerkA2Stories } from '../utils/netzwerk-a2-stories.js';
 import { SyncManager } from './sync-manager.js';
 
 const processBtn = document.getElementById("processBtn");
@@ -277,14 +279,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Function to render stories in the sidebar (simplified)
-    function renderStoriesInSidebar(filter) {
+    function renderStoriesInSidebar(filter, stories) {
+        if (!stories) {
+            stories = germanStories;
+        }
+
         const storiesContainer = document.getElementById('stories-list-container');
         if (!storiesContainer) return;
 
         storiesContainer.innerHTML = '';
 
         // Sort stories by title
-        const sortedStories = Object.entries(germanStories)
+        const sortedStories = Object.entries(stories)
             .sort((a, b) => a[1].title.localeCompare(b[1].title));
 
         sortedStories.forEach(([key, story]) => {
@@ -306,6 +312,123 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Load the story
                 displayStory(lastStoryKey);
             }
+        }
+    }
+
+    function renderTextsInSidebar(filter, texts = netzwerkA2Stories) {
+        const storiesContainer = document.getElementById('stories-list-container');
+        if (!storiesContainer) return;
+
+        storiesContainer.innerHTML = '';
+
+        Object.entries(texts).forEach(([level, pages]) => {
+            Object.entries(pages).forEach(([pageRange, stories]) => {
+                // Check if any story in this page matches the filter
+                const filteredStories = Object.entries(stories).filter(([storyKey, story]) => {
+                    return !filter || story.title.toLowerCase().includes(filter.toLowerCase());
+                });
+
+                if (filteredStories.length === 0) return;
+
+                // Create one combined story for the entire page range
+                const combinedStory = {
+                    title: `${pageRange} - ${level}`,
+                    // Combine all texts with double line breaks
+                    text: filteredStories.map(([storyKey, story]) =>
+                        `${story.title}\n\n${story.text}`
+                    ).join('\n\n\n\n') // Double line break between stories
+                };
+
+                const storyKey = `${level}-${pageRange.replace(/\s+/g, '-').toLowerCase()}`;
+                // Pass pageRange as the 4th parameter
+                const { storyElement, colorClass } = createTextElement(storyKey, combinedStory, level, pageRange);
+
+                storyElement.addEventListener('click', () => {
+                    // Pass all story keys for this page
+                    displayNetzwerkA2CombinedStory(level, pageRange, filteredStories.map(s => s[0]));
+                });
+
+                storiesContainer.appendChild(storyElement);
+                storyElement.classList.add(colorClass);
+            });
+        });
+    }
+
+    // Update createTextElement to accept pageRange
+    function createTextElement(key, story, level, pageRange) {
+        const div = document.createElement('div');
+        div.className = 'story-item';
+        div.setAttribute('data-story-key', key);
+
+        // Estimate word count using story.text
+        const wordCount = estimateWordCount(story.text);
+
+        let colorClass = 'bg-gray-800';
+        if (level === 'A1') {
+            colorClass = 'bg-green-200';
+        } else if (level === 'A2/B1') {
+            colorClass = 'bg-sky-200';
+        } else if (level === 'A2') {
+            colorClass = 'bg-yellow-200';
+        } else if (level === 'B1') {
+            colorClass = 'bg-purple-200';
+        }
+
+        // Calculate number of texts in this page range
+        const numTexts = pageRange && netzwerkA2Stories[level] && netzwerkA2Stories[level][pageRange]
+            ? Object.keys(netzwerkA2Stories[level][pageRange]).length
+            : 0;
+
+        div.innerHTML = `
+        <div class="flex flex-col">
+            <div class="text-xs font-medium">${story.title}</div>
+            <div class="text-xs text-gray-500 mt-1">
+                ${numTexts} texts • ${wordCount} words
+            </div>
+        </div>
+    `;
+
+        div.addEventListener('click', () => {
+            // Remove active class from all stories
+            document.querySelectorAll('.story-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Add active class to clicked story
+            div.classList.add('active');
+        });
+
+        return { storyElement: div, colorClass };
+    }
+
+    // New function to display combined story
+    function displayNetzwerkA2CombinedStory(level, pageRange, storyKeys) {
+        if (!netzwerkA2Stories[level] || !netzwerkA2Stories[level][pageRange]) return;
+
+        const storyContainer = document.getElementById('input');
+        let combinedText = '';
+
+        // Combine all stories from this page
+        storyKeys.forEach(storyKey => {
+            const story = netzwerkA2Stories[level][pageRange][storyKey];
+            if (story) {
+                combinedText += `${story.title}\n\n${story.text}\n\n\n\n`;
+            }
+        });
+
+        // Remove the last extra line breaks
+        combinedText = combinedText.trim();
+
+        // const formattedText = formatStoryText(combinedText);
+        storyContainer.value = combinedText;
+
+        // Save selected story information to localStorage
+        localStorage.setItem('lastSelectedStory', `${level}-${pageRange}`);
+        currentStoryKey = `${level}-${pageRange}`;
+
+        // Trigger processing of the new story
+        if (processBtn) {
+            processBtn.click();
         }
     }
 
@@ -372,6 +495,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const storyContainer = document.getElementById('input');
         const originalText = germanStories[storyKey].text;
+        const formattedText = formatStoryText(originalText);
+        storyContainer.value = formattedText;
+
+        // Save selected story KEY to localStorage
+        localStorage.setItem('lastSelectedStory', storyKey);
+        currentStoryKey = storyKey;
+
+        // Trigger processing of the new story
+        if (processBtn) {
+            processBtn.click();
+        }
+    }
+
+    function displayNetzwerkA2Story(level, pageRange, storyKey) {
+        if (!netzwerkA2Stories[level][pageRange][storyKey]) return;
+
+        const storyContainer = document.getElementById('input');
+        const originalText = netzwerkA2Stories[level][pageRange][storyKey].text;
         const formattedText = formatStoryText(originalText);
         storyContainer.value = formattedText;
 
@@ -500,6 +641,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initial render of stories
     renderStoriesInSidebar();
+
+    // AI Stories button
+    document.getElementById('ai-stories-btn').addEventListener('click', () => {
+        renderStoriesInSidebar(null, germanStories);
+    });
+
+    // Netzwerk neu A2 button
+    document.getElementById('netzwerk-a2-btn').addEventListener('click', () => {
+        renderTextsInSidebar(null, netzwerkA2Stories);
+    });
 
     // Filter buttons
     document.getElementById('filter-all').addEventListener('click', () => {
