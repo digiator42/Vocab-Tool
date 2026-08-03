@@ -1,6 +1,5 @@
 
-# 📚 German Learning Tools - Complete User Guide
-
+# 📚 Your German Guide
 
 ## Vocabulary Tool
 
