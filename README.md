@@ -138,7 +138,8 @@ Fill in the blanks:
 | `M`       | Mark as Mastered/Not Mastered |
 
 ### SSR MODE
-
+| Shortcut  | Action                        |
+| --------- | ----------------------------- |
 | `A`       | SR - Again (1 minute)         |
 | `H`       | SR - Hard (30 minutes)        |
 | `G`       | SR - Good (4 days)            |
