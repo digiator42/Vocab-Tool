@@ -13,6 +13,10 @@ export class PassiveLearningService {
         this.transcriptBuffer = '';
         this.successFound = false;
 
+        this.sessionId = 0;
+        this.activeTarget = null;
+        this.activeSessionId = null;
+
         this.selectedFlashcardList = null;
         this.currentPartIndex = -1;
         this.originalAllSentences = [];
@@ -317,18 +321,18 @@ export class PassiveLearningService {
 
         document.getElementById('pl-close-btn').onclick = () => this.close();
         document.getElementById('pl-mic-btn').onclick = () => this.startListening();
-        document.getElementById('pl-skip-btn').onclick = () => this.nextSentence();
+        document.getElementById('pl-skip-btn').onclick = () => {
+            this.abortListening();
+            this.nextSentence();
+        };
     }
 
     async processNextSentence() {
-        if (this.currentIndex >= this.sentences.length) {
-            this.finish();
-            return;
-        }
-
+        if (this.currentIndex >= this.sentences.length) { this.finish(); return; }
+        this.sessionId++;               // invalidate any in-flight recognition/translation from before
+        const mySession = this.sessionId;
         const sentence = this.sentences[this.currentIndex];
 
-        // Get translation
         try {
             this.currentTranslation = await this.vocabTool.translate(sentence);
         } catch (e) {
@@ -336,9 +340,9 @@ export class PassiveLearningService {
             this.currentTranslation = "Translation unavailable";
         }
 
-        this.updateUI(sentence);
+        if (!this.modal || mySession !== this.sessionId) return; // user moved on/closed while awaiting
 
-        // Reset state for new sentence
+        this.updateUI(sentence);
         this.playCount = 0;
         this.transcriptBuffer = '';
         const displayEl = document.getElementById('pl-transcript-display');
@@ -352,21 +356,21 @@ export class PassiveLearningService {
         await this.playSequence(sentence);
     }
 
-    async playSequence(sentence) {
+    
+    async playSequence(sentence, mySession) {
         this.isPlaying = true;
         this.updateUI();
 
         for (let i = 1; i <= this.maxPlays; i++) {
-            if (!this.modal) return; // Stopped
+            if (!this.modal || mySession !== this.sessionId) { this.isPlaying = false; return; }
             this.playCount = i;
             this.updateStatus(`Playing ${i}/${this.maxPlays}...`);
-            await this.vocabTool.speech.speak(sentence, 'de', this.vocabTool.useOfflineSpeak, false); // Using existing speak method
-
-            if (i < this.maxPlays) {
-                await new Promise(r => setTimeout(r, 1000)); // Pause between plays
-            }
+            await this.vocabTool.speech.speak(sentence, 'de', this.vocabTool.useOfflineSpeak, false);
+            if (mySession !== this.sessionId) { this.isPlaying = false; return; }
+            if (i < this.maxPlays) await new Promise(r => setTimeout(r, 1000));
         }
 
+        if (mySession !== this.sessionId) { this.isPlaying = false; return; }
         this.isPlaying = false;
         this.updateStatus('Now repeat the sentence!');
         this.updateUI();
@@ -382,6 +386,9 @@ export class PassiveLearningService {
             return;
         }
 
+        this.activeTarget = this.sentences[this.currentIndex];
+        this.activeSessionId = this.sessionId;
+
         this.transcriptBuffer = '';
         this.successFound = false;
         const displayEl = document.getElementById('pl-transcript-display');
@@ -395,10 +402,19 @@ export class PassiveLearningService {
         this.updateUI();
     }
 
+    abortListening() {
+        if (this.recognition && this.isListening) {
+            this.successFound = true; // stop onend from re-checking a stale buffer
+            this.recognition.stop();
+        }
+        this.isListening = false;
+    }
+
     checkInput(transcript, isFinalCheck) {
         if (!transcript) return;
+        if (this.activeSessionId !== this.sessionId) return; // stale — sentence already moved on
 
-        const target = this.sentences[this.currentIndex];
+        const target = this.activeTarget;
         const normalizedTranscript = transcript.toLowerCase().replace(/[.,!?]/g, '').trim();
         const normalizedTarget = target.toLowerCase().replace(/[.,!?]/g, '').trim();
 

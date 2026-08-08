@@ -4,6 +4,7 @@ export class SpeechService {
         this.main = main;
         this.isSpeaking = false;
         this.germanVoices = [];
+        this.currentAudio = null;
     }
 
     speak(text, lang = "de", slow = this.main.useSlowVoice, isFullText = false) {
@@ -27,16 +28,32 @@ export class SpeechService {
                         this.speakSelectedText(text, selectedVoiceName, this.main.rate).then(resolve);
                     }
                 } else {
+                    // Stop any still-playing online audio before starting a new one
+                    if (this.currentAudio) {
+                        this.currentAudio.pause();
+                        this.currentAudio.currentTime = 0;
+                        this.currentAudio.onended = null;
+                        this.currentAudio.onerror = null;
+                        this.currentAudio = null;
+                    }
                     console.log('online speak', slow ? 'Slow voice is activated' : 'Slow Voice NOT active');
                     const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${lang}&slow=${slow}`;
                     const audio = new Audio(url);
-                    audio.play();
+                    this.currentAudio = audio;
+
+                    audio.play().catch(() => {
+                        this.main.setStatus("Speech error");
+                        if (this.currentAudio === audio) this.currentAudio = null;
+                        resolve();
+                    });
                     audio.onplaying = () => this.main.setStatus("Speaking...");
                     audio.onended = () => {
+                        if (this.currentAudio === audio) this.currentAudio = null;
                         this.main.setStatus("Ready");
                         resolve();
                     };
                     audio.onerror = () => {
+                        if (this.currentAudio === audio) this.currentAudio = null;
                         this.main.setStatus("Speech error");
                         resolve();
                     };
@@ -243,6 +260,14 @@ export class SpeechService {
     }
 
     stopSpeech() {
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio.currentTime = 0;
+            this.currentAudio.onended = null;
+            this.currentAudio.onerror = null;
+            this.currentAudio = null;
+        }
+
         this.main.isStopSpeechRequested = !this.main.isStopSpeechRequested;
         const focusModeStopBtn = document.getElementById("focus-stop-btn");
         const stopSpeecBtn = document.getElementById("stopSpeechBtn");
