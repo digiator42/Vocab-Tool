@@ -1215,6 +1215,12 @@ input:checked+label::before {
     width: 100%;
 }
 
+/* In focus mode the viewer is wider, so toolbar and labels follow the page. */
+.pdf-container-focus .pdf-toolbar,
+.pdf-container-focus .pdf-page-label {
+    max-width: 1400px;
+}
+
 .pdf-toolbar {
     display: flex;
     align-items: center;

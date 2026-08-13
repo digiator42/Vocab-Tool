@@ -231,8 +231,14 @@ export class PdfReader {
         output.style.lineHeight = '1.4';
         output.style.padding = '1.5rem';
 
-        const avail = Math.max(320, (output.clientWidth || 800) - 120);
-        const targetW = Math.min(820, avail);
+        // In focus mode #output fills the whole viewport, so use the window
+        // width and a larger page cap instead of the collapsed output width.
+        const isFocus = !!this.main.isFocusMode;
+        const avail = isFocus
+            ? Math.max(320, (window.innerWidth || 1400) - 96)
+            : Math.max(320, (output.clientWidth || 800) - 120);
+        const cap = isFocus ? 1400 : 820;
+        const targetW = Math.min(cap, avail);
 
         this.renderedPages = 0;
         this.pageChunk = (typeof this.main.pdfPageSize === 'number' && this.main.pdfPageSize > 0)
@@ -240,7 +246,7 @@ export class PdfReader {
             : DEFAULT_PDF_PAGE_CHUNK;
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'pdf-container';
+        wrapper.className = 'pdf-container' + (isFocus ? ' pdf-container-focus' : '');
 
         // Toolbar with file info, per-view page count, and close button
         const toolbar = document.createElement('div');
