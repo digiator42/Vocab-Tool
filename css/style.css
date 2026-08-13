@@ -1209,3 +1209,101 @@ input:checked+label::before {
 #vocab-stories-sidebar.active {
     z-index: 999 !important;
 }
+
+/* ============ PDF reader view ============ */
+.pdf-container {
+    width: 100%;
+}
+
+.pdf-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    max-width: 820px;
+    margin: 0 auto 1rem auto;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.dark-mode .pdf-toolbar {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+}
+
+.pdf-toolbar-info {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.pdf-close-btn {
+    flex-shrink: 0;
+    padding: 0.3rem 0.75rem;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.pdf-close-btn:hover {
+    background: #dc2626;
+}
+
+.pdf-page {
+    position: relative;
+    background: #ffffff;
+    color: #111827;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+    border-radius: 2px;
+    margin: 0 auto 0.5rem auto;
+    overflow: visible;
+}
+
+.dark-mode .pdf-page {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
+}
+
+/* Use `#output .pdf-word` so it beats the app's `#output span` rule
+   (higher specificity); the JS also sets position inline as a backstop. */
+#output .pdf-word {
+    position: absolute;
+    white-space: nowrap;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background-color 0.12s ease;
+    line-height: 1.2;
+}
+
+.pdf-word:hover {
+    background-color: rgba(255, 235, 59, 0.35);
+}
+
+.dark-mode .pdf-word:hover {
+    background-color: rgba(255, 213, 0, 0.4);
+}
+
+.pdf-page-label {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin: 0 auto 2rem auto;
+    padding: 0.25rem 0;
+    max-width: 820px;
+}
+
+/* Keep the absolutely positioned PDF words pixel-stable when highlighted:
+   neutralise the margin/padding the group-selection styles normally add. */
+.pdf-page span.highlighted,
+.pdf-page span.multi-highlighted {
+    margin: 0 !important;
+    padding: 0 !important;
+}

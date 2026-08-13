@@ -329,7 +329,7 @@ export class PassiveLearningService {
 
     async processNextSentence() {
         if (this.currentIndex >= this.sentences.length) { this.finish(); return; }
-        this.sessionId++;               // invalidate any in-flight recognition/translation from before
+        this.sessionId++;
         const mySession = this.sessionId;
         const sentence = this.sentences[this.currentIndex];
 
@@ -340,7 +340,7 @@ export class PassiveLearningService {
             this.currentTranslation = "Translation unavailable";
         }
 
-        if (!this.modal || mySession !== this.sessionId) return; // user moved on/closed while awaiting
+        if (!this.modal || mySession !== this.sessionId) return;
 
         this.updateUI(sentence);
         this.playCount = 0;
@@ -353,7 +353,7 @@ export class PassiveLearningService {
 
         this.updateStatus('Listen carefully...');
 
-        await this.playSequence(sentence);
+        await this.playSequence(sentence, mySession);   // <-- pass it here
     }
 
     
@@ -365,7 +365,7 @@ export class PassiveLearningService {
             if (!this.modal || mySession !== this.sessionId) { this.isPlaying = false; return; }
             this.playCount = i;
             this.updateStatus(`Playing ${i}/${this.maxPlays}...`);
-            await this.vocabTool.speech.speak(sentence, 'de', this.vocabTool.useOfflineSpeak, false);
+            await this.vocabTool.speech.speak(sentence, 'de', this.vocabTool.useSlowVoice, false);
             if (mySession !== this.sessionId) { this.isPlaying = false; return; }
             if (i < this.maxPlays) await new Promise(r => setTimeout(r, 1000));
         }

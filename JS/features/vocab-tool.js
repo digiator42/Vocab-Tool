@@ -5,6 +5,7 @@ import { ActiveRecallModule } from '../utils/vocab-tool-utils/active-recall.js';
 import { ArticleService } from '../utils/vocab-tool-utils/article-service.js';
 import { FlashcardListService } from '../utils/vocab-tool-utils/flashcard-list.js';
 import { PassiveLearningService } from '../utils/vocab-tool-utils/passive-learning.js';
+import { PdfReader } from './pdf-reader.js';
 
 // Vocabulary Tool Module
 export class VocabularyTool {
@@ -58,6 +59,9 @@ export class VocabularyTool {
         this.article = new ArticleService(this);
         this.FCL = new FlashcardListService(this);
         this.passiveLearning = new PassiveLearningService(this);
+        this.pdfReader = new PdfReader(this);
+        this.pdfMode = false;
+        this.pdfData = null;
         this.init();
     }
 
@@ -69,6 +73,7 @@ export class VocabularyTool {
         this.AR.setupActiveRecall();
         this.FCL.setupFlashcardListSelection();
         this.setupFocusMode();
+        this.setupPdfUpload();
         this.speech.loadVoices();
         window.vocabTool = this;
         if (!this.isTouchDevice) {
@@ -898,8 +903,117 @@ export class VocabularyTool {
         return false;
     }
 
+    setupPdfUpload() {
+        const container = document.getElementById('extra-tools-container');
+        if (!container) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'upload-pdf-btn';
+        btn.textContent = '📄 Upload PDF';
+        btn.className = 'px-4 py-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700';
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/pdf';
+        input.className = 'hidden';
+        input.id = 'pdf-file-input';
+
+        btn.addEventListener('click', () => input.click());
+        input.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (file) {
+                this.loadPdfFile(file);
+            }
+            input.value = '';
+        });
+
+        container.appendChild(btn);
+        container.appendChild(input);
+    }
+
+    async loadPdfFile(file) {
+        this.setStatus("Extracting text from PDF…");
+        try {
+            await this.pdfReader.loadPdf(file);
+            this.setStatus(`Loaded PDF: ${file.name} (${this.pdfData.pages.length} pages)`);
+        } catch (err) {
+            console.error('PDF load failed:', err);
+            this.setStatus('PDF load failed: ' + (err && err.message ? err.message : err));
+        }
+    }
+
+    renderPdfPages() {
+        if (!this.pdfMode || !this.pdfData) return;
+        this.pdfReader.renderPdf(this.pdfData);
+        this.clearAllSelections();
+    }
+
+    renderTextToOutput() {
+        this.output.innerHTML = "";
+        this.output.style.whiteSpace = '';
+        this.output.style.textAlign = '';
+        this.output.style.lineHeight = '';
+        this.output.style.padding = '';
+
+        // Preserve newlines and natural text flow
+        const lines = this.input.value.split('\n');
+
+        lines.forEach((line, lineIndex) => {
+            if (line.trim() === '') {
+                // Add empty line (paragraph break)
+                this.output.appendChild(document.createElement('br'));
+            } else {
+                // Process each line separately to preserve line breaks
+                const words = line.split(/\s+/).filter(Boolean);
+
+                words.forEach((word, wordIndex) => {
+                    const span = document.createElement("span");
+                    span.textContent = word;
+                    // Make spans flexible for highlighting - they'll wrap naturally
+                    span.className = "inline-block relative cursor-pointer hover:bg-yellow-100 rounded mx-0.5 max-w-full";
+                    span.style.wordWrap = "break-word";
+                    span.style.overflowWrap = "break-word";
+                    this.output.appendChild(span);
+
+                    // Add space between words (except last word in line)
+                    if (wordIndex < words.length - 1) {
+                        this.output.appendChild(document.createTextNode(' '));
+                    }
+                });
+
+                // Add line break after each line (except last line)
+                if (lineIndex < lines.length - 1) {
+                    this.output.appendChild(document.createElement('br'));
+                }
+            }
+        });
+
+        this.setStatus("Text processed");
+        this.clearAllSelections();
+    }
+
+    exitPdfMode() {
+        this.pdfMode = false;
+        this.pdfData = null;
+        this.isProcessed = true;
+        this.processBtn.innerText = "Reset";
+        this.renderTextToOutput();
+    }
+
     setupEventListeners() {
         this.processBtn.addEventListener("click", () => {
+            if (this.pdfMode && this.pdfData) {
+                this.isProcessed = true;
+                this.processBtn.innerText = "Reset";
+                const focusModeGoBTN = document.getElementById("focus-go-btn");
+                if (focusModeGoBTN) {
+                    focusModeGoBTN.innerText = "Reset";
+                }
+                this.renderPdfPages();
+                this.setStatus("PDF loaded");
+                return;
+            }
+
             this.output.innerHTML = "";
             this.isProcessed = !this.isProcessed;
             this.processBtn.innerText = this.isProcessed ? "Reset" : "Process";
@@ -908,41 +1022,7 @@ export class VocabularyTool {
                 focusModeGoBTN.innerText = this.processBtn.innerText;
             }
 
-            // Preserve newlines and natural text flow
-            const lines = this.input.value.split('\n');
-
-            lines.forEach((line, lineIndex) => {
-                if (line.trim() === '') {
-                    // Add empty line (paragraph break)
-                    this.output.appendChild(document.createElement('br'));
-                } else {
-                    // Process each line separately to preserve line breaks
-                    const words = line.split(/\s+/).filter(Boolean);
-
-                    words.forEach((word, wordIndex) => {
-                        const span = document.createElement("span");
-                        span.textContent = word;
-                        // Make spans flexible for highlighting - they'll wrap naturally
-                        span.className = "inline-block relative cursor-pointer hover:bg-yellow-100 rounded mx-0.5 max-w-full";
-                        span.style.wordWrap = "break-word";
-                        span.style.overflowWrap = "break-word";
-                        this.output.appendChild(span);
-
-                        // Add space between words (except last word in line)
-                        if (wordIndex < words.length - 1) {
-                            this.output.appendChild(document.createTextNode(' '));
-                        }
-                    });
-
-                    // Add line break after each line (except last line)
-                    if (lineIndex < lines.length - 1) {
-                        this.output.appendChild(document.createElement('br'));
-                    }
-                }
-            });
-
-            this.setStatus("Text processed");
-            this.clearAllSelections();
+            this.renderTextToOutput();
         });
 
         this.stopSpeechBtn.addEventListener("click", () => this.speech.stopSpeech());

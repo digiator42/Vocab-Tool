@@ -121,7 +121,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Save selected story KEY to localStorage
         localStorage.setItem('lastSelectedStory', selectedKey);
+        exitPdfModeIfActive();
         processBtn.click();  // Trigger processing of the new story
+    }
+
+    // If a PDF is currently open in the vocab tool, close it before loading a story
+    function exitPdfModeIfActive() {
+        if (window.vocabTool && typeof window.vocabTool.exitPdfMode === 'function' && window.vocabTool.pdfMode) {
+            window.vocabTool.exitPdfMode();
+        }
     }
 
     function formatStoryText(text) {
@@ -427,6 +435,7 @@ document.addEventListener('DOMContentLoaded', function () {
         currentStoryKey = `${level}-${pageRange}`;
 
         // Trigger processing of the new story
+        exitPdfModeIfActive();
         if (processBtn) {
             processBtn.click();
         }
@@ -503,6 +512,7 @@ document.addEventListener('DOMContentLoaded', function () {
         currentStoryKey = storyKey;
 
         // Trigger processing of the new story
+        exitPdfModeIfActive();
         if (processBtn) {
             processBtn.click();
         }
@@ -521,6 +531,7 @@ document.addEventListener('DOMContentLoaded', function () {
         currentStoryKey = storyKey;
 
         // Trigger processing of the new story
+        exitPdfModeIfActive();
         if (processBtn) {
             processBtn.click();
         }
