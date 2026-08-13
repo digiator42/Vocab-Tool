@@ -14,6 +14,11 @@ const PDFJS_WORKER_URL = `${PDFJS_BASE}/pdf.worker.min.js`;
 const PDFJS_STANDARD_FONTS_URL = `${PDFJS_DIST}/standard_fonts/`;
 const PDFJS_CMAPS_URL = `${PDFJS_DIST}/cmaps/`;
 
+// How many pages are rendered into the DOM at once. Rendering a huge PDF
+// (100-200+ pages) as one giant DOM tree freezes the browser, so pages are
+// appended in batches via a "load more" button.
+const DEFAULT_PDF_PAGE_CHUNK = 10;
+
 let pdfjsLibPromise = null;
 
 function loadPdfJs() {
@@ -41,6 +46,10 @@ export class PdfReader {
     constructor(main) {
         this.main = main;
         this.measureCanvas = null;
+        this.renderedPages = 0;
+        this.pageChunk = DEFAULT_PDF_PAGE_CHUNK;
+        this.pdfDoc = null;
+        this.renderTasks = new Set();
     }
 
     guessFontFamily(fontName) {
@@ -64,12 +73,18 @@ export class PdfReader {
     async loadPdf(file) {
         const pdfjsLib = await loadPdfJs();
         const data = await file.arrayBuffer();
+        this.cancelPendingRenders();
+        if (this.pdfDoc) {
+            await this.pdfDoc.destroy();
+            this.pdfDoc = null;
+        }
         const pdf = await pdfjsLib.getDocument({
             data,
             standardFontDataUrl: PDFJS_STANDARD_FONTS_URL,
             cMapUrl: PDFJS_CMAPS_URL,
             cMapPacked: true
         }).promise;
+        this.pdfDoc = pdf;
 
         const pages = [];
         const texts = [];
@@ -86,13 +101,26 @@ export class PdfReader {
             texts.push(extracted.text);
         }
 
-        await pdf.destroy();
-
         this.main.pdfMode = true;
         this.main.pdfData = { name: file.name, pages };
         this.main.input.value = texts.join('\n\n').trim();
         this.main.isProcessed = true;
         this.main.renderPdfPages();
+    }
+
+    cancelPendingRenders() {
+        for (const task of this.renderTasks) {
+            try { task.cancel(); } catch (e) { /* already finished */ }
+        }
+        this.renderTasks.clear();
+    }
+
+    destroy() {
+        this.cancelPendingRenders();
+        if (this.pdfDoc) {
+            this.pdfDoc.destroy().catch(() => {});
+            this.pdfDoc = null;
+        }
     }
 
     extractPage(pageNumber, items, viewport) {
@@ -166,15 +194,36 @@ export class PdfReader {
                 }
             }
             line.words = words;
+
+            // Enforce a minimum visual gap between consecutive words. PDF word
+            // coordinates sometimes leave no room for the space glyph (or the
+            // embedded font is more condensed than our guessed system font), which
+            // makes words look jammed. Nudge words right only where the gap is too
+            // small, so most of the original layout is preserved.
+            if (words.length > 1) {
+                const minGap = fs * 0.28;
+                let lastEnd = words[0].x + words[0].width;
+                for (let i = 1; i < words.length; i++) {
+                    const gap = words[i].x - lastEnd;
+                    if (gap < minGap) {
+                        const shift = minGap - gap;
+                        for (let j = i; j < words.length; j++) {
+                            words[j].x += shift;
+                        }
+                    }
+                    lastEnd = words[i].x + words[i].width;
+                }
+            }
         }
 
         // Plain text (used for the textarea so sentence lookup etc. still work).
         const text = lines.map(line => line.items.map(it => it.str).join(' ')).join('\n');
 
-        return { pageNumber, width: W, height: H, lines, text };
+        return { pageNumber, width: W, height: H, lines, text, hasText: lines.some(line => line.words.length > 0) };
     }
 
     renderPdf(pdfData) {
+        this.cancelPendingRenders();
         const output = this.main.output;
         output.innerHTML = '';
         output.style.whiteSpace = 'normal';
@@ -185,25 +234,65 @@ export class PdfReader {
         const avail = Math.max(320, (output.clientWidth || 800) - 120);
         const targetW = Math.min(820, avail);
 
+        this.renderedPages = 0;
+        this.pageChunk = (typeof this.main.pdfPageSize === 'number' && this.main.pdfPageSize > 0)
+            ? this.main.pdfPageSize
+            : DEFAULT_PDF_PAGE_CHUNK;
+
         const wrapper = document.createElement('div');
         wrapper.className = 'pdf-container';
 
-        // Toolbar with file info + close button
+        // Toolbar with file info, per-view page count, and close button
         const toolbar = document.createElement('div');
         toolbar.className = 'pdf-toolbar';
         const info = document.createElement('span');
         info.className = 'pdf-toolbar-info';
         info.textContent = `📄 ${pdfData.name} — ${pdfData.pages.length} page${pdfData.pages.length === 1 ? '' : 's'}`;
+        toolbar.appendChild(info);
+
+        const perView = document.createElement('select');
+        perView.className = 'pdf-per-view';
+        perView.title = 'Pages to show at a time';
+        const options = [
+            { value: '10', label: '10 pages' },
+            { value: '25', label: '25 pages' },
+            { value: '50', label: '50 pages' },
+            { value: 'all', label: 'All pages' }
+        ];
+        for (const opt of options) {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.label;
+            perView.appendChild(option);
+        }
+        perView.value = this.pageChunk === Infinity ? 'all' : String(this.pageChunk);
+        perView.addEventListener('change', () => {
+            this.pageChunk = perView.value === 'all' ? Infinity : parseInt(perView.value, 10) || DEFAULT_PDF_PAGE_CHUNK;
+            this.main.pdfPageSize = this.pageChunk;
+            this.renderPdf(pdfData);
+        });
+        toolbar.appendChild(perView);
+
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'pdf-close-btn';
         closeBtn.textContent = '✕ Close PDF';
         closeBtn.addEventListener('click', () => this.main.exitPdfMode());
-        toolbar.appendChild(info);
         toolbar.appendChild(closeBtn);
         wrapper.appendChild(toolbar);
 
-        for (const page of pdfData.pages) {
+        this.appendPageBatch(wrapper, pdfData, targetW);
+        output.appendChild(wrapper);
+    }
+
+    appendPageBatch(wrapper, pdfData, targetW) {
+        const pages = pdfData.pages;
+        const chunk = this.pageChunk === Infinity ? pages.length : this.pageChunk;
+        const end = Math.min(this.renderedPages + chunk, pages.length);
+        const start = this.renderedPages;
+
+        for (let i = start; i < end; i++) {
+            const page = pages[i];
             const scale = page.width > 0 ? targetW / page.width : 1;
 
             const pageEl = document.createElement('div');
@@ -213,23 +302,28 @@ export class PdfReader {
             pageEl.style.height = `${Math.round(page.height * scale)}px`;
 
             let wordCount = 0;
-            for (const line of page.lines) {
-                const topPx = line.y * scale;
-                for (const word of line.words) {
-                    const span = document.createElement('span');
-                    span.textContent = word.text;
-                    span.className = 'pdf-word cursor-pointer';
-                    // Inline position is required: the app stylesheet's
-                    // `#output span { position: relative }` would otherwise
-                    // override the .pdf-word class and scatter the words.
-                    span.style.position = 'absolute';
-                    span.style.left = `${Math.round(word.x * scale * 10) / 10}px`;
-                    span.style.top = `${Math.round(topPx * 10) / 10}px`;
-                    span.style.fontSize = `${Math.round(word.fs * scale * 10) / 10}px`;
-                    span.style.fontFamily = word.family;
-                    pageEl.appendChild(span);
-                    wordCount++;
+            if (page.hasText) {
+                for (const line of page.lines) {
+                    const topPx = line.y * scale;
+                    for (const word of line.words) {
+                        const span = document.createElement('span');
+                        span.textContent = word.text;
+                        span.className = 'pdf-word cursor-pointer';
+                        // Inline position is required: the app stylesheet's
+                        // `#output span { position: relative }` would otherwise
+                        // override the .pdf-word class and scatter the words.
+                        span.style.position = 'absolute';
+                        span.style.left = `${Math.round(word.x * scale * 11) / 10}px`;
+                        span.style.top = `${Math.round(topPx * 10) / 10}px`;
+                        span.style.fontSize = `${Math.round(word.fs * scale * 10) / 10}px`;
+                        span.style.fontFamily = word.family;
+                        pageEl.appendChild(span);
+                        wordCount++;
+                    }
                 }
+            } else {
+                // Scanned / image-only page: render it as an image.
+                this.renderPageImage(page, pageEl, scale);
             }
 
             wrapper.appendChild(pageEl);
@@ -244,6 +338,46 @@ export class PdfReader {
             wrapper.appendChild(label);
         }
 
-        output.appendChild(wrapper);
+        this.renderedPages = end;
+
+        // Yield to the browser between batches so large files never freeze the UI.
+        if (this.renderedPages < pages.length) {
+            const remaining = pages.length - this.renderedPages;
+            const loadMore = document.createElement('button');
+            loadMore.type = 'button';
+            loadMore.className = 'pdf-load-more-btn';
+            loadMore.textContent = `Load next ${Math.min(chunk, remaining)} page${Math.min(chunk, remaining) === 1 ? '' : 's'} (${this.renderedPages} of ${pages.length})`;
+            loadMore.addEventListener('click', () => {
+                loadMore.remove();
+                this.appendPageBatch(wrapper, pdfData, targetW);
+            });
+            wrapper.appendChild(loadMore);
+        }
+    }
+
+    async renderPageImage(page, pageEl, scale) {
+        if (!this.pdfDoc) return;
+        const pdfPage = await this.pdfDoc.getPage(page.pageNumber);
+        const viewport = pdfPage.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pdf-page-image';
+        canvas.width = Math.round(viewport.width);
+        canvas.height = Math.round(viewport.height);
+        const task = pdfPage.render({
+            canvasContext: canvas.getContext('2d'),
+            viewport
+        });
+        this.renderTasks.add(task);
+        try {
+            await task.promise;
+        } catch (e) {
+            // render was cancelled (re-render or new PDF) or failed
+        } finally {
+            this.renderTasks.delete(task);
+            pdfPage.cleanup();
+        }
+        if (pageEl.isConnected) {
+            pageEl.appendChild(canvas);
+        }
     }
 }

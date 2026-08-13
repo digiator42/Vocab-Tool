@@ -997,6 +997,7 @@ export class VocabularyTool {
         this.pdfData = null;
         this.isProcessed = true;
         this.processBtn.innerText = "Reset";
+        this.pdfReader.destroy();
         this.renderTextToOutput();
     }
 
