@@ -19,7 +19,88 @@ const PDFJS_CMAPS_URL = `${PDFJS_DIST}/cmaps/`;
 // appended in batches via a "load more" button.
 const DEFAULT_PDF_PAGE_CHUNK = 10;
 
+// Text layout settings, editable via the toolbar's "Text layout" panel. The
+// defaults reproduce the reader's original look (1.1x word spacing, 6px right
+// margin, natural font size).
+const DEFAULT_LAYOUT = { fontSize: 100, wordGap: 110, marginLeft: 0, marginRight: 6 };
+const LAYOUT_STORAGE_KEY = 'vtPdfLayout';
+
+// Minimum space kept between two words during re-flow, as a fraction of the
+// font size. PDFs with tightly-set (jammed) text have almost no inter-word
+// gap; without this floor the rendered words look glued together.
+const MIN_WORD_GAP = 0.4;
+
 let pdfjsLibPromise = null;
+
+// Matches words (in document order) against the operator-list text runs so each
+// word can inherit the fill color that was active when the PDF drew it.
+class ColorRunMatcher {
+    constructor(runs) {
+        this.runs = runs;
+        this.ri = 0;
+        this.pos = 0;
+        this.synced = true;
+    }
+
+    consume(str) {
+        if (!this.synced || !str) return null;
+        const direct = this.matchFrom(this.ri, this.pos, str);
+        if (direct) {
+            this.ri = direct.ri;
+            this.pos = direct.pos;
+            return direct.color;
+        }
+        // The stream and the text content can diverge (e.g. invisible OCR text
+        // layers): skip ahead to the next occurrence of the string.
+        const found = this.findAhead(str, this.ri, this.pos);
+        if (found) {
+            this.ri = found.ri;
+            this.pos = found.pos;
+            return found.color;
+        }
+        this.synced = false;
+        return null;
+    }
+
+    matchFrom(ri, pos, str) {
+        let idx = 0;
+        let firstColor = null;
+        while (idx < str.length) {
+            while (ri < this.runs.length && pos >= this.runs[ri].text.length) { ri++; pos = 0; }
+            if (ri >= this.runs.length) return null;
+            const run = this.runs[ri];
+            const take = Math.min(run.text.length - pos, str.length - idx);
+            if (run.text.substr(pos, take) !== str.substr(idx, take)) return null;
+            if (firstColor === null) firstColor = run.color;
+            idx += take;
+            pos += take;
+        }
+        return { ri, pos, color: firstColor };
+    }
+
+    findAhead(str, ri, pos) {
+        if (!str) return null;
+        const limit = 20000;
+        let scanned = 0;
+        while (scanned < limit) {
+            while (ri < this.runs.length && pos >= this.runs[ri].text.length) { ri++; pos = 0; }
+            if (ri >= this.runs.length) return null;
+            const run = this.runs[ri];
+            const rest = run.text.slice(pos);
+            const at = rest.indexOf(str);
+            if (at >= 0) {
+                let p2 = pos + at + str.length;
+                let r2 = ri;
+                if (p2 >= this.runs[r2].text.length) { r2++; p2 = 0; }
+                return { ri: r2, pos: p2, color: run.color };
+            }
+            scanned += rest.length;
+            ri++;
+            pos = 0;
+        }
+        return null;
+    }
+}
 
 function loadPdfJs() {
     if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -49,7 +130,152 @@ export class PdfReader {
         this.renderedPages = 0;
         this.pageChunk = DEFAULT_PDF_PAGE_CHUNK;
         this.pdfDoc = null;
+        this.pdfjsLib = null;
         this.renderTasks = new Set();
+        this.layoutSettings = this.loadLayoutSettings();
+        this._layoutRenderTimer = null;
+        this._pdfRenderPages = null;
+    }
+
+    loadLayoutSettings() {
+        const base = { ...DEFAULT_LAYOUT };
+        try {
+            const raw = localStorage.getItem(LAYOUT_STORAGE_KEY);
+            if (raw) {
+                const saved = JSON.parse(raw);
+                for (const k of Object.keys(DEFAULT_LAYOUT)) {
+                    if (typeof saved[k] === 'number' && Number.isFinite(saved[k])) base[k] = saved[k];
+                }
+            }
+        } catch (e) {
+            /* fall back to defaults */
+        }
+        return base;
+    }
+
+    saveLayoutSettings() {
+        try {
+            localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(this.layoutSettings));
+        } catch (e) {
+            /* non-persistent storage is fine */
+        }
+    }
+
+    // Debounced re-render of just the rendered pages (toolbar + settings panel
+    // stay in place so sliders don't blink while dragging).
+    scheduleLayoutRender() {
+        this.saveLayoutSettings();
+        if (this._layoutRenderTimer) clearTimeout(this._layoutRenderTimer);
+        this._layoutRenderTimer = setTimeout(() => {
+            this._layoutRenderTimer = null;
+            if (typeof this._pdfRenderPages === 'function') this._pdfRenderPages();
+        }, 80);
+    }
+
+    buildLayoutSettingsPanel(toolbar) {
+        const wrap = document.createElement('div');
+        wrap.className = 'pdf-settings-wrap';
+
+        // Toggle switch (reuses the app's .switch-input styles).
+        const switchRow = document.createElement('div');
+        switchRow.className = 'flex flex-row items-center space-x-1';
+        switchRow.title = 'Adjust the PDF text size, word spacing and margins';
+
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.id = 'pdf-layout-chk';
+        chk.className = 'switch-input';
+
+        const swLabel = document.createElement('label');
+        swLabel.htmlFor = 'pdf-layout-chk';
+        swLabel.className = 'text-sm font-medium';
+
+        const swText = document.createElement('span');
+        swText.textContent = 'Text layout';
+
+        chk.addEventListener('change', () => panel.classList.toggle('open', chk.checked));
+        switchRow.appendChild(chk);
+        switchRow.appendChild(swLabel);
+        switchRow.appendChild(swText);
+        wrap.appendChild(switchRow);
+
+        const panel = document.createElement('div');
+        panel.className = 'pdf-settings';
+
+        const head = document.createElement('div');
+        head.className = 'pdf-settings-head';
+        head.textContent = 'Text layout';
+        panel.appendChild(head);
+
+        const defs = [
+            { key: 'fontSize', label: 'Text size', unit: '%', min: 50, max: 200, step: 1 },
+            { key: 'wordGap', label: 'Word spacing', unit: '%', min: 50, max: 250, step: 1 },
+            { key: 'marginLeft', label: 'Left margin', unit: 'px', min: -60, max: 100, step: 1 },
+            { key: 'marginRight', label: 'Right margin', unit: 'px', min: -60, max: 100, step: 1 }
+        ];
+
+        const syncPanel = () => {
+            const inputs = panel.querySelectorAll('input[type="range"]');
+            for (const inp of inputs) {
+                inp.value = String(this.layoutSettings[inp.dataset.key]);
+                const val = panel.querySelector(`[data-val="${inp.dataset.key}"]`);
+                if (val) val.textContent = this.layoutSettings[inp.dataset.key] + inp.dataset.unit;
+            }
+        };
+
+        for (const d of defs) {
+            const row = document.createElement('div');
+            row.className = 'pdf-setting-row';
+
+            const headRow = document.createElement('span');
+            headRow.className = 'pdf-setting-head-row';
+
+            const name = document.createElement('span');
+            name.className = 'pdf-setting-name';
+            name.textContent = d.label;
+
+            const val = document.createElement('span');
+            val.className = 'pdf-setting-val';
+            val.dataset.val = d.key;
+            val.textContent = this.layoutSettings[d.key] + d.unit;
+
+            headRow.appendChild(name);
+            headRow.appendChild(val);
+
+            const input = document.createElement('input');
+            input.type = 'range';
+            input.min = d.min;
+            input.max = d.max;
+            input.step = d.step;
+            input.dataset.key = d.key;
+            input.dataset.unit = d.unit;
+            input.value = String(this.layoutSettings[d.key]);
+
+            input.addEventListener('input', () => {
+                this.layoutSettings[d.key] = parseInt(input.value, 10);
+                val.textContent = this.layoutSettings[d.key] + d.unit;
+                this.scheduleLayoutRender();
+            });
+
+            row.appendChild(headRow);
+            row.appendChild(input);
+            panel.appendChild(row);
+        }
+
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.className = 'pdf-settings-reset';
+        reset.textContent = 'Reset to defaults';
+        reset.addEventListener('click', () => {
+            this.layoutSettings = { ...DEFAULT_LAYOUT };
+            syncPanel();
+            this.saveLayoutSettings();
+            this.scheduleLayoutRender();
+        });
+        panel.appendChild(reset);
+
+        wrap.appendChild(panel);
+        toolbar.appendChild(wrap);
     }
 
     guessFontFamily(fontName) {
@@ -59,14 +285,22 @@ export class PdfReader {
         return 'sans-serif';
     }
 
-    measureText(text, fs, family) {
+    isBoldFont(fontName) {
+        return /bold|black|heavy|semibold|demibold/i.test(fontName || '');
+    }
+
+    isItalicFont(fontName) {
+        return /italic|oblique/i.test(fontName || '');
+    }
+
+    measureText(text, fs, family, bold = false, italic = false) {
         if (!this.measureCanvas) {
             this.measureCanvas = document.createElement('canvas');
             this.measureCanvas.width = 4096;
             this.measureCanvas.height = 128;
         }
         const ctx = this.measureCanvas.getContext('2d');
-        ctx.font = `${fs}px ${family}`;
+        ctx.font = `${italic ? 'italic ' : ''}${bold ? '700 ' : '400 '}${fs}px ${family}`;
         return ctx.measureText(text).width;
     }
 
@@ -85,6 +319,7 @@ export class PdfReader {
             cMapPacked: true
         }).promise;
         this.pdfDoc = pdf;
+        this.pdfjsLib = pdfjsLib;
 
         const pages = [];
         const texts = [];
@@ -96,7 +331,20 @@ export class PdfReader {
             const page = await pdf.getPage(i);
             const viewport = page.getViewport({ scale: 1 });
             const content = await page.getTextContent();
-            const extracted = this.extractPage(i, content.items, viewport);
+
+            // One operator-list pass gives the per-glyph fill colors (for the
+            // words). Image pixels are resolved later, page by page, at render
+            // time so big PDFs don't keep all decoded images in memory.
+            let colorRuns = null;
+            try {
+                const opList = await page.getOperatorList();
+                colorRuns = this.analyzeOperators(opList).runs;
+            } catch (err) {
+                // colors are a best-effort improvement; fall back to plain black
+            }
+            page.cleanup();
+
+            const extracted = this.extractPage(i, content.items, viewport, colorRuns);
             pages.push(extracted);
             texts.push(extracted.text);
         }
@@ -108,6 +356,113 @@ export class PdfReader {
         this.main.input.value = texts.join('\n\n').trim();
         this.main.isProcessed = true;
         this.main.renderPdfPages();
+    }
+
+    // Walks a page's operator list and extracts, in drawing order:
+    //   runs   -> [{ text, color }] for the words (text colors),
+    //   images -> [{ objId|inline, matrix }] positions for the page images.
+    analyzeOperators(opList) {
+        const OPS = this.pdfjsLib.OPS;
+        const runs = [];
+        const images = [];
+        let fill = '#000000';
+        let buf = '';
+        let bufColor = fill;
+        let ctm = [1, 0, 0, 1, 0, 0];
+        const stack = [];
+
+        const emit = () => {
+            if (buf) { runs.push({ text: buf, color: bufColor }); buf = ''; }
+        };
+        const setColor = (color) => {
+            emit();
+            fill = color;
+            bufColor = color;
+        };
+        const readText = (args) => {
+            let txt = '';
+            const arr = args ? args[0] : null;
+            if (arr) {
+                for (const g of arr) {
+                    if (typeof g === 'string') txt += g;
+                    else if (g && typeof g.unicode === 'string') txt += g.unicode;
+                }
+            }
+            return txt;
+        };
+
+        const fns = opList.fnArray;
+        const argsList = opList.argsArray;
+        for (let i = 0; i < fns.length; i++) {
+            const fn = fns[i];
+            const args = argsList[i];
+            if (fn === OPS.save) {
+                stack.push(ctm.slice());
+            } else if (fn === OPS.restore) {
+                if (stack.length) ctm = stack.pop();
+            } else if (fn === OPS.transform) {
+                const [a, b, c, d, e, f] = args;
+                const [p, q, r, s, u, v] = ctm;
+                ctm = [
+                    a * p + b * r, a * q + b * s,
+                    c * p + d * r, c * q + d * s,
+                    e * p + f * r + u, e * q + f * s + v
+                ];
+            } else if (fn === OPS.setFillRGBColor) {
+                setColor(this.colorToHex(args, 3));
+            } else if (fn === OPS.setFillGray) {
+                setColor(this.colorToHex(args, 1));
+            } else if (fn === OPS.setFillCMYKColor) {
+                setColor(this.colorToHex(args, 4));
+            } else if (fn === OPS.setFillColor || fn === OPS.setFillColorN) {
+                if (args && args.length >= 1 && typeof args[0] === 'number') {
+                    setColor(this.colorToHex(args, args.length));
+                }
+            } else if (fn === OPS.showText || fn === OPS.showSpacedText) {
+                const txt = readText(args);
+                if (txt) {
+                    if (buf && bufColor !== fill) emit();
+                    if (!buf) bufColor = fill;
+                    buf += txt;
+                }
+            } else if (fn === OPS.paintInlineImageXObject) {
+                emit();
+                if (args && args[0]) {
+                    const img = args[0];
+                    images.push({ objId: null, matrix: ctm.slice(), inline: { width: img.width, height: img.height, data: img.data } });
+                }
+            } else if (fn === OPS.paintImageXObject) {
+                emit();
+                if (args) images.push({ objId: args[0], matrix: ctm.slice(), inline: null });
+            }
+        }
+        emit();
+
+        return { runs, images };
+    }
+
+    // pdf.js hands colors to us either as 0..1 floats or 0..255 bytes (and
+    // sometimes as a small dict instead of an array); normalise both.
+    colorToHex(args, length) {
+        const vals = [];
+        for (let i = 0; i < length; i++) vals.push(Number(args[i]) || 0);
+        const isByte = vals.some(v => v > 1);
+        const f = isByte ? (v => v / 255) : (v => v);
+        let r, g, b;
+        if (length === 1) {
+            r = g = b = f(vals[0]);
+        } else if (length === 3) {
+            r = f(vals[0]); g = f(vals[1]); b = f(vals[2]);
+        } else if (length === 4) {
+            const c = f(vals[0]), m = f(vals[1]), y = f(vals[2]), k = f(vals[3]);
+            r = (1 - c) * (1 - k);
+            g = (1 - m) * (1 - k);
+            b = (1 - y) * (1 - k);
+        } else {
+            return '#000000';
+        }
+        const hex = (v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0');
+        return '#' + hex(r) + hex(g) + hex(b);
     }
 
     cancelPendingRenders() {
@@ -125,9 +480,11 @@ export class PdfReader {
         }
     }
 
-    extractPage(pageNumber, items, viewport) {
+    extractPage(pageNumber, items, viewport, colorRuns) {
         const W = viewport.width;
         const H = viewport.height;
+
+        const matcher = (colorRuns && colorRuns.length) ? new ColorRunMatcher(colorRuns) : null;
 
         const norm = [];
         for (const it of items) {
@@ -139,6 +496,19 @@ export class PdfReader {
             const baseline = t[5];
             const height = it.height || fs;
             const top = H - baseline - height;
+            const family = this.guessFontFamily(it.fontName);
+            let bold = this.isBoldFont(it.fontName);
+            const italic = this.isItalicFont(it.fontName);
+            if (!bold) {
+                // Standard fonts (Helvetica-Bold etc.) are renamed to generic
+                // ids by pdf.js, so fall back to width: bold glyphs are wider.
+                const mReg = this.measureText(it.str, fs, family, false, italic);
+                if (it.width > mReg * 1.06) bold = true;
+            }
+            const parts = it.str.split(/(\s+)/).filter(Boolean);
+            const partColors = matcher
+                ? parts.map(p => matcher.consume(p))
+                : parts.map(() => null);
             norm.push({
                 str: it.str,
                 x: t[4],
@@ -146,11 +516,28 @@ export class PdfReader {
                 fs,
                 width: it.width || 0,
                 fontName: it.fontName,
-                family: this.guessFontFamily(it.fontName)
+                family,
+                bold,
+                italic,
+                parts,
+                partColors
             });
         }
 
         norm.sort((a, b) => (a.top - b.top) || (a.x - b.x));
+
+        // Body font size = most-used size weighted by characters. Anything
+        // clearly larger than the body is treated as a heading.
+        const sizeWeights = new Map();
+        for (const item of norm) {
+            const len = item.str.replace(/\s/g, '').length;
+            if (len > 0) sizeWeights.set(item.fs, (sizeWeights.get(item.fs) || 0) + len);
+        }
+        let bodySize = 12;
+        let best = -1;
+        for (const [s, w] of sizeWeights) {
+            if (w > best) { best = w; bodySize = s; }
+        }
 
         // Group items into lines by vertical proximity.
         const lines = [];
@@ -176,22 +563,33 @@ export class PdfReader {
         // width of every text item matches the real PDF width.
         for (const line of lines) {
             const fs = line.fs;
+            const isHeading = bodySize > 0 && line.fs >= bodySize * 1.35 && line.fs > bodySize + 0.5;
             const words = [];
             for (const item of line.items) {
                 const family = item.family;
-                let measuredWhole = this.measureText(item.str, fs, family);
+                let measuredWhole = this.measureText(item.str, fs, family, item.bold, item.italic);
                 if (!(measuredWhole > 0)) measuredWhole = item.str.length * fs * 0.5;
                 const k = item.width > 0 ? item.width / measuredWhole : 1;
                 let rx = item.x;
-                const parts = item.str.split(/(\s+)/);
-                for (const part of parts) {
-                    if (!part) continue;
+                for (let pi = 0; pi < item.parts.length; pi++) {
+                    const part = item.parts[pi];
                     if (/^\s+$/.test(part)) {
-                        rx += this.measureText(part, fs, family) * k;
+                        rx += this.measureText(part, fs, family, item.bold, item.italic) * k;
                         continue;
                     }
-                    const w = this.measureText(part, fs, family) * k;
-                    words.push({ text: part, x: rx, width: w, fs, family });
+                    const w = this.measureText(part, fs, family, item.bold, item.italic) * k;
+                    words.push({
+                        text: part,
+                        x: rx,
+                        width: w,
+                        fs,
+                        k,
+                        family,
+                        bold: item.bold,
+                        italic: item.italic,
+                        heading: isHeading,
+                        color: item.partColors[pi] || null
+                    });
                     rx += w;
                 }
             }
@@ -226,6 +624,10 @@ export class PdfReader {
 
     renderPdf(pdfData) {
         this.cancelPendingRenders();
+        if (this._layoutRenderTimer) {
+            clearTimeout(this._layoutRenderTimer);
+            this._layoutRenderTimer = null;
+        }
         const output = this.main.output;
         output.innerHTML = '';
         output.style.whiteSpace = 'normal';
@@ -249,7 +651,9 @@ export class PdfReader {
         const wrapper = document.createElement('div');
         wrapper.className = 'pdf-container' + (isFocus ? ' pdf-container-focus' : '');
 
-        // Toolbar with file info, per-view page count, and close button
+        // Toolbar with file info, per-view page count, layout settings, and
+        // close button. It is built once and kept alive across re-renders so the
+        // layout panel doesn't close while its sliders are being dragged.
         const toolbar = document.createElement('div');
         toolbar.className = 'pdf-toolbar';
         const info = document.createElement('span');
@@ -273,11 +677,6 @@ export class PdfReader {
             perView.appendChild(option);
         }
         perView.value = this.pageChunk === Infinity ? 'all' : String(this.pageChunk);
-        perView.addEventListener('change', () => {
-            this.pageChunk = perView.value === 'all' ? Infinity : parseInt(perView.value, 10) || DEFAULT_PDF_PAGE_CHUNK;
-            this.main.pdfPageSize = this.pageChunk;
-            this.renderPdf(pdfData);
-        });
         toolbar.appendChild(perView);
 
         const closeBtn = document.createElement('button');
@@ -288,11 +687,31 @@ export class PdfReader {
         toolbar.appendChild(closeBtn);
         wrapper.appendChild(toolbar);
 
-        this.appendPageBatch(wrapper, pdfData, targetW);
+        this.buildLayoutSettingsPanel(toolbar);
+
+        // Pages live in their own box; only this box is rebuilt on re-render.
+        const pagesBox = document.createElement('div');
+        pagesBox.className = 'pdf-pages';
+        wrapper.appendChild(pagesBox);
+
+        const renderPages = () => {
+            this.renderedPages = 0;
+            pagesBox.innerHTML = '';
+            this.appendPageBatch(pagesBox, pdfData, targetW);
+        };
+        this._pdfRenderPages = renderPages;
+
+        perView.addEventListener('change', () => {
+            this.pageChunk = perView.value === 'all' ? Infinity : parseInt(perView.value, 10) || DEFAULT_PDF_PAGE_CHUNK;
+            this.main.pdfPageSize = this.pageChunk;
+            renderPages();
+        });
+
+        renderPages();
         output.appendChild(wrapper);
     }
 
-    appendPageBatch(wrapper, pdfData, targetW) {
+    appendPageBatch(container, pdfData, targetW) {
         const pages = pdfData.pages;
         const chunk = this.pageChunk === Infinity ? pages.length : this.pageChunk;
         const end = Math.min(this.renderedPages + chunk, pages.length);
@@ -310,8 +729,20 @@ export class PdfReader {
 
             let wordCount = 0;
             if (page.hasText) {
+                const s = this.layoutSettings;
+                const fsScale = (typeof s.fontSize === 'number' ? s.fontSize : 100) / 100;
+                const gapF = (typeof s.wordGap === 'number' ? s.wordGap : 110) / 100;
+                const marginLeftPx = typeof s.marginLeft === 'number' ? s.marginLeft : 0;
+                const marginRightPx = typeof s.marginRight === 'number' ? s.marginRight : 6;
+
                 const pageW = Math.round(page.width * scale);
-                const rightMarginPx = 6;
+                const pageHpx = Math.round(page.height * scale);
+
+                // The text is always clamped between these bounds so it can never
+                // leave the page, whatever the user sets for size / spacing / margins.
+                const boundLeft = Math.min(Math.max(marginLeftPx, 0), Math.max(0, pageW - 20));
+                const boundRight = Math.min(Math.max(pageW - marginRightPx, 20), pageW);
+
                 // Vertical guard: a line must never start above the previous
                 // line's glyph bottom (clamping a near-top line to y=0 can push
                 // it into the next line). Track the bottom of each line's glyphs.
@@ -320,41 +751,54 @@ export class PdfReader {
                     const words = line.words;
                     if (!words.length) continue;
 
-                    const glyphH = line.fs * scale;
-                    const topPx = Math.max(prevGlyphBottom, Math.max(0, line.y * scale));
+                    const glyphH = line.fs * scale * fsScale;
+                    const rawTop = Math.max(0, line.y * scale);
+                    const topPx = Math.min(
+                        Math.max(prevGlyphBottom, rawTop),
+                        Math.max(0, pageHpx - glyphH)
+                    );
 
-                    // Words carry the 1.1x spacing tweak, applied RELATIVE to the
-                    // line start: it stretches the gaps between words (fixing
-                    // jammed text) but keeps the line's true left position, so the
-                    // page margin is never inflated. It can still push long lines
-                    // past the right edge, so squeeze just the lines that overflow
-                    // (positions AND font size) to keep them inside.
+                    // Re-flow each line from its PDF left edge: word widths scale
+                    // with the font size and the gaps between words scale with the
+                    // font size AND the word-spacing factor. Gap values are
+                    // clamped to >= 0 so words can never overlap. The margin then
+                    // shifts the whole line. Lines that would run past the right
+                    // bound are squeezed (positions AND font size) so nothing
+                    // overflows the page.
                     const lineStartPdf = words[0].x;
-                    const lastWord = words[words.length - 1];
-                    let lineStartPx = lineStartPdf * scale;
-                    let lineEndPx = (lineStartPdf + (lastWord.x + lastWord.width - lineStartPdf) * 1.1) * scale;
+                    let lineStartPx = lineStartPdf * scale + marginLeftPx;
+                    if (lineStartPx < boundLeft) lineStartPx = boundLeft;
 
-                    // If the line starts outside the page's left edge, shift it right.
-                    const shiftPx = lineStartPx < 0 ? -lineStartPx : 0;
-                    if (shiftPx) {
-                        lineStartPx += shiftPx;
-                        lineEndPx += shiftPx;
+                    const wordLayout = [];
+                    let cursorPx = lineStartPx;
+                    for (let wi = 0; wi < words.length; wi++) {
+                        const w = words[wi];
+                        const widthPx = w.width * scale * fsScale;
+                        wordLayout.push({ w, left: cursorPx, width: widthPx });
+                        cursorPx += widthPx;
+                        if (wi < words.length - 1) {
+                            // Keep a readable floor gap between words: PDFs with
+                            // jammed text leave almost no space here, which makes
+                            // the rendered words look glued together.
+                            const gapPdf = Math.max(words[wi + 1].x - (w.x + w.width), line.fs * MIN_WORD_GAP);
+                            cursorPx += gapPdf * scale * fsScale * gapF;
+                        }
                     }
+                    const lineEndPx = cursorPx;
 
-                    const maxRightPx = pageW - rightMarginPx;
-                    const fitF = (lineEndPx > maxRightPx && lineEndPx > lineStartPx)
-                        ? (maxRightPx - lineStartPx) / (lineEndPx - lineStartPx)
+                    const fitF = (lineEndPx > boundRight && lineEndPx > lineStartPx + 1)
+                        ? Math.max((boundRight - lineStartPx) / (lineEndPx - lineStartPx), 0.15)
                         : 1;
 
                     prevGlyphBottom = topPx + glyphH;
 
-                    for (const word of words) {
-                        let leftPx = (lineStartPdf + (word.x - lineStartPdf) * 1.1) * scale + shiftPx;
+                    for (const { w, left } of wordLayout) {
+                        let leftPx = left;
                         if (fitF !== 1) {
                             leftPx = lineStartPx + (leftPx - lineStartPx) * fitF;
                         }
                         const span = document.createElement('span');
-                        span.textContent = word.text;
+                        span.textContent = w.text;
                         span.className = 'pdf-word cursor-pointer';
                         // Inline position is required: the app stylesheet's
                         // `#output span { position: relative }` would otherwise
@@ -362,8 +806,16 @@ export class PdfReader {
                         span.style.position = 'absolute';
                         span.style.left = `${Math.round(leftPx * 10) / 10}px`;
                         span.style.top = `${Math.round(topPx * 10) / 10}px`;
-                        span.style.fontSize = `${Math.round(word.fs * scale * (fitF === 1 ? 1 : fitF) * 10) / 10}px`;
-                        span.style.fontFamily = word.family;
+                        // w.k corrects the measured font size so the span's real
+                        // rendered width matches the reserved layout width (the
+                        // PDF font is usually narrower/wider than the guessed
+                        // system font; without this, words overlap or drift).
+                        const kf = (typeof w.k === 'number' && w.k > 0) ? w.k : 1;
+                        span.style.fontSize = `${Math.round(w.fs * scale * fsScale * fitF * kf * 10) / 10}px`;
+                        span.style.fontFamily = w.family;
+                        if (w.bold || w.heading) span.style.fontWeight = '700';
+                        if (w.italic) span.style.fontStyle = 'italic';
+                        if (w.color) span.style.color = w.color;
                         pageEl.appendChild(span);
                         wordCount++;
                     }
@@ -373,7 +825,12 @@ export class PdfReader {
                 this.renderPageImage(page, pageEl, scale);
             }
 
-            wrapper.appendChild(pageEl);
+            container.appendChild(pageEl);
+
+            if (page.hasText) {
+                // Images are decoded and drawn asynchronously behind the words.
+                this.renderPageImages(page, pageEl, scale);
+            }
 
             const label = document.createElement('div');
             label.className = 'pdf-page-label';
@@ -382,7 +839,7 @@ export class PdfReader {
             } else {
                 label.textContent = `Page ${page.pageNumber}`;
             }
-            wrapper.appendChild(label);
+            container.appendChild(label);
         }
 
         this.renderedPages = end;
@@ -396,9 +853,9 @@ export class PdfReader {
             loadMore.textContent = `Load next ${Math.min(chunk, remaining)} page${Math.min(chunk, remaining) === 1 ? '' : 's'} (${this.renderedPages} of ${pages.length})`;
             loadMore.addEventListener('click', () => {
                 loadMore.remove();
-                this.appendPageBatch(wrapper, pdfData, targetW);
+                this.appendPageBatch(container, pdfData, targetW);
             });
-            wrapper.appendChild(loadMore);
+            container.appendChild(loadMore);
         }
 
         // Keep the DOM bounded. Rendering every page of a 200+ page PDF at once
@@ -406,7 +863,7 @@ export class PdfReader {
         // that scrolled out as the user advances to the next batch. The toolbar,
         // page counter and load-more button stay put; pruned pages are re-rendered
         // if the user re-opens the PDF.
-        this.prunePages(wrapper, chunk);
+        this.prunePages(container, chunk);
     }
 
     prunePages(wrapper, chunk) {
@@ -422,6 +879,116 @@ export class PdfReader {
             }
             pageEl.remove();
         }
+    }
+
+    async renderPageImages(pageData, pageEl, scale) {
+        if (!this.pdfDoc || !this.pdfjsLib) return;
+        let pdfPage;
+        try {
+            pdfPage = await this.pdfDoc.getPage(pageData.pageNumber);
+        } catch (e) {
+            return;
+        }
+        let opList;
+        try {
+            opList = await pdfPage.getOperatorList();
+        } catch (e) {
+            pdfPage.cleanup();
+            return;
+        }
+        const { images } = this.analyzeOperators(opList);
+        const H = pageData.height;
+        for (const img of images) {
+            let resolved = img.inline;
+            if (!resolved && img.objId) {
+                try {
+                    resolved = pdfPage.objs.get(img.objId);
+                } catch (e) {
+                    /* image not available */
+                }
+            }
+            if (!resolved || !resolved.width || !resolved.height || !resolved.data) continue;
+            const rgba = this.rgbaFromImage(resolved);
+            if (!rgba) continue;
+            const rect = this.imageRectFromMatrix(
+                img.matrix, pageData.width, H, scale);
+            if (!(rect.w > 0) || !(rect.h > 0)) continue;
+
+            const canvas = document.createElement('canvas');
+            canvas.className = 'pdf-page-image-el';
+            canvas.width = resolved.width;
+            canvas.height = resolved.height;
+            const ctx = canvas.getContext('2d');
+            ctx.putImageData(new ImageData(rgba, resolved.width, resolved.height), 0, 0);
+            canvas.style.position = 'absolute';
+            canvas.style.left = `${Math.round(rect.x * 10) / 10}px`;
+            canvas.style.top = `${Math.round(rect.y * 10) / 10}px`;
+            canvas.style.width = `${Math.round(rect.w * 10) / 10}px`;
+            canvas.style.height = `${Math.round(rect.h * 10) / 10}px`;
+            if (pageEl.isConnected) {
+                // prepend so the words (added first) stay on top.
+                pageEl.prepend(canvas);
+            }
+        }
+        pdfPage.cleanup();
+    }
+
+    // Converts pdf.js pixel data (RGB / RGBA / gray) into RGBA for a canvas.
+    rgbaFromImage(img) {
+        const w = img.width;
+        const h = img.height;
+        const n = w * h;
+        if (!(n > 0) || !img.data) return null;
+        const bpp = img.data.length / n;
+        const out = new Uint8ClampedArray(n * 4);
+        if (bpp === 4) {
+            out.set(img.data);
+        } else if (bpp === 3) {
+            for (let i = 0, j = 0; i < n * 3; i += 3, j += 4) {
+                out[j] = img.data[i];
+                out[j + 1] = img.data[i + 1];
+                out[j + 2] = img.data[i + 2];
+                out[j + 3] = 255;
+            }
+        } else if (bpp === 1) {
+            for (let i = 0, j = 0; i < n; i++, j += 4) {
+                out[j] = img.data[i];
+                out[j + 1] = img.data[i];
+                out[j + 2] = img.data[i];
+                out[j + 3] = 255;
+            }
+        } else {
+            return null; // bit-packed masks etc.
+        }
+        return out;
+    }
+
+    // The image matrix maps the PDF image's unit square [0..1]x[0..1] into page
+    // space (PDF y-up): pdf.js's renderer normalises every image to a unit
+    // square before drawing, so the CTM's scale already IS the display size
+    // (content streams place images with `w 0 0 h x y cm /Im Do`). Returns the
+    // axis-aligned screen rect (y-down) in display px.
+    imageRectFromMatrix(matrix, pageW, pageH, scale) {
+        const m = matrix;
+        const pts = [
+            [m[4], m[5]],
+            [m[4] + m[0], m[5] + m[1]],
+            [m[4] + m[2], m[5] + m[3]],
+            [m[4] + m[0] + m[2], m[5] + m[1] + m[3]]
+        ];
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const [x, y] of pts) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+        }
+        return {
+            x: minX * scale,
+            y: (pageH - maxY) * scale,
+            w: (maxX - minX) * scale,
+            h: (maxY - minY) * scale
+        };
     }
 
     async renderPageImage(page, pageEl, scale) {

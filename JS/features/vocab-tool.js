@@ -1235,9 +1235,9 @@ export class VocabularyTool {
         this.htmlMode = false;
         const htmlChk = document.getElementById('html-mode-chk');
         if (htmlChk) htmlChk.checked = false;
-        this.isProcessed = true;
-        this.processBtn.innerText = 'Reset';
-        this.renderTextToOutput();
+        // this.isProcessed = true;
+        // this.processBtn.innerText = 'Reset';
+        // this.renderTextToOutput();
     }
 
     renderTextToOutput() {
@@ -1249,6 +1249,15 @@ export class VocabularyTool {
 
         // Preserve newlines and natural text flow
         const lines = this.input.value.split('\n');
+
+        // check if lines more than 500, if so, only render the first 500 lines and show a message
+        if (lines.length > 500) {
+            lines.length = 500; // Limit to first 500 lines
+            const warning = document.createElement('p');
+            warning.textContent = 'Warning: Only the first 500 lines were rendered.';
+            warning.style.color = 'red';
+            this.output.appendChild(warning);
+        }
 
         lines.forEach((line, lineIndex) => {
             if (line.trim() === '') {
@@ -1289,9 +1298,9 @@ export class VocabularyTool {
         this.pdfData = null;
         this.webMode = false;
         this.webData = null;
-        this.isProcessed = true;
-        this.processBtn.innerText = "Reset";
         this.pdfReader.destroy();
+        // this.isProcessed = true;
+        // this.processBtn.innerText = "Reset";
         this.renderTextToOutput();
     }
 
