@@ -68,6 +68,7 @@ export class VocabularyTool {
         this.webData = null;
         this.webModal = null;
         this.webUrlInput = null;
+        this.htmlMode = false;
         this.init();
     }
 
@@ -81,6 +82,8 @@ export class VocabularyTool {
         this.setupFocusMode();
         this.setupPdfUpload();
         this.setupWebLoad();
+        this.setupRichPaste();
+        this.setupHtmlCheckbox();
         this.speech.loadVoices();
         window.vocabTool = this;
         if (!this.isTouchDevice) {
@@ -1045,25 +1048,112 @@ export class VocabularyTool {
         this.setStatus(`Loading ${url}…`);
         try {
             const page = await this.webReader.loadPage(url);
-            this.webData = { url, html: page.html };
-            this.input.value = page.text;
-            this.isProcessed = true;
-            this.processBtn.innerText = 'Reset';
-            const focusModeGoBTN = document.getElementById('focus-go-btn');
-            if (focusModeGoBTN) {
-                focusModeGoBTN.innerText = 'Reset';
-            }
-            if (this.pdfMode) {
-                this.exitPdfMode();
-            }
-            this.webMode = true;
-            this.renderWebContent();
+            this.applyRichContent(page, url, 'website');
             const wordCount = page.text.split(/\s+/).filter(Boolean).length.toLocaleString();
             this.setStatus(`Loaded ${url} — ${wordCount} words`);
             if (this.webUrlInput) this.webUrlInput.value = '';
         } catch (err) {
             console.error('Website load failed:', err);
             this.setStatus('Website load failed: ' + (err && err.message ? err.message : err));
+        }
+    }
+
+    // Shared by "Load Website" and rich-text paste: puts the sanitized page into
+    // the textarea (plain text) and renders the formatted HTML body in #output.
+    applyRichContent(page, label, source) {
+        this.webData = {
+            url: label,
+            html: page.html,
+            text: page.text,
+            source: source || (label && /^https?:\/\//i.test(label) ? 'website' : 'paste')
+        };
+        if (source !== 'html') {
+            // Website loads and rich pastes take over the formatted view, so the
+            // HTML checkbox must not silently keep its mode on.
+            this.htmlMode = false;
+            const htmlChk = document.getElementById('html-mode-chk');
+            if (htmlChk) htmlChk.checked = false;
+            // The textarea holds the extracted plain text (for editing / TTS).
+            this.input.value = page.text;
+        }
+        // In HTML mode the raw markup stays in the textarea, so unchecking the
+        // box returns to the raw HTML and re-checking re-renders it.
+        this.isProcessed = true;
+        this.processBtn.innerText = 'Reset';
+        const focusModeGoBTN = document.getElementById('focus-go-btn');
+        if (focusModeGoBTN) {
+            focusModeGoBTN.innerText = 'Reset';
+        }
+        if (this.pdfMode) {
+            this.exitPdfMode();
+        }
+        this.webMode = true;
+        this.renderWebContent();
+    }
+
+    // When the clipboard carries formatted HTML (copying text from a website,
+    // Word, etc.) render it with its formatting preserved instead of as plain
+    // text. Pure text-only pastes keep the normal behaviour.
+    setupRichPaste() {
+        this.input.addEventListener('paste', (e) => {
+            const cd = e.clipboardData || window.clipboardData;
+            if (!cd) return;
+            const html = cd.getData('text/html');
+            if (!html || html.trim().length < 30) return;
+            let page;
+            try {
+                page = this.webReader.sanitize(html);
+            } catch (err) {
+                return; // fall back to plain text paste
+            }
+            if (!page.text || page.text.trim().length < 15) return; // just a link etc.
+            e.preventDefault();
+            this.applyRichContent(page, 'Pasted formatted text', 'paste');
+            const wordCount = page.text.split(/\s+/).filter(Boolean).length.toLocaleString();
+            this.setStatus(`Pasted formatted text — ${wordCount} words`);
+        });
+    }
+
+    // "HTML" checkbox: when checked, the textarea content is treated as raw HTML
+    // and rendered formatted (for pasting HTML source that the browser did not
+    // hand over as rich text).
+    setupHtmlCheckbox() {
+        const container = document.getElementById('vocab-down-controls');
+        if (!container) return;
+
+        const chk = document.getElementById('html-mode-chk');
+        chk.addEventListener('change', () => {
+            this.htmlMode = chk.checked;
+            if (chk.checked) {
+                if (this.input.value.trim()) {
+                    this.processHtmlInput();
+                } else {
+                    this.setStatus('HTML mode on — paste HTML and click Process');
+                }
+            } else if (this.webMode && this.webData && this.webData.source === 'html') {
+                this.exitWebMode();
+            }
+        });
+    }
+
+    processHtmlInput() {
+        const html = this.input.value;
+        if (!html.trim()) {
+            this.setStatus('No HTML to render');
+            return;
+        }
+        try {
+            const page = this.webReader.sanitize(html);
+            if (!page.text || !page.text.trim()) {
+                this.setStatus('No readable text found in HTML');
+                return;
+            }
+            this.applyRichContent(page, 'HTML input', 'html');
+            const wordCount = page.text.split(/\s+/).filter(Boolean).length.toLocaleString();
+            this.setStatus(`Rendered HTML — ${wordCount} words`);
+        } catch (err) {
+            console.error('HTML render failed:', err);
+            this.setStatus('HTML render failed: ' + (err && err.message ? err.message : err));
         }
     }
 
@@ -1094,14 +1184,16 @@ export class VocabularyTool {
         closeRow.className = 'flex justify-end mb-3';
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
-        closeBtn.textContent = '✕ Close Website';
+        closeBtn.textContent = this.webData.source === 'website' ? '✕ Close Website' : '✕ Close formatted text';
         closeBtn.className = 'px-3 py-1 text-sm bg-teal-600 text-white rounded shadow hover:bg-teal-700';
         closeBtn.addEventListener('click', () => this.exitWebMode());
         closeRow.appendChild(closeBtn);
 
         this.output.appendChild(closeRow);
         this.output.appendChild(wrapper);
-        this.setStatus(`Website loaded: ${this.webData.url}`);
+        this.setStatus(this.webData.source === 'website'
+            ? `Website loaded: ${this.webData.url}`
+            : 'Formatted text loaded');
         this.clearAllSelections();
     }
 
@@ -1140,6 +1232,9 @@ export class VocabularyTool {
     exitWebMode() {
         this.webMode = false;
         this.webData = null;
+        this.htmlMode = false;
+        const htmlChk = document.getElementById('html-mode-chk');
+        if (htmlChk) htmlChk.checked = false;
         this.isProcessed = true;
         this.processBtn.innerText = 'Reset';
         this.renderTextToOutput();
@@ -1202,6 +1297,11 @@ export class VocabularyTool {
 
     setupEventListeners() {
         this.processBtn.addEventListener("click", () => {
+            if (this.htmlMode) {
+                this.processHtmlInput();
+                return;
+            }
+
             if (this.webMode && this.webData) {
                 this.isProcessed = true;
                 this.processBtn.innerText = "Reset";
@@ -1240,7 +1340,11 @@ export class VocabularyTool {
         this.stopSpeechBtn.addEventListener("click", () => this.speech.stopSpeech());
 
         this.playBtn.addEventListener('click', () => {
-            const text = this.input.value;
+            // In a formatted view the textarea may hold raw HTML, so speak the
+            // extracted plain text instead.
+            const text = (this.webMode && this.webData && this.webData.text)
+                ? this.webData.text
+                : this.input.value;
             const focusModePlayBTN = document.getElementById("focus-play-btn");
 
             if (!this.isSpeaking) {

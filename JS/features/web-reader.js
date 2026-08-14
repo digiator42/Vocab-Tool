@@ -39,7 +39,11 @@ const REMOVE_SELECTORS = [
 
 const ALLOWED_ATTRS = {
     A: ['href', 'title'],
-    IMG: ['src', 'alt', 'title', 'width', 'height']
+    IMG: [
+        'src', 'alt', 'title', 'srcset',
+        'data-src', 'data-lazy-src', 'data-lazy', 'data-original',
+        'data-url', 'data-image', 'data-image-url', 'data-load', 'data-srcset'
+    ]
 };
 
 export class WebReader {
@@ -105,7 +109,13 @@ export class WebReader {
         const all = [...doc.body.querySelectorAll('*')];
         for (const el of all) {
             if (!KEEP_TAGS.has(el.tagName)) {
-                el.remove();
+                // Unknown tags (Word's <o:p>, <font>, ...) are usually inline
+                // wrappers: keep their children instead of dropping the text.
+                const parent = el.parentNode;
+                if (parent) {
+                    while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                    el.remove();
+                }
                 continue;
             }
             const allowed = ALLOWED_ATTRS[el.tagName] || [];
@@ -121,15 +131,26 @@ export class WebReader {
                 }
             }
             if (el.tagName === 'IMG') {
-                const src = (el.getAttribute('src') || '').trim();
+                const src = this.pickImageSrc(el);
                 if (!src) {
                     el.remove();
                     continue;
                 }
                 el.setAttribute('src', this.resolveUrl(src, baseUrl));
                 el.setAttribute('loading', 'lazy');
+                if (!(el.getAttribute('alt') || '').trim()) el.setAttribute('alt', '');
                 el.removeAttribute('width');
                 el.removeAttribute('height');
+                el.removeAttribute('srcset');
+                el.removeAttribute('data-src');
+                el.removeAttribute('data-lazy-src');
+                el.removeAttribute('data-lazy');
+                el.removeAttribute('data-original');
+                el.removeAttribute('data-url');
+                el.removeAttribute('data-image');
+                el.removeAttribute('data-image-url');
+                el.removeAttribute('data-load');
+                el.removeAttribute('data-srcset');
             }
         }
 
@@ -159,6 +180,27 @@ export class WebReader {
         } catch (e) {
             return u;
         }
+    }
+
+    // Many news sites lazy-load images: the real URL lives in data-src/srcset
+    // and <img src> is a 1px placeholder. Find the first real image URL.
+    pickImageSrc(el) {
+        const PLACEHOLDER = /^data:image\/(?:gif|png|jpe?g|webp);base64,R0lGOD/i;
+        const candidates = [
+            'src', 'data-src', 'data-lazy-src', 'data-lazy', 'data-original',
+            'data-url', 'data-image', 'data-image-url', 'data-load'
+        ];
+        for (const name of candidates) {
+            const v = (el.getAttribute(name) || '').trim();
+            if (v && !PLACEHOLDER.test(v)) return v;
+        }
+        for (const name of ['srcset', 'data-srcset']) {
+            const v = (el.getAttribute(name) || '').trim();
+            if (!v) continue;
+            const first = v.split(',')[0].trim().split(/\s+/)[0];
+            if (first && !PLACEHOLDER.test(first)) return first;
+        }
+        return '';
     }
 
     truncateRoot(root, maxChars) {
