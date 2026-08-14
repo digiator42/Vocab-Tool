@@ -970,7 +970,7 @@ export class VocabularyTool {
                     const span = document.createElement("span");
                     span.textContent = word;
                     // Make spans flexible for highlighting - they'll wrap naturally
-                    span.className = "inline-block relative cursor-pointer hover:bg-yellow-100 rounded mx-0.5 max-w-full";
+                    span.className = "inline-block relative cursor-pointer hover:bg-yellow-100 rounded mx-0 max-w-full";
                     span.style.wordWrap = "break-word";
                     span.style.overflowWrap = "break-word";
                     this.output.appendChild(span);

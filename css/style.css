@@ -264,7 +264,7 @@ body.dark-mode {
 .dark-mode #grammerContainer table td {
     padding: 8px 12px;
     border: 1px solid #444;
-    font-weight: bold;
+    font-weight: 500;
     text-shadow: 0 0 1px rgba(255, 255, 255, 0.1);
     /* subtle glow */
 }
@@ -399,7 +399,7 @@ body.dark-mode {
 .highlighted {
     background-color: #fef08a;
     border-radius: 0.25rem;
-    font-weight: bold;
+    font-weight: 500;
     position: relative;
     /* Add this for proper tooltip positioning */
     display: inline-block;
@@ -757,7 +757,7 @@ span.loading {
 /* Selection highlights for mobile */
 span.highlighted,
 span.multi-highlighted {
-    border-width: 2px !important;
+    border-width: 1px !important;
     /* More visible on mobile */
 }
 
@@ -1346,10 +1346,18 @@ input:checked+label::before {
     max-width: 820px;
 }
 
-/* Keep the absolutely positioned PDF words pixel-stable when highlighted:
-   neutralise the margin/padding the group-selection styles normally add. */
+/* Keep the absolutely positioned PDF words pixel-stable when highlighted.
+   The app's .highlighted / .multi-highlighted styles add font-weight: bold,
+   borders and padding that make the word wider and cover the next word, so
+   neutralise every width-changing property and keep only the background tint.
+   Selection / tooltip / group functionality is driven by classes + JS, not
+   these visuals, so nothing else is affected. */
 .pdf-page span.highlighted,
 .pdf-page span.multi-highlighted {
+    font-weight: 400 !important;
+    border: none !important;
+    border-radius: 0.25rem;
+    box-shadow: none !important;
     margin: 0 !important;
     padding: 0 !important;
 }
