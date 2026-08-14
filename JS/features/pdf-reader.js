@@ -398,6 +398,28 @@ export class PdfReader {
             });
             wrapper.appendChild(loadMore);
         }
+
+        // Keep the DOM bounded. Rendering every page of a 200+ page PDF at once
+        // hangs the browser, so once we've shown `chunk` pages, drop the ones
+        // that scrolled out as the user advances to the next batch. The toolbar,
+        // page counter and load-more button stay put; pruned pages are re-rendered
+        // if the user re-opens the PDF.
+        this.prunePages(wrapper, chunk);
+    }
+
+    prunePages(wrapper, chunk) {
+        if (!Number.isFinite(chunk) || chunk <= 0) return;
+        const pages = wrapper.querySelectorAll(':scope > .pdf-page');
+        const overflow = pages.length - chunk;
+        if (overflow <= 0) return;
+        for (let i = 0; i < overflow; i++) {
+            const pageEl = pages[i];
+            const label = pageEl.nextElementSibling;
+            if (label && label.classList.contains('pdf-page-label')) {
+                label.remove();
+            }
+            pageEl.remove();
+        }
     }
 
     async renderPageImage(page, pageEl, scale) {
