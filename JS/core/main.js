@@ -125,10 +125,17 @@ document.addEventListener('DOMContentLoaded', function () {
         processBtn.click();  // Trigger processing of the new story
     }
 
-    // If a PDF is currently open in the vocab tool, close it before loading a story
+    // If a PDF or imported website is currently open in the vocab tool, close
+    // it before loading a story
     function exitPdfModeIfActive() {
-        if (window.vocabTool && typeof window.vocabTool.exitPdfMode === 'function' && window.vocabTool.pdfMode) {
-            window.vocabTool.exitPdfMode();
+        if (!window.vocabTool) return;
+        const vt = window.vocabTool;
+        if (vt.webMode && typeof vt.exitWebMode === 'function') {
+            vt.exitWebMode();
+            return;
+        }
+        if (vt.pdfMode && typeof vt.exitPdfMode === 'function') {
+            vt.exitPdfMode();
         }
     }
 

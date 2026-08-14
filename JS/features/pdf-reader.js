@@ -103,6 +103,8 @@ export class PdfReader {
 
         this.main.pdfMode = true;
         this.main.pdfData = { name: file.name, pages };
+        this.main.webMode = false;
+        this.main.webData = null;
         this.main.input.value = texts.join('\n\n').trim();
         this.main.isProcessed = true;
         this.main.renderPdfPages();

@@ -6,6 +6,7 @@ import { ArticleService } from '../utils/vocab-tool-utils/article-service.js';
 import { FlashcardListService } from '../utils/vocab-tool-utils/flashcard-list.js';
 import { PassiveLearningService } from '../utils/vocab-tool-utils/passive-learning.js';
 import { PdfReader } from './pdf-reader.js';
+import { WebReader } from './web-reader.js';
 
 // Vocabulary Tool Module
 export class VocabularyTool {
@@ -60,8 +61,13 @@ export class VocabularyTool {
         this.FCL = new FlashcardListService(this);
         this.passiveLearning = new PassiveLearningService(this);
         this.pdfReader = new PdfReader(this);
+        this.webReader = new WebReader(this);
         this.pdfMode = false;
         this.pdfData = null;
+        this.webMode = false;
+        this.webData = null;
+        this.webModal = null;
+        this.webUrlInput = null;
         this.init();
     }
 
@@ -74,6 +80,7 @@ export class VocabularyTool {
         this.FCL.setupFlashcardListSelection();
         this.setupFocusMode();
         this.setupPdfUpload();
+        this.setupWebLoad();
         this.speech.loadVoices();
         window.vocabTool = this;
         if (!this.isTouchDevice) {
@@ -948,6 +955,196 @@ export class VocabularyTool {
         this.clearAllSelections();
     }
 
+    setupWebLoad() {
+        const container = document.getElementById('extra-tools-container');
+        if (!container) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'load-web-btn';
+        btn.textContent = '🌐 Load Website';
+        btn.className = 'px-4 py-2 bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700';
+        btn.addEventListener('click', () => this.showWebModal());
+        container.appendChild(btn);
+    }
+
+    showWebModal() {
+        if (!this.webModal) this.buildWebModal();
+        this.webModal.classList.remove('hidden');
+        if (this.webUrlInput) {
+            this.webUrlInput.value = '';
+            setTimeout(() => this.webUrlInput.focus(), 50);
+        }
+    }
+
+    hideWebModal() {
+        if (this.webModal) this.webModal.classList.add('hidden');
+    }
+
+    buildWebModal() {
+        const modal = document.createElement('div');
+        modal.id = 'web-url-modal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[60]';
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this.hideWebModal();
+        });
+
+        const box = document.createElement('div');
+        box.className = 'bg-white rounded-lg p-6 w-full max-w-lg mx-4';
+
+        const title = document.createElement('h3');
+        title.className = 'text-xl font-bold mb-2';
+        title.textContent = '🌐 Load German Website';
+
+        const input = document.createElement('input');
+        input.type = 'url';
+        input.id = 'web-url-input';
+        input.className = 'w-full p-2 border rounded mb-2';
+        input.placeholder = 'https://www.example.com/artikel/...';
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.handleWebLoad();
+        });
+
+        const hint = document.createElement('p');
+        hint.className = 'text-xs text-gray-500 mb-4';
+        hint.textContent = 'The page text is loaded into the output, so every word can be translated, highlighted and added to flashcards.';
+
+        const row = document.createElement('div');
+        row.className = 'flex justify-end gap-2';
+
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.textContent = 'Cancel';
+        cancel.className = 'px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300';
+        cancel.addEventListener('click', () => this.hideWebModal());
+
+        const load = document.createElement('button');
+        load.type = 'button';
+        load.id = 'web-url-load';
+        load.textContent = 'Load';
+        load.className = 'px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700';
+        load.addEventListener('click', () => this.handleWebLoad());
+
+        row.appendChild(cancel);
+        row.appendChild(load);
+        box.appendChild(title);
+        box.appendChild(input);
+        box.appendChild(hint);
+        box.appendChild(row);
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+
+        this.webModal = modal;
+        this.webUrlInput = input;
+    }
+
+    async handleWebLoad() {
+        const raw = this.webUrlInput ? this.webUrlInput.value.trim() : '';
+        if (!raw) return;
+        this.hideWebModal();
+        const url = this.webReader.normalizeUrl(raw);
+        this.setStatus(`Loading ${url}…`);
+        try {
+            const page = await this.webReader.loadPage(url);
+            this.webData = { url, html: page.html };
+            this.input.value = page.text;
+            this.isProcessed = true;
+            this.processBtn.innerText = 'Reset';
+            const focusModeGoBTN = document.getElementById('focus-go-btn');
+            if (focusModeGoBTN) {
+                focusModeGoBTN.innerText = 'Reset';
+            }
+            if (this.pdfMode) {
+                this.exitPdfMode();
+            }
+            this.webMode = true;
+            this.renderWebContent();
+            const wordCount = page.text.split(/\s+/).filter(Boolean).length.toLocaleString();
+            this.setStatus(`Loaded ${url} — ${wordCount} words`);
+            if (this.webUrlInput) this.webUrlInput.value = '';
+        } catch (err) {
+            console.error('Website load failed:', err);
+            this.setStatus('Website load failed: ' + (err && err.message ? err.message : err));
+        }
+    }
+
+    // Renders the imported website as a formatted HTML body (headings, lists,
+    // paragraphs, links, images...) while still wrapping every word in the same
+    // selection span the rest of the tool uses.
+    renderWebContent() {
+        if (!this.webMode || !this.webData) return;
+        this.output.innerHTML = '';
+        this.output.style.whiteSpace = 'normal';
+        this.output.style.textAlign = '';
+        this.output.style.lineHeight = '';
+        this.output.style.padding = '';
+
+        const tpl = document.createElement('template');
+        tpl.innerHTML = this.webData.html;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'web-content';
+        wrapper.appendChild(tpl.content.cloneNode(true));
+        this.wrapWordsInSpans(wrapper);
+        // Never let a click inside a link navigate away from the tool.
+        wrapper.addEventListener('click', (e) => {
+            if (e.target && e.target.closest('a')) e.preventDefault();
+        });
+
+        const closeRow = document.createElement('div');
+        closeRow.className = 'flex justify-end mb-3';
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.textContent = '✕ Close Website';
+        closeBtn.className = 'px-3 py-1 text-sm bg-teal-600 text-white rounded shadow hover:bg-teal-700';
+        closeBtn.addEventListener('click', () => this.exitWebMode());
+        closeRow.appendChild(closeBtn);
+
+        this.output.appendChild(closeRow);
+        this.output.appendChild(wrapper);
+        this.setStatus(`Website loaded: ${this.webData.url}`);
+        this.clearAllSelections();
+    }
+
+    wrapWordsInSpans(container) {
+        const walk = (node) => {
+            if (node.nodeType === 3) { // TEXT_NODE
+                const text = node.textContent;
+                if (!text.trim()) return;
+                const parts = text.split(/(\s+)/);
+                const frag = document.createDocumentFragment();
+                for (const part of parts) {
+                    if (!part) continue;
+                    if (/^\s+$/.test(part)) {
+                        frag.appendChild(document.createTextNode(part));
+                        continue;
+                    }
+                    const span = document.createElement('span');
+                    span.textContent = part;
+                    span.className = 'inline-block relative cursor-pointer hover:bg-yellow-100 rounded mx-0 max-w-full';
+                    span.style.wordWrap = 'break-word';
+                    span.style.overflowWrap = 'break-word';
+                    frag.appendChild(span);
+                }
+                if (frag.childNodes.length) {
+                    node.parentNode.replaceChild(frag, node);
+                }
+                return;
+            }
+            if (node.nodeType !== 1) return;
+            if (node.tagName === 'PRE') return; // keep code blocks untouched
+            for (const child of [...node.childNodes]) walk(child);
+        };
+        walk(container);
+    }
+
+    exitWebMode() {
+        this.webMode = false;
+        this.webData = null;
+        this.isProcessed = true;
+        this.processBtn.innerText = 'Reset';
+        this.renderTextToOutput();
+    }
+
     renderTextToOutput() {
         this.output.innerHTML = "";
         this.output.style.whiteSpace = '';
@@ -995,6 +1192,8 @@ export class VocabularyTool {
     exitPdfMode() {
         this.pdfMode = false;
         this.pdfData = null;
+        this.webMode = false;
+        this.webData = null;
         this.isProcessed = true;
         this.processBtn.innerText = "Reset";
         this.pdfReader.destroy();
@@ -1003,6 +1202,18 @@ export class VocabularyTool {
 
     setupEventListeners() {
         this.processBtn.addEventListener("click", () => {
+            if (this.webMode && this.webData) {
+                this.isProcessed = true;
+                this.processBtn.innerText = "Reset";
+                const focusModeGoBTN = document.getElementById("focus-go-btn");
+                if (focusModeGoBTN) {
+                    focusModeGoBTN.innerText = "Reset";
+                }
+                this.renderWebContent();
+                this.setStatus("Website loaded");
+                return;
+            }
+
             if (this.pdfMode && this.pdfData) {
                 this.isProcessed = true;
                 this.processBtn.innerText = "Reset";
