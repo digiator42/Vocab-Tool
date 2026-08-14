@@ -2423,7 +2423,7 @@ export class VocabularyTool {
     }
 
     applyFocusModeStyles() {
-        this.output.className = `focus-mode-output absolute top-28 ${this.isTouchDevice ? 'mt-48' : 'mt-16'} mx-1 left-4 right-4 z-30 bg-inherit text-inherit font-inherit p-8 text-[1.5rem] leading-loose min-h-screen`;
+        this.output.className = `focus-mode-output absolute top-28 ${this.isTouchDevice ? 'mt-48' : 'mt-16'} max-w-7xl mx-auto left-4 right-4 z-30 bg-inherit text-inherit font-inherit p-8 text-[1.5rem] leading-loose min-h-screen`;
         this.output.style.cssText = '';
 
         if (this.selectionTooltip) {

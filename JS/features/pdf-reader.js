@@ -236,7 +236,7 @@ export class PdfReader {
         // Cap the focus page at Tailwind's 7xl (1280px) or 80% of the screen.
         const isFocus = !!this.main.isFocusMode;
         const targetW = isFocus
-            ? Math.max(320, Math.min(1280, (window.innerWidth || 1400) * 0.8))
+            ? Math.max(320, Math.min(900, (window.innerWidth || 900) * 0.8))
             : Math.min(820, Math.max(320, (output.clientWidth || 800) - 120));
 
         this.renderedPages = 0;

@@ -1219,7 +1219,7 @@ input:checked+label::before {
    7xl (1280px) or 80% of the viewport, whichever is smaller. */
 .pdf-container-focus .pdf-toolbar,
 .pdf-container-focus .pdf-page-label {
-    max-width: min(1280px, 80%);
+    max-width: min(800px, 70%);
 }
 
 .pdf-toolbar {
