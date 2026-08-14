@@ -321,12 +321,16 @@ export class PdfReader {
                     const glyphH = line.fs * scale;
                     const topPx = Math.max(prevGlyphBottom, Math.max(0, line.y * scale));
 
-                    // Words carry the 1.1x horizontal spacing tweak, which can push
-                    // long lines past the page's right edge. Squeeze just the lines
-                    // that overflow (positions AND font size) so they stay inside.
-                    let lineStartPx = words[0].x * scale * 1.1;
+                    // Words carry the 1.1x spacing tweak, applied RELATIVE to the
+                    // line start: it stretches the gaps between words (fixing
+                    // jammed text) but keeps the line's true left position, so the
+                    // page margin is never inflated. It can still push long lines
+                    // past the right edge, so squeeze just the lines that overflow
+                    // (positions AND font size) to keep them inside.
+                    const lineStartPdf = words[0].x;
                     const lastWord = words[words.length - 1];
-                    let lineEndPx = (lastWord.x + lastWord.width) * scale * 1.1;
+                    let lineStartPx = lineStartPdf * scale;
+                    let lineEndPx = (lineStartPdf + (lastWord.x + lastWord.width - lineStartPdf) * 1.1) * scale;
 
                     // If the line starts outside the page's left edge, shift it right.
                     const shiftPx = lineStartPx < 0 ? -lineStartPx : 0;
@@ -343,7 +347,7 @@ export class PdfReader {
                     prevGlyphBottom = topPx + glyphH;
 
                     for (const word of words) {
-                        let leftPx = word.x * scale * 1.1 + shiftPx;
+                        let leftPx = (lineStartPdf + (word.x - lineStartPdf) * 1.1) * scale + shiftPx;
                         if (fitF !== 1) {
                             leftPx = lineStartPx + (leftPx - lineStartPx) * fitF;
                         }
