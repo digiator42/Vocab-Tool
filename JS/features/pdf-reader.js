@@ -308,9 +308,45 @@ export class PdfReader {
 
             let wordCount = 0;
             if (page.hasText) {
+                const pageW = Math.round(page.width * scale);
+                const rightMarginPx = 6;
+                // Vertical guard: a line must never start above the previous
+                // line's glyph bottom (clamping a near-top line to y=0 can push
+                // it into the next line). Track the bottom of each line's glyphs.
+                let prevGlyphBottom = 0;
                 for (const line of page.lines) {
-                    const topPx = line.y * scale;
-                    for (const word of line.words) {
+                    const words = line.words;
+                    if (!words.length) continue;
+
+                    const glyphH = line.fs * scale;
+                    const topPx = Math.max(prevGlyphBottom, Math.max(0, line.y * scale));
+
+                    // Words carry the 1.1x horizontal spacing tweak, which can push
+                    // long lines past the page's right edge. Squeeze just the lines
+                    // that overflow (positions AND font size) so they stay inside.
+                    let lineStartPx = words[0].x * scale * 1.1;
+                    const lastWord = words[words.length - 1];
+                    let lineEndPx = (lastWord.x + lastWord.width) * scale * 1.1;
+
+                    // If the line starts outside the page's left edge, shift it right.
+                    const shiftPx = lineStartPx < 0 ? -lineStartPx : 0;
+                    if (shiftPx) {
+                        lineStartPx += shiftPx;
+                        lineEndPx += shiftPx;
+                    }
+
+                    const maxRightPx = pageW - rightMarginPx;
+                    const fitF = (lineEndPx > maxRightPx && lineEndPx > lineStartPx)
+                        ? (maxRightPx - lineStartPx) / (lineEndPx - lineStartPx)
+                        : 1;
+
+                    prevGlyphBottom = topPx + glyphH;
+
+                    for (const word of words) {
+                        let leftPx = word.x * scale * 1.1 + shiftPx;
+                        if (fitF !== 1) {
+                            leftPx = lineStartPx + (leftPx - lineStartPx) * fitF;
+                        }
                         const span = document.createElement('span');
                         span.textContent = word.text;
                         span.className = 'pdf-word cursor-pointer';
@@ -318,9 +354,9 @@ export class PdfReader {
                         // `#output span { position: relative }` would otherwise
                         // override the .pdf-word class and scatter the words.
                         span.style.position = 'absolute';
-                        span.style.left = `${Math.round(word.x * scale * 11) / 10}px`;
+                        span.style.left = `${Math.round(leftPx * 10) / 10}px`;
                         span.style.top = `${Math.round(topPx * 10) / 10}px`;
-                        span.style.fontSize = `${Math.round(word.fs * scale * 10) / 10}px`;
+                        span.style.fontSize = `${Math.round(word.fs * scale * (fitF === 1 ? 1 : fitF) * 10) / 10}px`;
                         span.style.fontFamily = word.family;
                         pageEl.appendChild(span);
                         wordCount++;
