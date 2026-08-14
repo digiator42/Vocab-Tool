@@ -233,12 +233,11 @@ export class PdfReader {
 
         // In focus mode #output fills the whole viewport, so use the window
         // width and a larger page cap instead of the collapsed output width.
+        // Cap the focus page at Tailwind's 7xl (1280px) or 80% of the screen.
         const isFocus = !!this.main.isFocusMode;
-        const avail = isFocus
-            ? Math.max(320, (window.innerWidth || 1400) - 96)
-            : Math.max(320, (output.clientWidth || 800) - 120);
-        const cap = isFocus ? 1400 : 820;
-        const targetW = Math.min(cap, avail);
+        const targetW = isFocus
+            ? Math.max(320, Math.min(1280, (window.innerWidth || 1400) * 0.8))
+            : Math.min(820, Math.max(320, (output.clientWidth || 800) - 120));
 
         this.renderedPages = 0;
         this.pageChunk = (typeof this.main.pdfPageSize === 'number' && this.main.pdfPageSize > 0)

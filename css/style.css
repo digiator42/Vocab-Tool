@@ -1215,10 +1215,11 @@ input:checked+label::before {
     width: 100%;
 }
 
-/* In focus mode the viewer is wider, so toolbar and labels follow the page. */
+/* In focus mode the viewer is wider, so toolbar and labels follow the page:
+   7xl (1280px) or 80% of the viewport, whichever is smaller. */
 .pdf-container-focus .pdf-toolbar,
 .pdf-container-focus .pdf-page-label {
-    max-width: 1400px;
+    max-width: min(1280px, 80%);
 }
 
 .pdf-toolbar {
