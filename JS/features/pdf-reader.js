@@ -22,7 +22,7 @@ const DEFAULT_PDF_PAGE_CHUNK = 10;
 // Text layout settings, editable via the toolbar's "Text layout" panel. The
 // defaults reproduce the reader's original look (1.1x word spacing, 6px right
 // margin, natural font size).
-const DEFAULT_LAYOUT = { fontSize: 100, wordGap: 110, marginLeft: 0, marginRight: 6 };
+const DEFAULT_LAYOUT = { fontSize: 100, wordGap: 110, marginLeft: 0, marginRight: 6, marginTop: 0, marginBottom: 0 };
 const LAYOUT_STORAGE_KEY = 'vtPdfLayout';
 
 // Minimum space kept between two words during re-flow, as a fraction of the
@@ -211,7 +211,9 @@ export class PdfReader {
             { key: 'fontSize', label: 'Text size', unit: '%', min: 50, max: 200, step: 1 },
             { key: 'wordGap', label: 'Word spacing', unit: '%', min: 50, max: 250, step: 1 },
             { key: 'marginLeft', label: 'Left margin', unit: 'px', min: -60, max: 100, step: 1 },
-            { key: 'marginRight', label: 'Right margin', unit: 'px', min: -60, max: 100, step: 1 }
+            { key: 'marginRight', label: 'Right margin', unit: 'px', min: -60, max: 100, step: 1 },
+            { key: 'marginTop', label: 'Top margin', unit: 'px', min: -60, max: 100, step: 1 },
+            { key: 'marginBottom', label: 'Bottom margin', unit: 'px', min: -60, max: 100, step: 1 }
         ];
 
         const syncPanel = () => {
@@ -619,7 +621,7 @@ export class PdfReader {
         // Plain text (used for the textarea so sentence lookup etc. still work).
         const text = lines.map(line => line.items.map(it => it.str).join(' ')).join('\n');
 
-        return { pageNumber, width: W, height: H, lines, text, hasText: lines.some(line => line.words.length > 0) };
+        return { pageNumber, width: W, height: H, lines, text, bodySize, hasText: lines.some(line => line.words.length > 0) };
     }
 
     renderPdf(pdfData) {
@@ -734,28 +736,37 @@ export class PdfReader {
                 const gapF = (typeof s.wordGap === 'number' ? s.wordGap : 110) / 100;
                 const marginLeftPx = typeof s.marginLeft === 'number' ? s.marginLeft : 0;
                 const marginRightPx = typeof s.marginRight === 'number' ? s.marginRight : 6;
+                const marginTopPx = typeof s.marginTop === 'number' ? s.marginTop : 0;
+                const marginBottomPx = typeof s.marginBottom === 'number' ? s.marginBottom : 0;
+
+                // Unified font size: every word renders at the page's body
+                // size × slider scale, regardless of the source font size.
+                const unifiedFs = (typeof page.bodySize === 'number' && page.bodySize > 0)
+                    ? page.bodySize : 12;
 
                 const pageW = Math.round(page.width * scale);
                 const pageHpx = Math.round(page.height * scale);
+                const effectivePageH = Math.max(0, pageHpx - marginBottomPx);
 
                 // The text is always clamped between these bounds so it can never
                 // leave the page, whatever the user sets for size / spacing / margins.
                 const boundLeft = Math.min(Math.max(marginLeftPx, 0), Math.max(0, pageW - 20));
                 const boundRight = Math.min(Math.max(pageW - marginRightPx, 20), pageW);
 
+                const glyphH = unifiedFs * scale * fsScale;
+
                 // Vertical guard: a line must never start above the previous
                 // line's glyph bottom (clamping a near-top line to y=0 can push
                 // it into the next line). Track the bottom of each line's glyphs.
-                let prevGlyphBottom = 0;
+                let prevGlyphBottom = marginTopPx;
                 for (const line of page.lines) {
                     const words = line.words;
                     if (!words.length) continue;
 
-                    const glyphH = line.fs * scale * fsScale;
-                    const rawTop = Math.max(0, line.y * scale);
+                    const rawTop = Math.max(0, line.y * scale) + marginTopPx;
                     const topPx = Math.min(
-                        Math.max(prevGlyphBottom, rawTop),
-                        Math.max(0, pageHpx - glyphH)
+                        Math.max(Math.max(prevGlyphBottom, rawTop), 0),
+                        Math.max(0, effectivePageH - glyphH)
                     );
 
                     // Re-flow each line from its PDF left edge: word widths scale
@@ -773,15 +784,12 @@ export class PdfReader {
                     let cursorPx = lineStartPx;
                     for (let wi = 0; wi < words.length; wi++) {
                         const w = words[wi];
-                        const widthPx = w.width * scale * fsScale;
+                        const widthPx = this.measureText(w.text, unifiedFs * scale * fsScale, w.family, w.bold, w.italic);
                         wordLayout.push({ w, left: cursorPx, width: widthPx });
                         cursorPx += widthPx;
                         if (wi < words.length - 1) {
-                            // Keep a readable floor gap between words: PDFs with
-                            // jammed text leave almost no space here, which makes
-                            // the rendered words look glued together.
-                            const gapPdf = Math.max(words[wi + 1].x - (w.x + w.width), line.fs * MIN_WORD_GAP);
-                            cursorPx += gapPdf * scale * fsScale * gapF;
+                            const rawGapPdf = Math.max(words[wi + 1].x - (w.x + w.width), unifiedFs * MIN_WORD_GAP);
+                            cursorPx += rawGapPdf * scale * fsScale * gapF;
                         }
                     }
                     const lineEndPx = cursorPx;
@@ -800,18 +808,10 @@ export class PdfReader {
                         const span = document.createElement('span');
                         span.textContent = w.text;
                         span.className = 'pdf-word cursor-pointer';
-                        // Inline position is required: the app stylesheet's
-                        // `#output span { position: relative }` would otherwise
-                        // override the .pdf-word class and scatter the words.
                         span.style.position = 'absolute';
                         span.style.left = `${Math.round(leftPx * 10) / 10}px`;
                         span.style.top = `${Math.round(topPx * 10) / 10}px`;
-                        // w.k corrects the measured font size so the span's real
-                        // rendered width matches the reserved layout width (the
-                        // PDF font is usually narrower/wider than the guessed
-                        // system font; without this, words overlap or drift).
-                        const kf = (typeof w.k === 'number' && w.k > 0) ? w.k : 1;
-                        span.style.fontSize = `${Math.round(w.fs * scale * fsScale * fitF * kf * 10) / 10}px`;
+                        span.style.fontSize = `${Math.round(unifiedFs * scale * fsScale * fitF * 10) / 10}px`;
                         span.style.fontFamily = w.family;
                         if (w.bold || w.heading) span.style.fontWeight = '700';
                         if (w.italic) span.style.fontStyle = 'italic';
