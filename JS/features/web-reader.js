@@ -59,9 +59,11 @@ export class WebReader {
     }
 
     async loadPage(url) {
-        // Try the direct request first, then fall back through public CORS
-        // proxies so most sites work regardless of their CORS policy.
+        // Try our serverless proxy first (no CORS on Vercel), then the direct
+        // request, then fall back through public CORS proxies so most sites
+        // work even when running locally without the /api function.
         const sources = [
+            this.proxyUrl(url),
             url,
             `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
             `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
@@ -75,10 +77,25 @@ export class WebReader {
             try {
                 const res = await fetch(src, { signal: controller.signal, redirect: 'follow' });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const html = await res.text();
-                const page = this.sanitize(html, url);
+
+                let html;
+                let finalUrl = url;
+                if (src === this.proxyUrl(url)) {
+                    // Serverless proxy returns JSON: { html, url (after redirects) }.
+                    const data = await res.json();
+                    html = data.html || '';
+                    finalUrl = this.finalUrl(data.url, url);
+                } else {
+                    html = await res.text();
+                    // redirect:'follow' already follows redirects; res.url is the
+                    // final URL. Proxies report their own wrapper URL, so for
+                    // those sources keep the original target.
+                    finalUrl = this.finalUrl(res.url, url);
+                }
+
+                const page = this.sanitize(html, finalUrl);
                 if (page.text && page.text.length >= 50) {
-                    return { url, html: page.html, text: page.text };
+                    return { url: finalUrl, html: page.html, text: page.text };
                 }
             } catch (err) {
                 lastErr = err;
@@ -89,24 +106,77 @@ export class WebReader {
         throw lastErr || new Error('Could not fetch the website.');
     }
 
+    // Build the URL for our own serverless proxy (same-origin on Vercel).
+    proxyUrl(url) {
+        return `/api/fetch-page?url=${encodeURIComponent(url)}`;
+    }
+
+    // Resolve the final URL after redirects, ignoring proxy wrapper URLs.
+    finalUrl(responseUrl, originalUrl) {
+        if (!responseUrl) return originalUrl;
+        if (/allorigins|corsproxy|cors\.eu\.org/i.test(responseUrl)) return originalUrl;
+        return responseUrl;
+    }
+
+    // Pick the element that holds the main content (no nav bars / sidebars).
+    // Prefers semantic landmarks (<main>, [role=main], <article>) and common
+    // content wrappers; falls back to the largest text-bearing candidate.
+    extractMainContent(doc) {
+        const scoreEl = (el) => el.textContent.trim().length;
+
+        let best = null;
+        let bestScore = 0;
+        const consider = (el) => {
+            if (!el || !el.isConnected) return;
+            const s = scoreEl(el);
+            if (s > bestScore) {
+                bestScore = s;
+                best = el;
+            }
+        };
+
+        // Semantic landmarks.
+        doc.querySelectorAll('main, [role="main"], article').forEach(consider);
+
+        // Common CMS / framework content wrappers.
+        doc.querySelectorAll([
+            '#content', '#main', '#main-content', '#mainContent', '#article',
+            '#post-content', '#postContent', '#entry-content', '#article-content',
+            '.content', '.main-content', '.mainContent', '.site-content',
+            '.post-content', '.postContent', '.entry-content', '.article-content',
+            '.article-body', '.single-content', '.page-content', '.reading-content'
+        ].join(',')).forEach(consider);
+
+        return best;
+    }
+
     sanitize(html, baseUrl) {
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        // Drop everything that is never part of the readable content.
-        doc.querySelectorAll(REMOVE_SELECTORS.join(',')).forEach(el => el.remove());
+        // Scope everything to the main content so site chrome (nav bars, headers,
+        // sidebars, footers) is excluded. Falls back to <body> if no candidate.
+        const mainRoot = this.extractMainContent(doc) || doc.body;
 
-        // Unwrap chrome/inline wrappers, keeping their children (headlines,
-        // bylines, bold text...).
-        doc.querySelectorAll('header, footer, aside, label, span').forEach(el => {
+        // Drop site chrome explicitly (nav / aside are never content).
+        mainRoot.querySelectorAll('nav, aside').forEach(el => el.remove());
+        // Unwrap header/footer so article titles survive, and unwrap inline
+        // wrappers keeping their children (headlines, bylines, bold text...).
+        // Site <span>s are unwrapped (not kept): a kept <span> would nest around
+        // our per-word spans and its text would be duplicated when a drag
+        // selection spans both levels.
+        mainRoot.querySelectorAll('header, footer, label, span').forEach(el => {
             const parent = el.parentNode;
             while (el.firstChild) parent.insertBefore(el.firstChild, el);
             el.remove();
         });
 
+        // Drop everything that is never part of the readable content.
+        mainRoot.querySelectorAll(REMOVE_SELECTORS.join(',')).forEach(el => el.remove());
+
         // Keep only whitelisted tags and clean their attributes. This strips
         // event handlers, inline styles and anything that could execute or
         // fight with the tool's own styling.
-        const all = [...doc.body.querySelectorAll('*')];
+        const all = [...mainRoot.querySelectorAll('*')];
         for (const el of all) {
             if (!KEEP_TAGS.has(el.tagName)) {
                 // Unknown tags (Word's <o:p>, <font>, ...) are usually inline
@@ -155,13 +225,13 @@ export class WebReader {
         }
 
         // Prune elements that ended up empty (no text, no image).
-        doc.body.querySelectorAll('p, div, section, article, span, figure, li, td, th, tr').forEach(el => {
+        mainRoot.querySelectorAll('p, div, section, article, span, figure, li, td, th, tr').forEach(el => {
             if (!el.textContent.trim() && !el.querySelector('img')) el.remove();
         });
 
-        // Move body children into a container so we can serialize cleanly.
+        // Move content into a container so we can serialize cleanly.
         const container = doc.createElement('div');
-        while (doc.body.firstChild) container.appendChild(doc.body.firstChild);
+        while (mainRoot.firstChild) container.appendChild(mainRoot.firstChild);
 
         // Limit the size so huge pages don't freeze the renderer.
         this.truncateRoot(container, WEB_MAX_CHARS);

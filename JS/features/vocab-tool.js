@@ -930,7 +930,7 @@ export class VocabularyTool {
     }
 
     setupPdfUpload() {
-        const container = document.getElementById('extra-tools-container');
+        const container = document.getElementById('file-tools-container');
         if (!container) return;
 
         const btn = document.createElement('button');
@@ -975,7 +975,7 @@ export class VocabularyTool {
     }
 
     setupWebLoad() {
-        const container = document.getElementById('extra-tools-container');
+        const container = document.getElementById('file-tools-container');
         if (!container) return;
 
         const btn = document.createElement('button');
@@ -1064,9 +1064,10 @@ export class VocabularyTool {
         this.setStatus(`Loading ${url}…`);
         try {
             const page = await this.webReader.loadPage(url);
-            this.applyRichContent(page, url, 'website');
+            const finalUrl = page.url || url;
+            this.applyRichContent(page, finalUrl, 'website');
             const wordCount = page.text.split(/\s+/).filter(Boolean).length.toLocaleString();
-            this.setStatus(`Loaded ${url} — ${wordCount} words`);
+            this.setStatus(`Loaded ${finalUrl} — ${wordCount} words`);
             if (this.webUrlInput) this.webUrlInput.value = '';
         } catch (err) {
             console.error('Website load failed:', err);
@@ -1265,7 +1266,7 @@ export class VocabularyTool {
     // ── HTML File Reader ────────────────────────────────────────────────
 
     setupHtmlUpload() {
-        const container = document.getElementById('extra-tools-container');
+        const container = document.getElementById('file-tools-container');
         if (!container) return;
 
         const btn = document.createElement('button');
