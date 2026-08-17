@@ -263,9 +263,12 @@ export class SpeakingTrainer {
         recognition.continuous = false;
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            const current = this.input.value.trim();
-            this.input.value = current ? current + ' ' + transcript : transcript;
-            this.input.focus();
+            const pos = this.insertPos || {
+                start: this.input.selectionStart ?? this.input.value.length,
+                end: this.input.selectionEnd ?? this.input.value.length,
+            };
+            this.insertAt(pos.start, pos.end, transcript);
+            this.insertPos = null;
             this.setRecording(false);
         };
         recognition.onerror = (e) => {
@@ -286,12 +289,35 @@ export class SpeakingTrainer {
             this.setRecording(false);
             return;
         }
+        this.captureInsertPos();
         try {
             this.recognition.start();
             this.setRecording(true);
         } catch (err) {
             console.warn('Could not start recognition:', err);
         }
+    }
+
+    captureInsertPos() {
+        this.insertPos = {
+            start: this.input.selectionStart ?? this.input.value.length,
+            end: this.input.selectionEnd ?? this.input.value.length,
+        };
+    }
+
+    insertAt(start, end, text) {
+        const el = this.input;
+        const before = el.value.slice(0, start);
+        const after = el.value.slice(end);
+        let insert = text.trim();
+        if (insert) {
+            if (before && !/\s$/.test(before)) insert = ' ' + insert;
+            if (after && !/^\s/.test(after)) insert = insert + ' ';
+        }
+        el.value = before + insert + after;
+        const newPos = (before + insert).length;
+        el.focus();
+        el.setSelectionRange(newPos, newPos);
     }
 
     setRecording(on) {
