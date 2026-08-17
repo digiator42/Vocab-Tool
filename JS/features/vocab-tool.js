@@ -7,6 +7,7 @@ import { FlashcardListService } from '../utils/vocab-tool-utils/flashcard-list.j
 import { PassiveLearningService } from '../utils/vocab-tool-utils/passive-learning.js';
 import { PdfReader } from './pdf-reader.js';
 import { WebReader } from './web-reader.js';
+import { HtmlReader } from './html-reader.js';
 
 // Vocabulary Tool Module
 export class VocabularyTool {
@@ -62,6 +63,7 @@ export class VocabularyTool {
         this.passiveLearning = new PassiveLearningService(this);
         this.pdfReader = new PdfReader(this);
         this.webReader = new WebReader(this);
+        this.htmlReader = new HtmlReader(this);
         this.pdfMode = false;
         this.pdfData = null;
         this.webMode = false;
@@ -69,6 +71,7 @@ export class VocabularyTool {
         this.webModal = null;
         this.webUrlInput = null;
         this.htmlMode = false;
+        this.htmlData = null;
         this.init();
     }
 
@@ -82,6 +85,7 @@ export class VocabularyTool {
         this.setupFocusMode();
         this.setupPdfUpload();
         this.setupWebLoad();
+        this.setupHtmlUpload();
         this.setupRichPaste();
         this.setupHtmlCheckbox();
         this.speech.loadVoices();
@@ -1087,6 +1091,9 @@ export class VocabularyTool {
         if (this.pdfMode) {
             this.exitPdfMode();
         }
+        if (this.htmlMode) {
+            this.exitHtmlMode();
+        }
         this.webMode = true;
         this.renderWebContent();
     }
@@ -1132,6 +1139,8 @@ export class VocabularyTool {
                 }
             } else if (this.webMode && this.webData && this.webData.source === 'html') {
                 this.exitWebMode();
+            } else if (this.htmlData) {
+                this.exitHtmlMode();
             }
         });
     }
@@ -1233,11 +1242,67 @@ export class VocabularyTool {
         this.webMode = false;
         this.webData = null;
         this.htmlMode = false;
+        this.htmlData = null;
         const htmlChk = document.getElementById('html-mode-chk');
         if (htmlChk) htmlChk.checked = false;
         // this.isProcessed = true;
         // this.processBtn.innerText = 'Reset';
         // this.renderTextToOutput();
+    }
+
+    // ── HTML File Reader ────────────────────────────────────────────────
+
+    setupHtmlUpload() {
+        const container = document.getElementById('extra-tools-container');
+        if (!container) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'upload-html-btn';
+        btn.textContent = '📝 Upload HTML';
+        btn.className = 'px-4 py-2 bg-orange-600 text-white rounded-lg shadow hover:bg-orange-700';
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'text/html,.html,.htm';
+        input.className = 'hidden';
+        input.id = 'html-file-input';
+
+        btn.addEventListener('click', () => input.click());
+        input.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (file) {
+                this.loadHtmlFile(file);
+            }
+            input.value = '';
+        });
+
+        container.appendChild(btn);
+        container.appendChild(input);
+    }
+
+    async loadHtmlFile(file) {
+        this.setStatus('Loading HTML file…');
+        try {
+            await this.htmlReader.loadHtmlFile(file);
+            this.setStatus(`Loaded HTML: ${file.name}`);
+        } catch (err) {
+            console.error('HTML load failed:', err);
+            this.setStatus('HTML load failed: ' + (err && err.message ? err.message : err));
+        }
+    }
+
+    async renderHtmlPages() {
+        if (!this.htmlMode || !this.htmlData) return;
+        await this.htmlReader.renderHtml(this.htmlData);
+        this.clearAllSelections();
+    }
+
+    exitHtmlMode() {
+        this.htmlMode = false;
+        this.htmlData = null;
+        if (this.htmlReader) this.htmlReader.destroy();
+        document.getElementById('html-progress-overlay')?.remove();
+        this.renderTextToOutput();
     }
 
     renderTextToOutput() {
@@ -1298,6 +1363,8 @@ export class VocabularyTool {
         this.pdfData = null;
         this.webMode = false;
         this.webData = null;
+        this.htmlMode = false;
+        this.htmlData = null;
         this.pdfReader.destroy();
         // this.isProcessed = true;
         // this.processBtn.innerText = "Reset";
@@ -1306,6 +1373,18 @@ export class VocabularyTool {
 
     setupEventListeners() {
         this.processBtn.addEventListener("click", () => {
+            if (this.htmlMode && this.htmlData) {
+                this.isProcessed = true;
+                this.processBtn.innerText = "Reset";
+                const focusModeGoBTN = document.getElementById("focus-go-btn");
+                if (focusModeGoBTN) {
+                    focusModeGoBTN.innerText = "Reset";
+                }
+                this.renderHtmlPages();
+                this.setStatus("HTML loaded");
+                return;
+            }
+
             if (this.htmlMode) {
                 this.processHtmlInput();
                 return;
@@ -1351,7 +1430,9 @@ export class VocabularyTool {
         this.playBtn.addEventListener('click', () => {
             // In a formatted view the textarea may hold raw HTML, so speak the
             // extracted plain text instead.
-            const text = (this.webMode && this.webData && this.webData.text)
+            const text = (this.htmlMode && this.htmlData && this.htmlData.text)
+                ? this.htmlData.text
+                : (this.webMode && this.webData && this.webData.text)
                 ? this.webData.text
                 : this.input.value;
             const focusModePlayBTN = document.getElementById("focus-play-btn");
