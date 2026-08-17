@@ -386,11 +386,23 @@ export class VocabularyTool {
         this.storeSelectionGroup(selectedSpans, selectedText, translation, this.desktop.currentGroupId);
 
         const firstSpan = selectedSpans[0];
-        const rect = firstSpan.getBoundingClientRect();
-        this.showSelectionTooltip(selectedText, rect, this.desktop.currentGroupId, translation);
+        this.showSelectionTooltip(selectedText, this.getWordBounds(firstSpan), this.desktop.currentGroupId, translation);
 
         this.desktop.selectionStartSpan = null;
         this.desktop.currentGroupId = null;
+    }
+
+    // Tight bounding box of the actual text glyphs. pdf2htmlEX word spans sit
+    // inside tall line boxes, so getBoundingClientRect()'s top can be well above
+    // the visible letters; a Range over the text gives the true glyph bounds.
+    getWordBounds(span) {
+        try {
+            const range = document.createRange();
+            range.selectNodeContents(span);
+            const rect = range.getBoundingClientRect();
+            if (rect && rect.width > 0 && rect.height > 0) return rect;
+        } catch (e) { /* fall through */ }
+        return span.getBoundingClientRect();
     }
 
     // ========== MOBILE EVENT HANDLERS ==========
@@ -868,8 +880,6 @@ export class VocabularyTool {
             font-size: 14px;
             z-index: 30;
             white-space: nowrap;
-            left: ${rect.left + window.scrollX}px;
-            top: ${rect.top + window.scrollY - 40}px;
             display: block;
         `;
 
@@ -880,6 +890,7 @@ export class VocabularyTool {
         }
 
         document.body.appendChild(tooltip);
+        this.positionGroupTooltip(tooltip, rect);
         this.groupTooltips.set(groupId, tooltip);
 
         if (!translation) {
@@ -891,10 +902,16 @@ export class VocabularyTool {
                 if (this.groupTooltips.has(groupId)) {
                     const tooltip = this.groupTooltips.get(groupId);
                     tooltip.textContent = translated;
-                    tooltip.style.top = (rect.top + window.scrollY - tooltip.offsetHeight - 10) + 'px';
+                    this.positionGroupTooltip(tooltip, rect);
                 }
             });
         }
+    }
+
+    // Place the tooltip just above the first selected word, hugging it.
+    positionGroupTooltip(tooltip, rect) {
+        tooltip.style.left = (rect.left + window.scrollX) + 'px';
+        tooltip.style.top = (rect.top + window.scrollY - tooltip.offsetHeight - 2) + 'px';
     }
 
     removeGroupTooltip(groupId) {
