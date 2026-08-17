@@ -341,6 +341,12 @@ export class HtmlReader {
         container.querySelectorAll(':scope > .html-page, :scope > .html-page-label')
             .forEach(el => el.remove());
 
+        // Group tooltips live on document.body and would otherwise linger after
+        // the pages they annotated are gone.
+        if (this.main && typeof this.main.clearAllSelections === 'function') {
+            this.main.clearAllSelections();
+        }
+
         // Show progress bar for multi-page renders
         const showProg = totalPages > 3;
 
