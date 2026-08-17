@@ -1854,3 +1854,71 @@ input:checked+label::before {
 .dark .html-progress-detail {
     color: #94a3b8;
 }
+
+/* ── German Speaking Trainer ─────────────────────────────────────────── */
+.trainer-msg {
+    max-width: 82%;
+    padding: 0.6rem 1rem;
+    border-radius: 0.75rem;
+    margin-bottom: 0.6rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+}
+
+.trainer-msg-user {
+    margin-left: auto;
+    background: #0d9488;
+    color: #fff;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.trainer-msg-model {
+    margin-right: auto;
+    background: #f3f4f6;
+    color: #111827;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.trainer-tts-btn {
+    margin-left: 0.5rem;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.08);
+    border: none;
+    border-radius: 0.375rem;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1;
+    vertical-align: middle;
+    transition: background 0.2s;
+}
+
+.trainer-tts-btn:hover {
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.dark-mode .trainer-tts-btn {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.dark-mode .trainer-tts-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.dark-mode .trainer-msg-model {
+    background: #374151;
+    color: #f9fafb;
+}
+
+.trainer-recording {
+    animation: trainer-pulse 1s infinite;
+}
+
+@keyframes trainer-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+    }
+}

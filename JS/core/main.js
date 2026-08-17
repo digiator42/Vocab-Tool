@@ -4,6 +4,7 @@ import { FlashcardsTool } from '../features/flashcards-tool.js';
 import { ImportExportManager } from '../utils/import-export.js';
 import { TabManager } from './tab-manager.js';
 import { ExerciseTool } from '../features/exercise-tool.js';
+import { SpeakingTrainer } from '../features/speaking-trainer.js';
 import { germanStories } from '../utils/stories.js';
 // import { aiStories } from '../utils/stories.js';
 import { netzwerkA2Stories } from '../utils/netzwerk-a2-stories.js';
@@ -42,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const tabManager = new TabManager();
 
     // Initialize tools only when needed
-    let vocabTool, flashCardsTool, exerciseTool, syncManager;
+    let vocabTool, flashCardsTool, exerciseTool, syncManager, speakingTrainer;
 
     syncManager = new SyncManager();
     window.syncManager = syncManager;
@@ -76,6 +77,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    document.getElementById("tab-trainer").addEventListener("click", () => {
+        if (!speakingTrainer) {
+            speakingTrainer = new SpeakingTrainer();
+        }
+    });
+
     // Initialize the default tool based on URL parameter
     const params = new URL(window.location).searchParams;
     if (params.get('page') === 'flashcards') {
@@ -86,6 +93,10 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (params.get('page') === 'vocab') {
         if (!vocabTool) {
             vocabTool = new VocabularyTool();
+        }
+    } else if (params.get('page') === 'trainer') {
+        if (!speakingTrainer) {
+            speakingTrainer = new SpeakingTrainer();
         }
     } else {
         if (!exerciseTool) {

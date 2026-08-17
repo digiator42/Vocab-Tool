@@ -22,6 +22,8 @@ export class TabManager {
         this.flashTool = document.getElementById("flashcard-tool");
         this.exerciseTab = document.getElementById("tab-exercise");
         this.exerciseTool = document.getElementById("exercise-tool");
+        this.trainerTab = document.getElementById("tab-trainer");
+        this.trainerTool = document.getElementById("speaking-trainer");
     }
 
     setQueryParam(key, value) {
@@ -34,6 +36,7 @@ export class TabManager {
         this.vocabTab.addEventListener("click", () => this.switchToVocab());
         this.flashTab.addEventListener("click", () => this.switchToFlashcards());
         this.exerciseTab.addEventListener("click", () => this.switchToExercises());
+        this.trainerTab.addEventListener("click", () => this.switchToTrainer());
     }
 
     handleInitialTab() {
@@ -44,6 +47,8 @@ export class TabManager {
             this.flashTab.click();
         } else if (page === 'exercises') {
             this.exerciseTab.click();
+        } else if (page === 'trainer') {
+            this.trainerTab.click();
         } else {
             this.vocabTab.click();
         }
@@ -54,9 +59,11 @@ export class TabManager {
         this.vocabTool.classList.remove("hidden");
         this.flashTool.classList.add("hidden");
         this.exerciseTool.classList.add("hidden");
+        this.trainerTool.classList.add("hidden");
         this.vocabTab.classList.add("bg-blue-700");
         this.flashTab.classList.remove("bg-indigo-700");
         this.exerciseTab.classList.remove("bg-green-700");
+        this.trainerTab.classList.remove("bg-teal-700");
         document.querySelectorAll('.group-tooltip').forEach(el => {
             el.style.display = 'block';
         });
@@ -67,9 +74,11 @@ export class TabManager {
         this.flashTool.classList.remove("hidden");
         this.vocabTool.classList.add("hidden");
         this.exerciseTool.classList.add("hidden");
+        this.trainerTool.classList.add("hidden");
         this.flashTab.classList.add("bg-indigo-700");
         this.vocabTab.classList.remove("bg-blue-700");
         this.exerciseTab.classList.remove("bg-green-700");
+        this.trainerTab.classList.remove("bg-teal-700");
         document.querySelectorAll('.group-tooltip').forEach(el => {
             el.style.display = 'none';
         });
@@ -80,8 +89,25 @@ export class TabManager {
         this.exerciseTool.classList.remove("hidden");
         this.vocabTool.classList.add("hidden");
         this.flashTool.classList.add("hidden");
+        this.trainerTool.classList.add("hidden");
         this.exerciseTab.classList.add("bg-green-700");
         this.vocabTab.classList.remove("bg-blue-700");
         this.flashTab.classList.remove("bg-indigo-700");
+        this.trainerTab.classList.remove("bg-teal-700");
+    }
+
+    switchToTrainer() {
+        this.setQueryParam('page', 'trainer');
+        this.trainerTool.classList.remove("hidden");
+        this.vocabTool.classList.add("hidden");
+        this.flashTool.classList.add("hidden");
+        this.exerciseTool.classList.add("hidden");
+        this.trainerTab.classList.add("bg-teal-700");
+        this.vocabTab.classList.remove("bg-blue-700");
+        this.flashTab.classList.remove("bg-indigo-700");
+        this.exerciseTab.classList.remove("bg-green-700");
+        document.querySelectorAll('.group-tooltip').forEach(el => {
+            el.style.display = 'none';
+        });
     }
 }

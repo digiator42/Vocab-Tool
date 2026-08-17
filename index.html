@@ -22,6 +22,7 @@
         <button id="tab-flash"
             class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700">Flashcards</button>
         <button id="tab-exercise" class="px-4 py-2 bg-green-600 text-white rounded-lg">Grammar Exercises</button>
+        <button id="tab-trainer" class="px-4 py-2 bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700">Speaking Trainer</button>
         <button id="toggleTheme" class="p-2 text-3xl" title="Toggle Theme">🌙</button>
     </div>
 
@@ -430,6 +431,107 @@ Default Separator :: OR ;; OR --"></textarea>
         <div id="exerciseResult" class="mt-4 font-semibold"></div>
         <div id="grammerContainer" class="container mx-auto px-4 py-8 max-w-4xl"></div>
     </section>
+
+    <section id="speaking-trainer" class="hidden max-w-4xl mx-auto w-full">
+        <div class="flex flex-wrap items-center justify-between gap-4 bg-white rounded-2xl shadow p-6 mb-4 dark:bg-gray-800">
+            <div>
+                <h1 class="text-2xl font-bold text-teal-700 dark:text-teal-400">German Speaking Trainer</h1>
+                <p class="text-gray-600 text-sm dark:text-gray-300">Practice speaking German with an AI coach — powered by
+                    Gemini</p>
+            </div>
+            <button id="trainer-settings-btn"
+                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm flex items-center gap-2">
+                <span id="trainer-key-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+                API Key
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4" id="trainer-mode-selector">
+            <button data-mode="tandem_coach"
+                class="trainer-mode-btn border-2 border-teal-600 bg-teal-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors">
+                🤝 Tandem Coach</button>
+            <button data-mode="rewrite_mess"
+                class="trainer-mode-btn border-2 border-gray-300 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg px-3 py-2 text-sm font-medium transition-colors">
+                📝 Raw Speech Corrector</button>
+            <button data-mode="sentence_starters"
+                class="trainer-mode-btn border-2 border-gray-300 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg px-3 py-2 text-sm font-medium transition-colors">
+                ✍️ Sentence Starters</button>
+        </div>
+
+        <div id="trainer-conversation"
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 h-[28rem] overflow-y-auto mb-4"></div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-4 mb-4">
+            <div class="flex items-center gap-2">
+                <textarea id="trainer-input" rows="2"
+                    class="flex-1 border dark:bg-gray-700 dark:text-gray-100 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                    placeholder="Type in German or press the mic to speak…"></textarea>
+                <button id="trainer-mic-btn" title="Tap to speak (de-DE)"
+                    class="flex-shrink-0 w-12 h-12 rounded-full bg-red-500 text-white text-xl hover:bg-red-600 flex items-center justify-center">🎤</button>
+                <button id="trainer-send-btn"
+                    class="flex-shrink-0 px-5 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium">Send</button>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+                <div class="flex flex-col">
+                    <input type="checkbox" id="trainer-voice-select-in" class="switch-input" />
+                    <label for="trainer-voice-select-in"
+                        class="text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap"></label>
+                    <span>🗣 Voice</span>
+                </div>
+                <select id="trainer-voice-select"
+                    class="flex-1 border dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 min-w-0"
+                    title="Text-to-speech voice for agent replies"></select>
+                <button id="trainer-voice-test" title="Play test sentence"
+                    class="flex-shrink-0 px-3 py-1.5 bg-gray-200 dark:bg-gray-700 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm">▶</button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Enter sends · Shift+Enter for a new line · Speech
+                recognition is <span class="font-semibold">de-DE</span> · 🔊 on each reply plays it with the selected
+                voice</p>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h3 class="font-bold text-lg">20-Minute Guided Routine</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Ramble → Review → Repeat → Finish sentences</p>
+                </div>
+                <button id="trainer-routine-toggle"
+                    class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium">Start Routine</button>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-4">
+                <div id="trainer-routine-bar" class="bg-teal-600 h-2.5 rounded-full transition-all" style="width:0%"></div>
+            </div>
+            <div class="flex items-center justify-between mt-2 text-sm text-gray-600 dark:text-gray-300">
+                <span id="trainer-routine-stage">Not started</span>
+                <span id="trainer-routine-timer"></span>
+            </div>
+            <div class="grid grid-cols-4 gap-2 mt-3 text-center text-xs">
+                <div class="text-teal-600 font-medium">0–5 min<br>Voice Ramble</div>
+                <div class="text-teal-600 font-medium">5–10 min<br>Review Errors</div>
+                <div class="text-teal-600 font-medium">10–15 min<br>TTS Repetition</div>
+                <div class="text-teal-600 font-medium">15–20 min<br>Sentence Starters</div>
+            </div>
+        </div>
+    </section>
+
+    <div id="trainer-settings-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-md mx-4">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold">Gemini API Key</h2>
+                <button id="trainer-close-settings" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Get a free key at
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener"
+                    class="text-teal-600 underline">aistudio.google.com</a>.
+                The key is stored only in your browser (localStorage) and used to call Gemini directly.</p>
+            <input id="trainer-key-input" type="password" placeholder="Paste your Gemini API key"
+                class="w-full border dark:bg-gray-700 dark:text-gray-100 rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <p id="trainer-key-status" class="text-sm text-gray-600 dark:text-gray-300 mb-4"></p>
+            <button id="trainer-save-key"
+                class="w-full px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium">Save & Test Key</button>
+        </div>
+    </div>
 </body>
 
 <script type="module" src="./JS/core/main.js"></script>
