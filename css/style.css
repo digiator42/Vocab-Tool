@@ -1778,8 +1778,7 @@ input:checked+label::before {
 /* HTML reader: grouped-selection tooltip — larger than the normal-text one */
 .html-reader-group-tooltip {
     font-size: 0.8rem !important;
-    line-height: 1.4;
-    padding: 10px 16px !important;
+    line-height: 0.8;
     max-width: 90vw;
 }
 
