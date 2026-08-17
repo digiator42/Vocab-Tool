@@ -1768,6 +1768,14 @@ input:checked+label::before {
     padding: 0 !important;
 }
 
+/* HTML reader: larger single-word tooltip, translation stays on one line */
+.html-page .tooltip {
+    font-size: 1.8rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    max-width: 90vw;
+}
+
 /* ── HTML progress overlay ───────────────────────────────────────────── */
 #html-progress-overlay {
     position: fixed;
