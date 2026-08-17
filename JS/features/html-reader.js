@@ -235,9 +235,10 @@ export class HtmlReader {
         const toolbar = document.createElement('div');
         toolbar.className = 'html-toolbar';
 
+        const totalElements = htmlData.pages.reduce((n, p) => n + p.elements.length, 0);
         const info = document.createElement('span');
         info.className = 'html-toolbar-info';
-        info.textContent = `📄 ${htmlData.title} — ${htmlData.pages.length} page${htmlData.pages.length === 1 ? '' : 's'}`;
+        info.textContent = `📄 ${htmlData.title} — ${totalElements} elements · ${htmlData.pages.length} page${htmlData.pages.length === 1 ? '' : 's'}`;
         toolbar.appendChild(info);
 
         // Per-view selector
@@ -317,7 +318,8 @@ export class HtmlReader {
         // Update info text
         const info = this.main.output.querySelector('.html-toolbar-info');
         if (info) {
-            info.textContent = `📄 ${htmlData.title} — ${htmlData.pages.length} page${htmlData.pages.length === 1 ? '' : 's'}`;
+            const totalElements = allElements.length;
+            info.textContent = `📄 ${htmlData.title} — ${totalElements} elements · ${htmlData.pages.length} page${htmlData.pages.length === 1 ? '' : 's'}`;
         }
     }
 
@@ -325,10 +327,19 @@ export class HtmlReader {
 
     async appendPageBatchAsync(container, htmlData) {
         const pages = htmlData.pages;
-        const chunk = this.pageChunk === Infinity ? pages.length : this.pageChunk;
-        const end = Math.min(this.renderedPages + chunk, pages.length);
-        const start = this.renderedPages;
         const totalPages = pages.length;
+
+        // Render exactly ONE page per batch.  A page already holds `pageChunk`
+        // elements, so "10 elements" renders 10 elements (10 PDF pages for a
+        // pdf2htmlEX file) instead of chunk×chunk=100.
+        const end = Math.min(this.renderedPages + 1, pages.length);
+        const start = this.renderedPages;
+
+        // Overwrite the previously rendered page(s) so the browser never has to
+        // hold several batches of elements at once.  DOM stays bounded to one
+        // batch (pageChunk elements).
+        container.querySelectorAll(':scope > .html-page, :scope > .html-page-label')
+            .forEach(el => el.remove());
 
         // Show progress bar for multi-page renders
         const showProg = totalPages > 3;
@@ -364,6 +375,9 @@ export class HtmlReader {
 
                 container.appendChild(pageEl);
 
+                // Scale pdf2htmlEX frames (fixed ~918px wide) to fit the card
+                this.fitPdfFrames(pageEl);
+
                 // Page label
                 const label = document.createElement('div');
                 label.className = 'html-page-label';
@@ -396,24 +410,53 @@ export class HtmlReader {
 
             // "Load more" button
             if (this.renderedPages < pages.length) {
-                const remaining = pages.length - this.renderedPages;
                 const loadMore = document.createElement('button');
                 loadMore.type = 'button';
                 loadMore.className = 'html-load-more-btn';
-                const nextCount = Math.min(chunk, remaining);
-                loadMore.textContent = `Load next ${nextCount} page${nextCount === 1 ? '' : 's'} (${this.renderedPages} of ${pages.length})`;
+                const nextPageNum = this.renderedPages + 1;
+                loadMore.textContent = `Load next page ${nextPageNum} of ${totalPages} (overwrites current)`;
                 loadMore.addEventListener('click', () => {
                     loadMore.remove();
-                    this.appendPageBatchAsync(container, htmlData);
+                    this.appendPageBatchAsync(container, htmlData).then(() => {
+                        container.scrollIntoView({ block: 'start' });
+                    });
                 });
                 container.appendChild(loadMore);
             }
 
-            // Prune off-screen pages to keep DOM bounded (same as PDF reader)
-            this.prunePages(container, chunk);
-
             this.hideProgress();
         }
+    }
+
+    // Scale pdf2htmlEX `.pf` frames (fixed natural width, e.g. 918px) down to
+    // fit the `.html-page` content box so the pages never overflow right.
+    fitPdfFrames(pageEl) {
+        if (!pageEl) return;
+        const frames = pageEl.querySelectorAll(':scope > .pf');
+        if (!frames.length) return;
+        const cs = getComputedStyle(pageEl);
+        const padL = parseFloat(cs.paddingLeft) || 0;
+        const padR = parseFloat(cs.paddingRight) || 0;
+        const avail = pageEl.clientWidth - padL - padR;
+        if (!(avail > 0)) return;
+        frames.forEach(pf => {
+            const natW = pf.offsetWidth;
+            if (!natW || natW <= avail) return;
+            const s = avail / natW;
+            const natH = pf.offsetHeight;
+            const pc = pf.querySelector(':scope > .pc');
+            if (pc) {
+                const t = `scale(${s})`;
+                pc.style.transform = t;
+                pc.style.msTransform = t;
+                pc.style.webkitTransform = t;
+                pc.style.transformOrigin = '0 0';
+                pc.style.msTransformOrigin = '0 0';
+                pc.style.webkitTransformOrigin = '0 0';
+            }
+            pf.style.width = `${avail}px`;
+            pf.style.height = `${natH * s}px`;
+        });
     }
 
     prunePages(wrapper, chunk) {

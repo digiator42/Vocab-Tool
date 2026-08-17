@@ -539,9 +539,6 @@ export class VocabularyTool {
             const tip = document.createElement("div");
             tip.className = "tooltip";
             tip.textContent = translated;
-            tip.style.whiteSpace = "nowrap";
-            tip.style.textOverflow = "ellipsis";
-            tip.style.overflow = "hidden";
             tip.style.zIndex = "1000";
 
             span.appendChild(tip);
@@ -727,9 +724,6 @@ export class VocabularyTool {
             const tip = document.createElement("div");
             tip.className = "tooltip";
             tip.textContent = translated;
-            tip.style.whiteSpace = "nowrap";
-            tip.style.textOverflow = "ellipsis";
-            tip.style.overflow = "hidden";
             span.appendChild(tip);
 
             console.log('Individual word translation:', translated);
