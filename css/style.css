@@ -1880,6 +1880,14 @@ input:checked+label::before {
     border-bottom-left-radius: 0.25rem;
 }
 
+.trainer-msg-model strong {
+    color: #0d9488;
+}
+
+.dark-mode .trainer-msg-model strong {
+    color: #2dd4bf;
+}
+
 .trainer-tts-btn {
     margin-left: 0.5rem;
     cursor: pointer;

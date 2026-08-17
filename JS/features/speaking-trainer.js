@@ -263,7 +263,8 @@ export class SpeakingTrainer {
         recognition.continuous = false;
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            this.input.value = transcript;
+            const current = this.input.value.trim();
+            this.input.value = current ? current + ' ' + transcript : transcript;
             this.input.focus();
             this.setRecording(false);
         };
@@ -320,7 +321,11 @@ export class SpeakingTrainer {
         const wrapper = document.createElement('div');
         wrapper.className = role === 'user' ? 'trainer-msg trainer-msg-user' : 'trainer-msg trainer-msg-model';
         const textNode = document.createElement('span');
-        textNode.textContent = text;
+        if (role === 'assistant') {
+            textNode.innerHTML = this.renderMarkdown(text);
+        } else {
+            textNode.textContent = text;
+        }
         wrapper.appendChild(textNode);
         if (role === 'assistant') {
             const playBtn = document.createElement('button');
@@ -333,6 +338,20 @@ export class SpeakingTrainer {
         this.conversation.appendChild(wrapper);
         this.conversation.scrollTop = this.conversation.scrollHeight;
         this.messages.push({ role, text });
+    }
+
+    renderMarkdown(text) {
+        return (text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    }
+
+    stripMarkdown(text) {
+        return (text || '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*/g, '');
     }
 
     async callGemini(userText) {
@@ -407,10 +426,11 @@ export class SpeakingTrainer {
     speakGerman(text, times = 1) {
         if (!('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
+        const cleanText = this.stripMarkdown(text);
         const voice = this.getSelectedVoice();
         const speakOnce = (remaining) => {
             if (remaining <= 0) return;
-            const utter = new SpeechSynthesisUtterance(text);
+            const utter = new SpeechSynthesisUtterance(cleanText);
             utter.lang = 'de-DE';
             utter.rate = 0.85;
             if (voice) utter.voice = voice;
