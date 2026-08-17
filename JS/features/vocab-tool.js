@@ -325,9 +325,22 @@ export class VocabularyTool {
 
         this.clearCurrentDesktopGroupSelection();
 
-        const allSpans = Array.from(this.output.querySelectorAll('span'));
-        const startIndex = allSpans.indexOf(this.desktop.selectionStartSpan);
-        const currentIndex = allSpans.indexOf(currentSpan);
+        // Only word spans participate in selection. pdf2htmlEX adds structural
+        // wrapper spans (e.g. .ls11) that enclose many words; highlighting them
+        // would light up their whole subtree (unrelated words).
+        const allWordSpans = Array.from(this.output.querySelectorAll('span'))
+            .filter(s => this.isWordSpan(s));
+
+        const startIndex = allWordSpans.indexOf(this.desktop.selectionStartSpan);
+        let currentIndex = allWordSpans.indexOf(currentSpan);
+        if (currentIndex === -1 && currentSpan) {
+            const wordAncestor = currentSpan.closest
+                ? currentSpan.closest('.cursor-pointer')
+                : null;
+            if (wordAncestor) {
+                currentIndex = allWordSpans.indexOf(wordAncestor);
+            }
+        }
 
         if (startIndex === -1 || currentIndex === -1) return;
 
@@ -335,9 +348,10 @@ export class VocabularyTool {
         const end = Math.max(startIndex, currentIndex);
 
         for (let i = start; i <= end; i++) {
-            if (!allSpans[i].dataset.selectionGroup && !allSpans[i].dataset.groupId) {
-                allSpans[i].classList.add('multi-highlighted');
-                allSpans[i].dataset.selectionGroup = this.desktop.currentGroupId;
+            const span = allWordSpans[i];
+            if (!span.dataset.selectionGroup && !span.dataset.groupId) {
+                span.classList.add('multi-highlighted');
+                span.dataset.selectionGroup = this.desktop.currentGroupId;
             }
         }
     }
@@ -413,7 +427,9 @@ export class VocabularyTool {
     }
 
     getSpansBetween(startSpan, endSpan) {
-        const allSpans = Array.from(this.output.querySelectorAll('span'));
+        // Only word spans participate in selection (see updateDesktopSelection).
+        const allSpans = Array.from(this.output.querySelectorAll('span'))
+            .filter(s => this.isWordSpan(s));
         const startIndex = allSpans.indexOf(startSpan);
         const endIndex = allSpans.indexOf(endSpan);
 
@@ -591,6 +607,7 @@ export class VocabularyTool {
 
         const tooltip = document.createElement("div");
         tooltip.className = "group-tooltip";
+        if (this.htmlMode) tooltip.classList.add("html-reader-group-tooltip");
         tooltip.style.cssText = `
         position: absolute;
         background: #333;
@@ -840,6 +857,7 @@ export class VocabularyTool {
 
         const tooltip = document.createElement('div');
         tooltip.className = 'group-tooltip';
+        if (this.htmlMode) tooltip.classList.add('html-reader-group-tooltip');
         tooltip.dataset.groupId = groupId;
         tooltip.style.cssText = `
             position: absolute;
