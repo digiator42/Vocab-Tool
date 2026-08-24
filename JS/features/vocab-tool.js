@@ -54,6 +54,12 @@ export class VocabularyTool {
 
         this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
+        this.lastSpokenText = '';
+        this.lastSpokenSpans = [];
+        this.sequenceMode = false;
+        this.sequenceSelection = [];
+        this.sequenceGroupId = null;
+
         this.speech = new SpeechService(this);
         this.translation = new TranslationService(this);
         this.vocabPanel = new VocabPanelManager(this);
@@ -89,6 +95,8 @@ export class VocabularyTool {
         this.setupRichPaste();
         this.setupHtmlCheckbox();
         this.speech.loadVoices();
+        this.createRepeatButton();
+        this.createFloatingToolbar();
         window.vocabTool = this;
         if (!this.isTouchDevice) {
             this.vocabSection.style.marginRight = 'calc(50% - 425px)';
@@ -373,6 +381,8 @@ export class VocabularyTool {
             return;
         }
 
+        this.lastSpokenText = selectedText;
+        this.lastSpokenSpans = selectedSpans;
         this.speech.speak(selectedText);
 
         let translation = "";
@@ -536,6 +546,9 @@ export class VocabularyTool {
         }
 
         console.log("🎯 Translating:", phrase);
+
+        this.lastSpokenText = phrase;
+        this.lastSpokenSpans = spansArr;
 
         try {
             this.speech.speak(phrase);
@@ -742,6 +755,8 @@ export class VocabularyTool {
         span.classList.add('highlighted');
         span.classList.add('loading');
 
+        this.lastSpokenText = word;
+        this.lastSpokenSpans = [span];
         this.speech.speak(word);
 
         try {
@@ -813,7 +828,10 @@ export class VocabularyTool {
             span.classList.remove("highlighted");
             delete span.dataset.selectionGroup;
             delete span.dataset.groupId;
+            delete span.dataset.sequenceGroup;
+            delete span.dataset.sequenceOrder;
             span.querySelector('.tooltip')?.remove();
+            span.querySelector('.sequence-badge')?.remove();
         });
 
         this.selectionGroups.clear();
@@ -828,6 +846,10 @@ export class VocabularyTool {
             }
         });
         this.groupTooltips.clear();
+
+        // Clean up sequence connector
+        const connector = document.getElementById('sequence-connector');
+        if (connector) connector.remove();
 
         if (this.selectionHighlight) {
             this.selectionHighlight.remove();
@@ -922,6 +944,10 @@ export class VocabularyTool {
             }
             this.groupTooltips.delete(groupId);
         }
+
+        // Clean up sequence connector
+        const connector = document.getElementById('sequence-connector');
+        if (connector) connector.remove();
 
         const attrTooltips = document.querySelectorAll(`[data-group-id="${groupId}"], [data-groupId="${groupId}"]`);
         attrTooltips.forEach(tooltip => {
@@ -1504,6 +1530,459 @@ export class VocabularyTool {
             this.useOfflineSpeak = e.target.checked;
             console.log("On Off set to:", !this.useOfflineSpeak ? "online" : "offline");
         });
+    }
+
+    repeatSpeech() {
+        if (!this.lastSpokenText) {
+            this.showNotification("No previous selection to repeat");
+            return;
+        }
+        console.log("🔁 Repeating:", this.lastSpokenText);
+        this.speech.speak(this.lastSpokenText);
+    }
+
+    toggleSequenceMode() {
+        this.sequenceMode = !this.sequenceMode;
+        const sequenceBtn = document.getElementById('toolbar-sequence-btn');
+        if (sequenceBtn) {
+            if (this.sequenceMode) {
+                sequenceBtn.classList.add('bg-blue-800', 'ring-2', 'ring-blue-400');
+                sequenceBtn.title = 'Sequence mode ON - Click words in order (Ctrl+Q to disable)';
+                this.showNotification('🔗 Sequence mode ON - Click words in order to build phrase');
+                this.sequenceSelection = [];
+                this.sequenceGroupId = null; // Reset group ID for new session
+                this.highlightSequenceWords();
+            } else {
+                sequenceBtn.classList.remove('bg-blue-800', 'ring-2', 'ring-blue-400');
+                sequenceBtn.title = 'Sequence selection mode - pick words in order (Ctrl+Q)';
+                this.showNotification('Sequence mode OFF');
+                this.clearSequenceHighlights();
+                this.sequenceSelection = [];
+                this.sequenceGroupId = null;
+            }
+        }
+    }
+
+    highlightSequenceWords() {
+        // Add click handlers to all word spans for sequence selection
+        const spans = this.output.querySelectorAll('span.cursor-pointer');
+        spans.forEach(span => {
+            if (!span.dataset.sequenceHandler) {
+                span.dataset.sequenceHandler = 'true';
+                span.style.cursor = 'crosshair';
+                span.addEventListener('click', this.handleSequenceClick.bind(this));
+            }
+        });
+    }
+
+    handleSequenceClick(e) {
+        if (!this.sequenceMode) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const span = e.target.closest('span.cursor-pointer');
+        if (!span) return;
+
+        const word = span.textContent.trim();
+        if (!word) return;
+
+        // Check if this span is already in the sequence
+        const alreadySelected = this.sequenceSelection.some(s => s.span === span);
+        if (alreadySelected) {
+            this.showNotification(`"${word}" already in sequence`);
+            return;
+        }
+
+        // Add to sequence
+        this.sequenceSelection.push({
+            word: word,
+            span: span,
+            index: this.sequenceSelection.length
+        });
+
+        // Visual feedback
+        span.classList.add('sequence-selected');
+        span.style.backgroundColor = `hsl(${this.sequenceSelection.length * 40 % 360}, 70%, 85%)`;
+        span.style.borderRadius = '4px';
+        span.style.boxShadow = '0 0 0 2px currentColor';
+
+        // Show sequence number
+        const badge = document.createElement('span');
+        badge.className = 'sequence-badge';
+        badge.textContent = this.sequenceSelection.length;
+        badge.style.cssText = `
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            z-index: 100;
+        `;
+        span.style.position = 'relative';
+        span.appendChild(badge);
+
+        this.showNotification(`Added "${word}" (#${this.sequenceSelection.length})`);
+
+        // Auto-process when we have 2+ words (but keep sequence mode active for more words)
+        if (this.sequenceSelection.length >= 2) {
+            this.processSequenceSelection();
+        }
+    }
+
+    clearSequenceHighlights() {
+        const spans = this.output.querySelectorAll('span.sequence-selected');
+        spans.forEach(span => {
+            span.classList.remove('sequence-selected');
+            span.style.backgroundColor = '';
+            span.style.borderRadius = '';
+            span.style.boxShadow = '';
+            span.style.cursor = 'pointer'; // Restore original pointer cursor
+            const badge = span.querySelector('.sequence-badge');
+            if (badge) badge.remove();
+            delete span.dataset.sequenceHandler;
+            span.removeEventListener('click', this.handleSequenceClick.bind(this));
+        });
+    }
+
+    processSequenceSelection() {
+        // Require at least 2 words for translation
+        if (this.sequenceSelection.length < 2) {
+            return;
+        }
+
+        // Build phrase in order of selection
+        const phrase = this.sequenceSelection.map(s => s.word).join(' ');
+        console.log('🔗 Sequence phrase:', phrase);
+
+        this.lastSpokenText = phrase;
+        this.lastSpokenSpans = this.sequenceSelection.map(s => s.span);
+        this.speech.speak(phrase);
+
+        // Use fixed groupId for sequence mode to reuse tooltip
+        if (!this.sequenceGroupId) {
+            this.sequenceGroupId = 'sequence_group';
+        }
+        const groupId = this.sequenceGroupId;
+
+        // Translate as a single sentence
+        this.translate(phrase).then(translation => {
+            this.showNotification(`🔗 "${phrase}" → "${translation}"`);
+
+            // Store as a selection group
+            const spans = this.sequenceSelection.map(s => s.span);
+            spans.forEach((span, i) => {
+                span.dataset.sequenceGroup = groupId;
+                span.dataset.sequenceOrder = i;
+            });
+            this.storeSelectionGroup(spans, phrase, translation, groupId);
+
+            // Update or create GROUPED tooltip spanning all selected words
+            this.updateSequenceTooltip(spans, phrase, groupId, translation);
+        });
+
+        // DON'T clear sequenceSelection - keep mode active for adding more words
+    }
+
+    updateSequenceTooltip(spans, text, groupId, translation) {
+        let tooltip = this.groupTooltips.get(groupId);
+
+        if (!tooltip) {
+            // Create new tooltip only if it doesn't exist
+            tooltip = document.createElement('div');
+            tooltip.className = 'group-tooltip sequence-tooltip';
+            if (this.htmlMode) tooltip.classList.add('html-reader-group-tooltip');
+            tooltip.dataset.groupId = groupId;
+            tooltip.style.cssText = `
+                position: absolute;
+                background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+                color: white;
+                padding: 10px 16px;
+                border-radius: 8px;
+                font-size: 15px;
+                font-weight: 500;
+                z-index: 50;
+                white-space: nowrap;
+                display: block;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                border: 2px solid #3b82f6;
+                max-width: 90vw;
+                transition: all 0.2s ease;
+            `;
+
+            tooltip.innerHTML = `
+                <div class="sequence-original" style="color: #93c5fd; font-size: 13px; margin-bottom: 4px; font-family: monospace;">${text}</div>
+                <div class="sequence-translation" style="color: #fff; font-size: 15px;">${translation}</div>
+            `;
+
+            document.body.appendChild(tooltip);
+            this.groupTooltips.set(groupId, tooltip);
+        } else {
+            // Update existing tooltip content
+            tooltip.innerHTML = `
+                <div class="sequence-original" style="color: #93c5fd; font-size: 13px; margin-bottom: 4px; font-family: monospace;">${text}</div>
+                <div class="sequence-translation" style="color: #fff; font-size: 15px;">${translation}</div>
+            `;
+        }
+
+        this.positionSequenceTooltip(tooltip, spans);
+    }
+
+    positionSequenceTooltip(tooltip, spans) {
+        if (spans.length === 0) return;
+
+        // Calculate bounding box covering all selected spans
+        let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+
+        spans.forEach(span => {
+            const rect = span.getBoundingClientRect();
+            minLeft = Math.min(minLeft, rect.left);
+            minTop = Math.min(minTop, rect.top);
+            maxRight = Math.max(maxRight, rect.right);
+            maxBottom = Math.max(maxBottom, rect.bottom);
+        });
+
+        const centerX = (minLeft + maxRight) / 2 + window.scrollX;
+        const topY = minTop + window.scrollY - tooltip.offsetHeight - 8;
+
+        tooltip.style.left = (centerX - tooltip.offsetWidth / 2) + 'px';
+        tooltip.style.top = topY + 'px';
+
+        // Add connector line from tooltip to selection area
+        this.addSequenceConnector(spans, centerX, minTop + window.scrollY);
+    }
+
+    addSequenceConnector(spans, tooltipCenterX, selectionTop) {
+        // Remove existing connector
+        const existing = document.getElementById('sequence-connector');
+        if (existing) existing.remove();
+
+        const connector = document.createElement('div');
+        connector.id = 'sequence-connector';
+        connector.style.cssText = `
+            position: absolute;
+            left: ${tooltipCenterX}px;
+            top: ${selectionTop}px;
+            width: 2px;
+            height: 8px;
+            background: #3b82f6;
+            z-index: 49;
+            pointer-events: none;
+        `;
+        document.body.appendChild(connector);
+    }
+
+    createRepeatButton() {
+        const repeatBtn = document.createElement('button');
+        repeatBtn.id = "repeatBtn";
+        repeatBtn.className = "px-4 py-2 bg-orange-600 text-white rounded-lg shadow hover:bg-orange-700";
+        repeatBtn.textContent = "🔁 Repeat";
+        repeatBtn.title = "Repeat last selection";
+        const extraToolsContainer = document.getElementById('extra-tools-container');
+        if (extraToolsContainer) {
+            extraToolsContainer.insertBefore(repeatBtn, extraToolsContainer.firstChild);
+        }
+        repeatBtn.addEventListener('click', () => this.repeatSpeech());
+    }
+
+    createFloatingToolbar() {
+        if (document.getElementById('floating-toolbar')) return;
+
+        const toolbar = document.createElement('div');
+        toolbar.id = 'floating-toolbar';
+        toolbar.className = `
+            fixed right-4 top-1/2 -translate-y-1/2
+            bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl
+            flex flex-col gap-2 p-3 z-[60]
+            transition-all duration-300 ease-in-out
+            min-w-[56px]
+        `;
+        toolbar.style.cursor = 'grab';
+        toolbar.innerHTML = `
+            <div class="toolbar-handle flex items-center justify-center mb-1 opacity-50 hover:opacity-100 cursor-grab" title="Drag to move">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16M4 12h16"/>
+                </svg>
+            </div>
+            <button id="toolbar-repeat-btn" class="toolbar-btn p-2 bg-orange-600 text-white rounded-lg shadow hover:bg-orange-700 transition-colors" title="Repeat last selection (Ctrl+R)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+            </button>
+            <button id="toolbar-sequence-btn" class="toolbar-btn p-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors" title="Sequence selection mode - pick words in order (Q)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+            </button>
+            <button id="toolbar-speak-btn" class="toolbar-btn p-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors" title="Speak selected text (Ctrl+S)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                </svg>
+            </button>
+            <button id="toolbar-add-flash-btn" class="toolbar-btn p-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition-colors" title="Add selection to flashcards (Ctrl+A)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+            </button>
+            <button id="toolbar-clear-btn" class="toolbar-btn p-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors" title="Clear all selections (Ctrl+C)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+            <button id="toolbar-toggle-btn" class="toolbar-btn p-2 bg-gray-500 text-white rounded-lg shadow hover:bg-gray-600 transition-colors mt-1" title="Collapse/Expand">
+                <svg id="toolbar-toggle-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                </svg>
+            </button>
+        `;
+
+        document.body.appendChild(toolbar);
+
+        this.makeDraggable(toolbar);
+        this.setupFloatingToolbarEvents(toolbar);
+    }
+
+    makeDraggable(element) {
+        const handle = element.querySelector('.toolbar-handle');
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+
+        handle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = element.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+            element.style.cursor = 'grabbing';
+            element.style.transition = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            let newX = initialX + dx;
+            let newY = initialY + dy;
+
+            const maxX = window.innerWidth - element.offsetWidth;
+            const maxY = window.innerHeight - element.offsetHeight;
+            newX = Math.max(0, Math.min(newX, maxX));
+            newY = Math.max(0, Math.min(newY, maxY));
+
+            element.style.left = `${newX}px`;
+            element.style.top = `${newY}px`;
+            element.style.right = 'auto';
+            element.style.transform = 'none';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                element.style.cursor = 'grab';
+                element.style.transition = 'all 0.3s ease-in-out';
+            }
+        });
+
+        // Touch support
+        handle.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            const rect = element.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+            element.style.transition = 'none';
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const dx = e.touches[0].clientX - startX;
+            const dy = e.touches[0].clientY - startY;
+            let newX = initialX + dx;
+            let newY = initialY + dy;
+
+            const maxX = window.innerWidth - element.offsetWidth;
+            const maxY = window.innerHeight - element.offsetHeight;
+            newX = Math.max(0, Math.min(newX, maxX));
+            newY = Math.max(0, Math.min(newY, maxY));
+
+            element.style.left = `${newX}px`;
+            element.style.top = `${newY}px`;
+            element.style.right = 'auto';
+            element.style.transform = 'none';
+        }, { passive: false });
+
+        document.addEventListener('touchend', () => {
+            if (isDragging) {
+                isDragging = false;
+                element.style.transition = 'all 0.3s ease-in-out';
+            }
+        });
+    }
+
+    setupFloatingToolbarEvents(toolbar) {
+        const repeatBtn = toolbar.querySelector('#toolbar-repeat-btn');
+        const sequenceBtn = toolbar.querySelector('#toolbar-sequence-btn');
+        const speakBtn = toolbar.querySelector('#toolbar-speak-btn');
+        const addFlashBtn = toolbar.querySelector('#toolbar-add-flash-btn');
+        const clearBtn = toolbar.querySelector('#toolbar-clear-btn');
+        const toggleBtn = toolbar.querySelector('#toolbar-toggle-btn');
+        const toggleIcon = toolbar.querySelector('#toolbar-toggle-icon');
+        const toolButtons = toolbar.querySelectorAll('.toolbar-btn:not(#toolbar-toggle-btn)');
+
+        let isCollapsed = false;
+
+        repeatBtn.onclick = () => this.repeatSpeech();
+
+        sequenceBtn.onclick = () => this.toggleSequenceMode();
+
+        speakBtn.onclick = () => {
+            const selection = window.getSelection();
+            if (selection.toString().trim()) {
+                this.speech.speak(selection.toString().trim());
+            } else if (this.lastSpokenText) {
+                this.repeatSpeech();
+            }
+        };
+
+        addFlashBtn.onclick = () => {
+            const addToFlashBtn = document.getElementById('addToFlashBtn');
+            if (addToFlashBtn) addToFlashBtn.click();
+        };
+
+        clearBtn.onclick = () => this.clearAllSelections();
+
+        toggleBtn.onclick = () => {
+            isCollapsed = !isCollapsed;
+            toolButtons.forEach(btn => {
+                btn.style.display = isCollapsed ? 'none' : 'flex';
+            });
+            toggleIcon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+            toolbar.style.minWidth = isCollapsed ? '48px' : '56px';
+        };
+
+        // Keyboard shortcuts
+        const handleKeydown = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            switch(e.key.toLowerCase()) {
+                case 'r': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.repeatSpeech(); } break;
+                case 'q': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.toggleSequenceMode(); } break;
+                case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); speakBtn.click(); } break;
+                case 'a': if (e.ctrlKey || e.metaKey) { e.preventDefault(); addFlashBtn.click(); } break;
+                case 'c': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.clearAllSelections(); } break;
+            }
+        };
+        document.addEventListener('keydown', handleKeydown);
+        toolbar.dataset.keydownHandler = 'true';
     }
 
     // Add to Flashcard functionality
@@ -2647,6 +3126,9 @@ export class VocabularyTool {
             <button id="focus-play-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors">
             ${originalPlayBtn.innerText}
             </button>
+            <button id="focus-repeat-btn" class="px-3 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700 transition-colors" title="Repeat last selection">
+                🔁 Repeat
+            </button>
             <button id="focus-stop-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors">
             Stop Speech
             </button>
@@ -2689,6 +3171,7 @@ export class VocabularyTool {
 
         const focusGoBtn = focusControls.querySelector('#focus-go-btn');
         const focusPlayBtn = focusControls.querySelector('#focus-play-btn');
+        const focusRepeatBtn = focusControls.querySelector('#focus-repeat-btn');
         const focusStopBtn = focusControls.querySelector('#focus-stop-btn');
         const focusAddFlashBtn = focusControls.querySelector('#focus-add-flash-btn');
         const focusRateSlider = focusControls.querySelector('#focus-rate-slider');
@@ -2737,6 +3220,7 @@ export class VocabularyTool {
 
         focusGoBtn.onclick = () => originalProcessBtn.click();
         focusPlayBtn.onclick = () => originalPlayBtn.click();
+        focusRepeatBtn.onclick = () => this.repeatSpeech();
         focusStopBtn.onclick = () => originalStopBtn.click();
 
         if (originalAddToFlashBtn) {
