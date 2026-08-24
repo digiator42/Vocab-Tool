@@ -95,7 +95,6 @@ export class VocabularyTool {
         this.setupRichPaste();
         this.setupHtmlCheckbox();
         this.speech.loadVoices();
-        this.createRepeatButton();
         this.createFloatingToolbar();
         window.vocabTool = this;
         if (!this.isTouchDevice) {
@@ -869,7 +868,8 @@ export class VocabularyTool {
     }
 
     storeSelectionGroup(spans, text, translation, groupId) {
-        const actualText = spans.map(span => span.textContent.trim()).join(' ');
+        // Use getSpanTextContent to get clean word text (excludes badges/tooltips)
+        const actualText = spans.map(span => this.getSpanTextContent(span)).join(' ');
 
         const group = {
             spans: [...spans],
@@ -1547,14 +1547,14 @@ export class VocabularyTool {
         if (sequenceBtn) {
             if (this.sequenceMode) {
                 sequenceBtn.classList.add('bg-blue-800', 'ring-2', 'ring-blue-400');
-                sequenceBtn.title = 'Sequence mode ON - Click words in order (Ctrl+Q to disable)';
+                sequenceBtn.title = 'Sequence mode ON - Click words in order (Alt+Q to disable)';
                 this.showNotification('🔗 Sequence mode ON - Click words in order to build phrase');
                 this.sequenceSelection = [];
                 this.sequenceGroupId = null; // Reset group ID for new session
                 this.highlightSequenceWords();
             } else {
                 sequenceBtn.classList.remove('bg-blue-800', 'ring-2', 'ring-blue-400');
-                sequenceBtn.title = 'Sequence selection mode - pick words in order (Ctrl+Q)';
+                sequenceBtn.title = 'Sequence selection mode - pick words in order (Alt+Q)';
                 this.showNotification('Sequence mode OFF');
                 this.clearSequenceHighlights();
                 this.sequenceSelection = [];
@@ -1779,19 +1779,6 @@ export class VocabularyTool {
         document.body.appendChild(connector);
     }
 
-    createRepeatButton() {
-        const repeatBtn = document.createElement('button');
-        repeatBtn.id = "repeatBtn";
-        repeatBtn.className = "px-4 py-2 bg-orange-600 text-white rounded-lg shadow hover:bg-orange-700";
-        repeatBtn.textContent = "🔁 Repeat";
-        repeatBtn.title = "Repeat last selection";
-        const extraToolsContainer = document.getElementById('extra-tools-container');
-        if (extraToolsContainer) {
-            extraToolsContainer.insertBefore(repeatBtn, extraToolsContainer.firstChild);
-        }
-        repeatBtn.addEventListener('click', () => this.repeatSpeech());
-    }
-
     createFloatingToolbar() {
         if (document.getElementById('floating-toolbar')) return;
 
@@ -1811,27 +1798,27 @@ export class VocabularyTool {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16M4 12h16"/>
                 </svg>
             </div>
-            <button id="toolbar-repeat-btn" class="toolbar-btn p-2 bg-orange-600 text-white rounded-lg shadow hover:bg-orange-700 transition-colors" title="Repeat last selection (Ctrl+R)">
+            <button id="toolbar-repeat-btn" class="toolbar-btn p-2 bg-orange-600 text-white rounded-lg shadow hover:bg-orange-700 transition-colors" title="Repeat last selection (Alt+R)">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
             </button>
-            <button id="toolbar-sequence-btn" class="toolbar-btn p-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors" title="Sequence selection mode - pick words in order (Q)">
+            <button id="toolbar-sequence-btn" class="toolbar-btn p-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors" title="Sequence selection mode - pick words in order (Alt+Q)">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                 </svg>
             </button>
-            <button id="toolbar-speak-btn" class="toolbar-btn p-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors" title="Speak selected text (Ctrl+S)">
+            <button id="toolbar-speak-btn" class="toolbar-btn p-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-colors" title="Speak selected text (Alt+S)">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
                 </svg>
             </button>
-            <button id="toolbar-add-flash-btn" class="toolbar-btn p-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition-colors" title="Add selection to flashcards (Ctrl+A)">
+            <button id="toolbar-add-flash-btn" class="toolbar-btn p-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition-colors" title="Add selection to flashcards (Alt+A)">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
             </button>
-            <button id="toolbar-clear-btn" class="toolbar-btn p-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors" title="Clear all selections (Ctrl+C)">
+            <button id="toolbar-clear-btn" class="toolbar-btn p-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors" title="Clear all selections (Alt+C)">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
@@ -1974,11 +1961,11 @@ export class VocabularyTool {
         const handleKeydown = (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             switch(e.key.toLowerCase()) {
-                case 'r': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.repeatSpeech(); } break;
-                case 'q': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.toggleSequenceMode(); } break;
-                case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); speakBtn.click(); } break;
-                case 'a': if (e.ctrlKey || e.metaKey) { e.preventDefault(); addFlashBtn.click(); } break;
-                case 'c': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.clearAllSelections(); } break;
+                case 'r': if (e.altKey) { e.preventDefault(); this.repeatSpeech(); } break;
+                case 'q': if (e.altKey) { e.preventDefault(); this.toggleSequenceMode(); } break;
+                case 's': if (e.altKey) { e.preventDefault(); speakBtn.click(); } break;
+                case 'a': if (e.altKey) { e.preventDefault(); addFlashBtn.click(); } break;
+                case 'c': if (e.altKey) { e.preventDefault(); this.clearAllSelections(); } break;
             }
         };
         document.addEventListener('keydown', handleKeydown);
@@ -2105,7 +2092,7 @@ export class VocabularyTool {
                 text: group.text,
                 translation: group.translation,
                 spanCount: group.spans ? group.spans.length : 0,
-                spans: group.spans ? group.spans.map(s => s.textContent.trim()) : [],
+                spans: group.spans ? group.spans.map(s => this.getSpanTextContent(s)) : [],
                 rawGroupData: group // Log the entire group object
             });
 
@@ -2128,7 +2115,7 @@ export class VocabularyTool {
             });
 
             if (isRealGroup || isMobileGroup || isDesktopGroup) {
-                const words = group.spans ? group.spans.map(span => span.textContent.trim()) : [];
+                const words = group.spans ? group.spans.map(span => this.getSpanTextContent(span)) : [];
 
                 console.log(`📝 Finding sentence for group: "${group.text}"`);
                 console.log(`🔤 Group words:`, words);
