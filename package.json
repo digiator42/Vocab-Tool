@@ -1,0 +1,21 @@
+{
+  "name": "vocab-tool",
+  "version": "1.0.0",
+  "description": "1. **Select a Story** from the sidebar (stories are color-coded by level):\r     - 🟢 **A1** - Beginner (Green)\r     - 🟡 **A2** - Elementary (Yellow)\r     - 🔵 **B1** - Intermediate (Blue)",
+  "main": "fix-data-structure.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/digiator42/Vocab-Tool.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/digiator42/Vocab-Tool/issues"
+  },
+  "homepage": "https://github.com/digiator42/Vocab-Tool#readme"
+}
