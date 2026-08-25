@@ -84,7 +84,7 @@ export class VocabularyTool {
         this.init();
     }
 
-    init() {
+init() {
         this.setupEventListeners();
         this.setupLanguageSelector();
         this.setupAddToFlashcardModal();
@@ -95,14 +95,21 @@ export class VocabularyTool {
         this.setupPdfUpload();
         this.setupWebLoad();
         this.setupHtmlUpload();
+        this.setupYoutubeTranscript();
         this.setupRichPaste();
         this.setupHtmlCheckbox();
         this.speech.loadVoices();
+        this.createRepeatButton();
         this.createFloatingToolbar();
         window.vocabTool = this;
         if (!this.isTouchDevice) {
             this.vocabSection.style.marginRight = 'calc(50% - 425px)';
         }
+        if (this.isTouchDevice) {
+            document.querySelector('.fc-hint').textContent = '💡 Touch with 3 fingers for focus mode';
+        }
+        this.processBtn.click();
+    
         if (this.isTouchDevice) {
             document.querySelector('.fc-hint').textContent = '💡 Touch with 3 fingers for focus mode';
         }
@@ -1340,6 +1347,233 @@ export class VocabularyTool {
         container.appendChild(input);
     }
 
+    setupYoutubeTranscript() {
+        const container = document.getElementById('file-tools-container');
+        if (!container) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'youtube-transcript-btn';
+        btn.textContent = '▶ YouTube Transcript';
+        btn.className = 'px-4 py-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700';
+        btn.addEventListener('click', () => this.showYoutubeModal());
+        container.appendChild(btn);
+    }
+
+    showYoutubeModal() {
+        if (!this.youtubeModal) this.buildYoutubeModal();
+        this.youtubeModal.classList.remove('hidden');
+        if (this.youtubeUrlInput) {
+            this.youtubeUrlInput.value = '';
+            setTimeout(() => this.youtubeUrlInput.focus(), 50);
+        }
+    }
+
+    hideYoutubeModal() {
+        if (this.youtubeModal) this.youtubeModal.classList.add('hidden');
+    }
+
+    buildYoutubeModal() {
+        const modal = document.createElement('div');
+        modal.id = 'youtube-modal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[60]';
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this.hideYoutubeModal();
+        });
+
+        const box = document.createElement('div');
+        box.className = 'bg-white rounded-lg p-6 w-full max-w-lg mx-4';
+
+        const title = document.createElement('h3');
+        title.className = 'text-xl font-bold mb-2';
+        title.textContent = '▶ YouTube Transcript';
+
+        const input = document.createElement('input');
+        input.type = 'url';
+        input.id = 'youtube-url-input';
+        input.className = 'w-full p-2 border rounded mb-2';
+        input.placeholder = 'https://www.youtube.com/watch?v=... or https://youtu.be/...';
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.handleYoutubeLoad();
+        });
+
+        const hint = document.createElement('p');
+        hint.className = 'text-xs text-gray-500 mb-4';
+        hint.textContent = 'Paste a YouTube URL to fetch its transcript. Works best with videos that have captions/transcripts enabled.';
+
+        const row = document.createElement('div');
+        row.className = 'flex justify-end gap-2';
+
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.textContent = 'Cancel';
+        cancel.className = 'px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300';
+        cancel.addEventListener('click', () => this.hideYoutubeModal());
+
+        const load = document.createElement('button');
+        load.type = 'button';
+        load.id = 'youtube-load-btn';
+        load.textContent = 'Fetch Transcript';
+        load.className = 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700';
+        load.addEventListener('click', () => this.handleYoutubeLoad());
+
+        row.appendChild(cancel);
+        row.appendChild(load);
+        box.appendChild(title);
+        box.appendChild(input);
+        box.appendChild(hint);
+        box.appendChild(row);
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+
+        this.youtubeModal = modal;
+        this.youtubeUrlInput = input;
+    }
+
+    extractVideoId(url) {
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
+            /youtube\.com\/shorts\/([^&\n?#]+)/
+        ];
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match) return match[1];
+        }
+        return null;
+    }
+
+    async handleYoutubeLoad() {
+        const raw = this.youtubeUrlInput ? this.youtubeUrlInput.value.trim() : '';
+        if (!raw) return;
+
+        const videoId = this.extractVideoId(raw);
+        if (!videoId) {
+            this.setStatus('Invalid YouTube URL');
+            return;
+        }
+
+        this.hideYoutubeModal();
+        this.setStatus(`Fetching transcript for ${videoId}…`);
+
+        try {
+            const transcript = await this.fetchYoutubeTranscript(videoId);
+            if (!transcript || !transcript.length) {
+                this.setStatus('No transcript available for this video');
+                return;
+            }
+
+            // Combine transcript segments into plain text
+            const fullText = transcript.map(t => t.text).join(' ');
+
+            // Apply rich content processing (same as website)
+            this.applyRichContent({
+                text: fullText,
+                html: fullText, // plain text, will be wrapped in spans
+                url: `https://www.youtube.com/watch?v=${videoId}`,
+                source: 'youtube'
+            }, `YouTube: ${videoId}`, 'youtube');
+
+            const wordCount = fullText.split(/\s+/).filter(Boolean).length.toLocaleString();
+            this.setStatus(`Loaded YouTube transcript — ${wordCount} words`);
+            if (this.youtubeUrlInput) this.youtubeUrlInput.value = '';
+
+        } catch (err) {
+            console.error('YouTube transcript fetch failed:', err);
+            this.setStatus('Failed to fetch transcript: ' + (err.message || err));
+        }
+    }
+
+    async fetchYoutubeTranscript(videoId) {
+        // Try serverless function first (works on Vercel/Netlify/Cloudflare)
+        try {
+            const response = await fetch(`/api/youtube-transcript?videoId=${videoId}`);
+            if (response.ok) {
+                const data = await response.json();
+                return data.transcript;
+            }
+            if (response.status !== 404) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to fetch transcript');
+            }
+        } catch (e) {
+            // Serverless function not available (local dev), fall through to proxy
+        }
+
+        // Fallback: Use CORS proxies for local development
+        const corsProxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://cors-anywhere.herokuapp.com/',
+            'https://corsproxy.io/?',
+            'https://api.codetabs.com/v1/proxy?quest=',
+        ];
+
+        const tryWithProxies = async (url) => {
+            for (const proxy of corsProxies) {
+                try {
+                    const fullUrl = proxy + encodeURIComponent(url);
+                    const response = await fetch(fullUrl);
+                    if (response.ok) {
+                        return await response.text();
+                    }
+                } catch (e) {
+                    // Try next proxy
+                }
+            }
+            return null;
+        };
+
+        const transcriptUrls = [
+            `https://video.google.com/timedtext?lang=de&v=${videoId}`,
+            `https://video.google.com/timedtext?lang=en&v=${videoId}`,
+            `https://video.google.com/timedtext?lang=de-DE&v=${videoId}`,
+            `https://video.google.com/timedtext?lang=en-US&v=${videoId}`,
+            `https://yewtu.be/api/v1/captions/${videoId}`,
+        ];
+
+        for (const url of transcriptUrls) {
+            try {
+                const text = await tryWithProxies(url);
+                if (text) {
+                    if (url.includes('yewtu.be')) {
+                        return JSON.parse(text);
+                    } else {
+                        return this.parseXMLTranscript(text);
+                    }
+                }
+            } catch (e) {
+                // Try next URL
+            }
+        }
+
+        // Fallback: try noembed/oembed
+        try {
+            const text = await tryWithProxies(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+            if (text) {
+                const data = JSON.parse(text);
+                if (data.description) {
+                    return [{ text: data.description, start: 0, dur: 0 }];
+                }
+            }
+        } catch (e) { }
+
+        throw new Error('No transcript found. Video may not have captions enabled.');
+    }
+
+    parseXMLTranscript(xmlText) {
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlText, 'text/xml');
+        const texts = xml.querySelectorAll('text');
+        const result = [];
+        texts.forEach(text => {
+            const start = parseFloat(text.getAttribute('start')) || 0;
+            const dur = parseFloat(text.getAttribute('dur')) || 0;
+            const content = text.textContent.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+            if (content.trim()) {
+                result.push({ text: content.trim(), start, dur });
+            }
+        });
+        return result;
+    }
+
     async loadHtmlFile(file) {
         this.setStatus('Loading HTML file…');
         try {
@@ -1355,6 +1589,9 @@ export class VocabularyTool {
         if (!this.htmlMode || !this.htmlData) return;
         await this.htmlReader.renderHtml(this.htmlData);
         this.clearAllSelections();
+        // Ensure text layout is applied after HTML content is rendered
+        // Use a microtask to ensure it runs after any pending style changes
+        await Promise.resolve();
         this.applyTextLayoutSettings();
     }
 
@@ -1800,6 +2037,19 @@ export class VocabularyTool {
         document.body.appendChild(connector);
     }
 
+    createRepeatButton() {
+        const repeatBtn = document.createElement('button');
+        repeatBtn.id = "repeatBtn";
+        repeatBtn.className = "px-4 py-2 bg-orange-600 text-white rounded-lg shadow hover:bg-orange-700";
+        repeatBtn.textContent = "🔁 Repeat";
+        repeatBtn.title = "Repeat last selection";
+        const extraToolsContainer = document.getElementById('extra-tools-container');
+        if (extraToolsContainer) {
+            extraToolsContainer.insertBefore(repeatBtn, extraToolsContainer.firstChild);
+        }
+        repeatBtn.addEventListener('click', () => this.repeatSpeech());
+    }
+
     createFloatingToolbar() {
         if (document.getElementById('floating-toolbar')) return;
 
@@ -2037,13 +2287,34 @@ toolbar.innerHTML = `
 
         const { fontSize, wordGap, marginLeft, marginRight, marginTop, marginBottom } = this.textLayout;
 
-        // Use padding instead of margin to affect text inside the container
+        // Apply to output (main container)
         output.style.fontSize = `${fontSize}%`;
         output.style.wordSpacing = `calc(${wordGap}% - 100%)`;
         output.style.paddingLeft = `${marginLeft}px`;
         output.style.paddingRight = `${marginRight}px`;
         output.style.paddingTop = `${marginTop}px`;
         output.style.paddingBottom = `${marginBottom}px`;
+
+        // Also apply to HTML content wrapper for proper inheritance
+        const htmlContainer = output.querySelector('.html-container');
+        if (htmlContainer) {
+            htmlContainer.style.fontSize = `${fontSize}%`;
+            htmlContainer.style.wordSpacing = `calc(${wordGap}% - 100%)`;
+        }
+
+        // Apply to PDF reader content wrapper if present
+        const pdfContainer = output.querySelector('.pdf-container, .pdf-pages, #pdf-page-container');
+        if (pdfContainer) {
+            pdfContainer.style.fontSize = `${fontSize}%`;
+            pdfContainer.style.wordSpacing = `calc(${wordGap}% - 100%)`;
+        }
+
+        // For HTML content from pdf2htmlEX, spans have inline font-size from parent divs
+        // Apply font-size directly to all cursor-pointer spans to override
+        const wordSpans = output.querySelectorAll('span.cursor-pointer');
+        wordSpans.forEach(span => {
+            span.style.fontSize = `${fontSize}%`;
+        });
     }
 
     toggleTextLayoutPanel() {

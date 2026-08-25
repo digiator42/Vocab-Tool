@@ -224,7 +224,8 @@ export class HtmlReader {
         output.style.whiteSpace = 'normal';
         output.style.textAlign = 'left';
         output.style.lineHeight = '';
-        output.style.padding = '';
+        // Don't reset padding - preserve text layout settings from vocab tool
+        // output.style.padding = '';
 
         this.renderedPages = 0;
 
@@ -491,6 +492,9 @@ export class HtmlReader {
             }
         };
 
+        // Get font size from main vocab tool's text layout settings
+        const fontSize = this.main?.textLayout?.fontSize || 100;
+
         const walk = async (node) => {
             if (this._cancelled) return;
 
@@ -510,6 +514,8 @@ export class HtmlReader {
                     span.className = 'inline-block relative cursor-pointer hover:bg-yellow-100 rounded mx-0 max-w-full';
                     span.style.wordWrap = 'break-word';
                     span.style.overflowWrap = 'break-word';
+                    // Apply font size directly to span to override parent inline styles
+                    span.style.fontSize = `${fontSize}%`;
                     frag.appendChild(span);
                     await yieldIfNeeded();
                 }
