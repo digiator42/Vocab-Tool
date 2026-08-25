@@ -60,6 +60,9 @@ export class VocabularyTool {
         this.sequenceSelection = [];
         this.sequenceGroupId = null;
 
+        // Text layout settings
+        this.textLayout = this.loadTextLayoutSettings();
+
         this.speech = new SpeechService(this);
         this.translation = new TranslationService(this);
         this.vocabPanel = new VocabPanelManager(this);
@@ -1260,6 +1263,7 @@ export class VocabularyTool {
             ? `Website loaded: ${this.webData.url}`
             : 'Formatted text loaded');
         this.clearAllSelections();
+        this.applyTextLayoutSettings();
     }
 
     wrapWordsInSpans(container) {
@@ -1351,6 +1355,7 @@ export class VocabularyTool {
         if (!this.htmlMode || !this.htmlData) return;
         await this.htmlReader.renderHtml(this.htmlData);
         this.clearAllSelections();
+        this.applyTextLayoutSettings();
     }
 
     exitHtmlMode() {
@@ -1412,6 +1417,7 @@ export class VocabularyTool {
 
         this.setStatus("Text processed");
         this.clearAllSelections();
+        this.applyTextLayoutSettings();
     }
 
     exitPdfMode() {
@@ -1638,17 +1644,32 @@ export class VocabularyTool {
     }
 
     clearSequenceHighlights() {
-        const spans = this.output.querySelectorAll('span.sequence-selected');
-        spans.forEach(span => {
+        // Clear ALL spans that have sequence handler (not just selected ones)
+        const allSpans = this.output.querySelectorAll('span.cursor-pointer');
+        allSpans.forEach(span => {
+            if (span.dataset.sequenceHandler) {
+                span.classList.remove('sequence-selected');
+                span.style.backgroundColor = '';
+                span.style.borderRadius = '';
+                span.style.boxShadow = '';
+                span.style.cursor = 'pointer'; // Restore original pointer cursor
+                const badge = span.querySelector('.sequence-badge');
+                if (badge) badge.remove();
+                delete span.dataset.sequenceHandler;
+                span.removeEventListener('click', this.handleSequenceClick.bind(this));
+            }
+        });
+
+        // Also clear any selected spans that might not have handler anymore
+        const selectedSpans = this.output.querySelectorAll('span.sequence-selected');
+        selectedSpans.forEach(span => {
             span.classList.remove('sequence-selected');
             span.style.backgroundColor = '';
             span.style.borderRadius = '';
             span.style.boxShadow = '';
-            span.style.cursor = 'pointer'; // Restore original pointer cursor
+            span.style.cursor = 'pointer';
             const badge = span.querySelector('.sequence-badge');
             if (badge) badge.remove();
-            delete span.dataset.sequenceHandler;
-            span.removeEventListener('click', this.handleSequenceClick.bind(this));
         });
     }
 
@@ -1792,7 +1813,7 @@ export class VocabularyTool {
             min-w-[56px]
         `;
         toolbar.style.cursor = 'grab';
-        toolbar.innerHTML = `
+toolbar.innerHTML = `
             <div class="toolbar-handle flex items-center justify-center mb-1 opacity-50 hover:opacity-100 cursor-grab" title="Drag to move">
                 <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16M4 12h16"/>
@@ -1823,6 +1844,11 @@ export class VocabularyTool {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
             </button>
+            <button id="toolbar-layout-btn" class="toolbar-btn p-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition-colors" title="Text layout settings (Alt+L)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16M4 6v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2z"/>
+                </svg>
+            </button>
             <button id="toolbar-toggle-btn" class="toolbar-btn p-2 bg-gray-500 text-white rounded-lg shadow hover:bg-gray-600 transition-colors mt-1" title="Collapse/Expand">
                 <svg id="toolbar-toggle-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
@@ -1838,10 +1864,15 @@ export class VocabularyTool {
 
     makeDraggable(element) {
         const handle = element.querySelector('.toolbar-handle');
+        if (!handle) return; // No handle, not draggable
+
         let isDragging = false;
         let startX, startY, initialX, initialY;
 
         handle.addEventListener('mousedown', (e) => {
+            // Don't start dragging if clicking on a button
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
@@ -1881,6 +1912,8 @@ export class VocabularyTool {
 
         // Touch support
         handle.addEventListener('touchstart', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
             isDragging = true;
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
@@ -1966,10 +1999,229 @@ export class VocabularyTool {
                 case 's': if (e.altKey) { e.preventDefault(); speakBtn.click(); } break;
                 case 'a': if (e.altKey) { e.preventDefault(); addFlashBtn.click(); } break;
                 case 'c': if (e.altKey) { e.preventDefault(); this.clearAllSelections(); } break;
+                case 'l': if (e.altKey) { e.preventDefault(); this.toggleTextLayoutPanel(); } break;
             }
         };
         document.addEventListener('keydown', handleKeydown);
         toolbar.dataset.keydownHandler = 'true';
+
+        // Layout button
+        const layoutBtn = toolbar.querySelector('#toolbar-layout-btn');
+        layoutBtn.onclick = () => this.toggleTextLayoutPanel();
+    }
+
+    loadTextLayoutSettings() {
+        const defaults = {
+            fontSize: 100,
+            wordGap: 110,
+            marginLeft: 0,
+            marginRight: 6,
+            marginTop: 0,
+            marginBottom: 0
+        };
+        try {
+            const saved = localStorage.getItem('textLayoutSettings');
+            return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+        } catch {
+            return defaults;
+        }
+    }
+
+    saveTextLayoutSettings() {
+        localStorage.setItem('textLayoutSettings', JSON.stringify(this.textLayout));
+    }
+
+    applyTextLayoutSettings() {
+        const output = this.output;
+        if (!output) return;
+
+        const { fontSize, wordGap, marginLeft, marginRight, marginTop, marginBottom } = this.textLayout;
+
+        // Use padding instead of margin to affect text inside the container
+        output.style.fontSize = `${fontSize}%`;
+        output.style.wordSpacing = `calc(${wordGap}% - 100%)`;
+        output.style.paddingLeft = `${marginLeft}px`;
+        output.style.paddingRight = `${marginRight}px`;
+        output.style.paddingTop = `${marginTop}px`;
+        output.style.paddingBottom = `${marginBottom}px`;
+    }
+
+    toggleTextLayoutPanel() {
+        const existing = document.getElementById('text-layout-panel');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        this.createTextLayoutPanel();
+    }
+
+    createTextLayoutPanel() {
+        const panel = document.createElement('div');
+        panel.id = 'text-layout-panel';
+        panel.className = `
+            fixed right-4 top-1/2 -translate-y-1/2
+            bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl
+            p-4 z-[60] min-w-[280px] max-w-[320px]
+            transition-all duration-300 ease-in-out
+        `;
+        panel.style.cursor = 'default';
+
+        const { fontSize, wordGap, marginLeft, marginRight, marginTop, marginBottom } = this.textLayout;
+
+        panel.innerHTML = `
+            <div class="toolbar-handle flex items-center justify-between mb-4 cursor-grab" title="Drag to move">
+                <h3 class="font-semibold text-gray-800 text-lg">Text Layout</h3>
+                <button id="layout-close-btn" class="p-1 text-gray-500 hover:text-gray-700" title="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="layout-setting">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">Text Size</span>
+                        <span id="layout-fontSize-val" class="text-sm text-indigo-600 font-mono">${fontSize}%</span>
+                    </div>
+                    <input type="range" min="50" max="200" step="1" value="${fontSize}"
+                        data-key="fontSize" data-unit="%"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+
+                <div class="layout-setting">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">Word Spacing</span>
+                        <span id="layout-wordGap-val" class="text-sm text-indigo-600 font-mono">${wordGap}%</span>
+                    </div>
+                    <input type="range" min="50" max="250" step="1" value="${wordGap}"
+                        data-key="wordGap" data-unit="%"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+
+                <div class="layout-setting">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">Left Margin</span>
+                        <span id="layout-marginLeft-val" class="text-sm text-indigo-600 font-mono">${marginLeft}px</span>
+                    </div>
+                    <input type="range" min="-60" max="100" step="1" value="${marginLeft}"
+                        data-key="marginLeft" data-unit="px"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+
+                <div class="layout-setting">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">Right Margin</span>
+                        <span id="layout-marginRight-val" class="text-sm text-indigo-600 font-mono">${marginRight}px</span>
+                    </div>
+                    <input type="range" min="-60" max="100" step="1" value="${marginRight}"
+                        data-key="marginRight" data-unit="px"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+
+                <div class="layout-setting">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">Top Margin</span>
+                        <span id="layout-marginTop-val" class="text-sm text-indigo-600 font-mono">${marginTop}px</span>
+                    </div>
+                    <input type="range" min="-60" max="100" step="1" value="${marginTop}"
+                        data-key="marginTop" data-unit="px"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+
+                <div class="layout-setting">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">Bottom Margin</span>
+                        <span id="layout-marginBottom-val" class="text-sm text-indigo-600 font-mono">${marginBottom}px</span>
+                    </div>
+                    <input type="range" min="-60" max="100" step="1" value="${marginBottom}"
+                        data-key="marginBottom" data-unit="px"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+
+                <button id="layout-reset-btn" class="w-full mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium">
+                    Reset to defaults
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(panel);
+
+        // Position panel next to toolbar
+        const toolbar = document.getElementById('floating-toolbar');
+        if (toolbar) {
+            const toolbarRect = toolbar.getBoundingClientRect();
+            const panelWidth = panel.offsetWidth || 300;
+            const leftPos = toolbarRect.left - panelWidth - 12;
+
+            // If not enough space on left, position on right
+            if (leftPos < 10) {
+                panel.style.left = 'auto';
+                panel.style.right = `${window.innerWidth - toolbarRect.right + 12}px`;
+            } else {
+                panel.style.left = `${leftPos}px`;
+                panel.style.right = 'auto';
+            }
+            panel.style.top = `${toolbarRect.top}px`;
+            panel.style.transform = 'none';
+        }
+
+        // Make panel draggable
+        this.makeDraggable(panel);
+
+        // Setup event listeners
+        this.setupTextLayoutPanelEvents(panel);
+
+        // Apply current settings
+        this.applyTextLayoutSettings();
+    }
+
+    setupTextLayoutPanelEvents(panel) {
+        const closeBtn = panel.querySelector('#layout-close-btn');
+        const resetBtn = panel.querySelector('#layout-reset-btn');
+        const sliders = panel.querySelectorAll('input[type="range"]');
+
+        closeBtn.onclick = () => panel.remove();
+
+        resetBtn.onclick = () => {
+            this.textLayout = {
+                fontSize: 100,
+                wordGap: 110,
+                marginLeft: 0,
+                marginRight: 6,
+                marginTop: 0,
+                marginBottom: 0
+            };
+            this.saveTextLayoutSettings();
+            this.applyTextLayoutSettings();
+            this.updateLayoutPanelValues(panel);
+        };
+
+        sliders.forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const key = e.target.dataset.key;
+                const value = parseInt(e.target.value);
+                this.textLayout[key] = value;
+                this.saveTextLayoutSettings();
+                this.applyTextLayoutSettings();
+                this.updateLayoutPanelValue(panel, key, value);
+            });
+        });
+    }
+
+    updateLayoutPanelValues(panel) {
+        Object.keys(this.textLayout).forEach(key => {
+            this.updateLayoutPanelValue(panel, key, this.textLayout[key]);
+        });
+    }
+
+    updateLayoutPanelValue(panel, key, value) {
+        const unit = key.includes('fontSize') || key.includes('wordGap') ? '%' : 'px';
+        const valEl = panel.querySelector(`#layout-${key}-val`);
+        const slider = panel.querySelector(`input[data-key="${key}"]`);
+        if (valEl) valEl.textContent = `${value}${unit}`;
+        if (slider) slider.value = value;
     }
 
     // Add to Flashcard functionality
