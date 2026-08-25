@@ -99,7 +99,6 @@ init() {
         this.setupRichPaste();
         this.setupHtmlCheckbox();
         this.speech.loadVoices();
-        this.createRepeatButton();
         this.createFloatingToolbar();
         window.vocabTool = this;
         if (!this.isTouchDevice) {
@@ -2035,19 +2034,6 @@ init() {
             pointer-events: none;
         `;
         document.body.appendChild(connector);
-    }
-
-    createRepeatButton() {
-        const repeatBtn = document.createElement('button');
-        repeatBtn.id = "repeatBtn";
-        repeatBtn.className = "px-4 py-2 bg-orange-600 text-white rounded-lg shadow hover:bg-orange-700";
-        repeatBtn.textContent = "🔁 Repeat";
-        repeatBtn.title = "Repeat last selection";
-        const extraToolsContainer = document.getElementById('extra-tools-container');
-        if (extraToolsContainer) {
-            extraToolsContainer.insertBefore(repeatBtn, extraToolsContainer.firstChild);
-        }
-        repeatBtn.addEventListener('click', () => this.repeatSpeech());
     }
 
     createFloatingToolbar() {
