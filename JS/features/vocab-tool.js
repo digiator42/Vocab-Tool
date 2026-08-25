@@ -2012,12 +2012,12 @@ toolbar.innerHTML = `
 
     loadTextLayoutSettings() {
         const defaults = {
-            fontSize: 100,
+            fontSize: 122,
             wordGap: 110,
-            marginLeft: 0,
-            marginRight: 6,
-            marginTop: 0,
-            marginBottom: 0
+            marginLeft: 55,
+            marginRight: 40,
+            marginTop: 50,
+            marginBottom: 50
         };
         try {
             const saved = localStorage.getItem('textLayoutSettings');
@@ -2186,12 +2186,12 @@ toolbar.innerHTML = `
 
         resetBtn.onclick = () => {
             this.textLayout = {
-                fontSize: 100,
+                fontSize: 122,
                 wordGap: 110,
-                marginLeft: 0,
-                marginRight: 6,
-                marginTop: 0,
-                marginBottom: 0
+                marginLeft: 55,
+                marginRight: 40,
+                marginTop: 50,
+                marginBottom: 50
             };
             this.saveTextLayoutSettings();
             this.applyTextLayoutSettings();
